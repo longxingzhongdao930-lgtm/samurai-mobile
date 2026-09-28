@@ -1435,6 +1435,28 @@ export class Editor {
       .name('Respawn all');
 
     // Authored rather than imported — the export carries no textures at all.
+    const a = settings.enemyAI;
+    const brain = enemies.addFolder('AI');
+    brain.add(a, 'enabled').name('AI enabled');
+    R(brain, a, 'detectRadius', 2, 40, 0.5, 'notices within (m)');
+    R(brain, a, 'reactTime', 0, 2, 0.01, 'reaction (s)');
+    R(brain, a, 'walkSpeed', 0, 5, 0.05, 'walk (m/s)');
+    R(brain, a, 'engageDistance', 0.8, 4, 0.05, 'stops at (m)');
+    R(brain, a, 'waitDistance', 2, 10, 0.1, 'others wait at (m)');
+    R(brain, a, 'maxEngaged', 0, 12, 1, 'closing in at once');
+    R(brain, a, 'attackRange', 0.8, 4, 0.05, 'swings within (m)');
+    R(brain, a, 'maxAttackers', 0, 8, 1, 'swinging at once');
+    R(brain, a, 'attackGap', 0, 3, 0.05, 'gap between swings (s)');
+    R(brain, a, 'cooldownMin', 0, 6, 0.05, 'own cooldown min (s)');
+    R(brain, a, 'cooldownMax', 0, 8, 0.05, 'own cooldown max (s)');
+    R(brain, a, 'recoverTime', 0, 3, 0.05, 'open after swing (s)');
+    R(brain, a, 'hitReach', 0.5, 4, 0.05, 'blow reaches (m)');
+    R(brain, a, 'hitArc', 20, 360, 1, 'blow arc (°)');
+    brain.addColor(a, 'telegraphColor').name('wind-up colour');
+    R(brain, a, 'telegraphEmissive', 0, 15, 0.1, 'wind-up glow');
+    R(brain, a, 'knockback', 0, 10, 0.1, 'shoves you (m/s)');
+    brain.close();
+
     const look = enemies.addFolder('Look');
     const el = e.look;
     look.addColor(el, 'color').name('body colour');

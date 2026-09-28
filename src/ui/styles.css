@@ -1674,3 +1674,34 @@ body.cs-open .combo-count {
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------ hurt flash */
+
+/* An enemy's blow landing: the edges of the frame flare red and fade. */
+.hurt-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 16;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(200, 24, 12, 0.55) 100%);
+}
+
+.hurt-flash.is-on {
+  animation: hurt-flash 0.45s ease-out;
+}
+
+@keyframes hurt-flash {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hurt-flash.is-on {
+    animation-duration: 0.2s;
+  }
+}

@@ -336,6 +336,10 @@ export class App {
     this.toast = new Toast();
     // Hits in a row, and how many fell — the crowd fight's running score.
     this.comboCounter = new ComboCounter();
+    // The red at the edges of the screen when an enemy's blow lands.
+    this._hurtFlash = document.createElement('div');
+    this._hurtFlash.className = 'hurt-flash';
+    document.body.appendChild(this._hurtFlash);
     // On a phone the readout and the editor start put away: both would sit over
     // the buttons. The Editor button in the top bar brings the editor back.
     this.stats = new Stats({ visible: !TOUCH });
@@ -799,6 +803,30 @@ export class App {
     }
   }
 
+  /**
+   * An enemy's blow landed on the player.
+   *
+   * There is no health to take yet, so this is only what being hit *feels*
+   * like: the lens knocked back toward the camera, a short freeze, the edges
+   * of the screen flaring red, a thump, and the body shoved back along the
+   * blow.
+   */
+  _onPlayerHit(enemy, x, z) {
+    const ai = settings.enemyAI;
+    this.rig.shake(ai.hitShake);
+    this.rig.punch(-x, -z, ai.hitShake * 0.6, 0, ai.hitShake * settings.combat.roll);
+    this._hitStop = Math.max(this._hitStop, ai.hitStop);
+    this._hitStopScale = ai.hitStopScale;
+    this._hitRelease = 0;
+    this.controller.knock(x, z, ai.knockback);
+    const p = this.character.position;
+    this.audio.impact({ x: p.x, y: p.y + 1, z: p.z }, { cut: false, strength: 0.7 });
+    const flash = this._hurtFlash;
+    flash.classList.remove('is-on');
+    void flash.offsetWidth;
+    flash.classList.add('is-on');
+  }
+
   /** Blows and bodies fill the gauge — but not the Musou's own. */
   _feedMusou(lethal) {
     const config = settings.musou;
@@ -1165,6 +1193,18 @@ export class App {
     }
     this.controller.musouReady = () => this.musouGauge >= settings.musou.max;
     this.controller.onMusouStart = () => this._startMusou();
+    // The bodies walk and swing with the player's own clips, rebuilt for their
+    // rig — before the first of them stands up, so every one has them.
+    const clips = this.character.clips;
+    this.enemies.setMotions({
+      walk: clips.get('walk'),
+      attacks: { kick: clips.get('kick'), slashHit: clips.get('slashHit') }
+    });
+    this.enemies.onPlayerHit = (enemy, x, z) => this._onPlayerHit(enemy, x, z);
+    // Not in the air, and not while the Musou is running — it is the player's
+    // moment, and a blow landing in the middle of it would take it back.
+    this.enemies.canHitPlayer = () =>
+      !this.character.flight?.active && !this.character.musou?.some((move) => move.locked);
     // Stood up now rather than on the first frame, so their materials are in
     // the scene for the shader warm-up below.
     this.enemies.respawnAll();
@@ -1346,6 +1386,9 @@ export class App {
     // the character, because where the player is standing is what they watch,
     // what they are spawned around, and what the kick's reach was measured
     // against this frame.
+    // No new swings while the Musou runs or the body is in the air.
+    this.enemies.aiPaused =
+      !!this.character.flight?.active || !!this.character.musou?.some((move) => move.locked);
     this.enemies.update(dt, position);
     // After them, so a body that has just been felled or has just walked out of
     // the cone loses its ring on the same frame it stops being a target.
@@ -1429,6 +1472,7 @@ export class App {
     this.musouShock.dispose();
     this.musouDust.dispose();
     this.comboCounter.dispose();
+    this._hurtFlash.remove();
     this.weaponFire?.dispose();
     this.characterScreen?.dispose();
     this.character.dispose();

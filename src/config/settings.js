@@ -1026,6 +1026,75 @@ export const settings = {
   },
 
   /* ------------------------------------------------------------------ */
+  /* Enemy AI                                                            */
+  /* ------------------------------------------------------------------ */
+  /**
+   * What the bodies do on their own — `combat/Enemy.js#_think`, with the
+   * shared decisions (who closes in, who may swing) in `EnemyManager`.
+   *
+   * One small state machine per body: **idle** until the player comes inside
+   * `detectRadius`, a beat to **notice**, then **chase** at a walk, **hold** at
+   * `engageDistance` facing the player, and — given leave to — a **windup**
+   * (the telegraph: the clip's wind-up played slow while the rim burns a
+   * warning colour), the **strike**, and a **recover** in which the body
+   * stands open and does nothing.
+   *
+   * Two things keep a crowd fair. Only the `maxEngaged` nearest bodies close
+   * to striking distance; the rest hold a wider ring at `waitDistance`. And
+   * only `maxAttackers` may be winding up or striking at once, with at least
+   * `attackGap` seconds between one starting and the next — so a ring of
+   * eight never swings together, and every blow can be seen coming.
+   */
+  enemyAI: {
+    enabled: true,
+    /** Metres at which a body notices the player, and seconds it takes to react. */
+    detectRadius: 14,
+    reactTime: 0.45,
+    /** Metres past `detectRadius` × this before it loses interest. */
+    loseFactor: 1.4,
+    /** Walking pace, m/s, and the walk clip's own pace (to match the legs). */
+    walkSpeed: 1.5,
+    walkClipSpeed: 1.25,
+    /** Fraction of the heading gap left after 1s while it turns (lower = snappier). */
+    turnRate: 0.004,
+    /** Where the engaged stop, and where the rest wait. */
+    engageDistance: 1.55,
+    waitDistance: 4.2,
+    maxEngaged: 4,
+    /** Metres inside which a held body may start a swing. */
+    attackRange: 2.1,
+    /** Swings in flight at once across the whole field, and seconds between two starting. */
+    maxAttackers: 2,
+    attackGap: 0.7,
+    /** Seconds a body waits after its own swing before it may ask again (random between). */
+    cooldownMin: 1.6,
+    cooldownMax: 3.2,
+    /** Seconds it stands open after the blow, doing nothing — the punish window. */
+    recoverTime: 0.7,
+    /** At contact: metres it reaches, and the full width in front it covers, degrees. */
+    hitReach: 2.2,
+    hitArc: 100,
+    /** The warning glow while it winds up. */
+    telegraphColor: '#ff3a14',
+    telegraphEmissive: 4.5,
+    /**
+     * The swings, drawn at random. Each is one of the player's clips replayed
+     * on the enemy's rig: `startAt` skips the settle-in, the stretch up to
+     * `hitAt - 0.08` is the wind-up and plays at `windupSpeed` (the tell), the
+     * blow is at `hitAt`, and `endAt` is where the body lets the clip go.
+     */
+    attacks: [
+      { clip: 'kick', startAt: 0.1, hitAt: 0.42, endAt: 0.7, windupSpeed: 0.55, speed: 1.05 },
+      { clip: 'slashHit', startAt: 0.12, hitAt: 0.4, endAt: 0.6, windupSpeed: 0.6, speed: 1.15 }
+    ],
+    /** What landing a blow does to the player: the lens, the freeze and a shove back. */
+    hitShake: 0.2,
+    hitStop: 0.06,
+    hitStopScale: 0.2,
+    knockback: 4.5
+  },
+
+  /* ------------------------------------------------------------------ */
   /* Enemies                                                             */
   /* ------------------------------------------------------------------ */
   /**

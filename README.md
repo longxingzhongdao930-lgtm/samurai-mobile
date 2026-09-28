@@ -291,6 +291,22 @@ blow meets a crowd, how a special is paced. None of its code is used.
   and standing bodies are held `spacing` apart so knockback never stacks them.
   A running hit count sits on the right.
 
+### Enemy AI
+
+Each body runs a small state machine (`combat/Enemy.js#_think`, tuned in
+`settings.enemyAI`): **idle** until the player is inside `detectRadius`, a
+moment to **notice**, **chase** at a walk, **hold** at `engageDistance`, then
+a **windup** (the player's kick or slash replayed on the enemy rig, slowed,
+with the rim burning `telegraphColor`), the **strike** — checked against
+reach and arc on the contact frame, so stepping away during the tell makes it
+miss — and a **recover** in which it stands open. A blow taken at any point
+interrupts it. `EnemyManager` decides the shared part: only the
+`maxEngaged` nearest close to striking distance (the rest wait at
+`waitDistance`), and only `maxAttackers` may be swinging at once, at least
+`attackGap` seconds apart. No new swings start during the Musou or flight.
+A landed blow shakes the lens, freezes briefly, flashes the screen edges and
+shoves the player back — there is no health yet.
+
 ### The ragdoll
 
 ![Ragdoll](docs/media/ragdoll.jpg)

@@ -1,5 +1,6 @@
 import {
   AnimationMixer,
+  LoopOnce,
   Color,
   DoubleSide,
   Group,
@@ -123,6 +124,7 @@ const _flinchAxis = /* @__PURE__ */ new Vector3();
 const _ignoreP = /* @__PURE__ */ new Vector3();
 const _ignoreS = /* @__PURE__ */ new Vector3();
 const _white = /* @__PURE__ */ new Color(1, 1, 1);
+const _warn = /* @__PURE__ */ new Color();
 
 /**
  * First peak of `x'' = -k·x - c·x'` started from rest with unit velocity — so
@@ -235,8 +237,22 @@ export class Enemy {
    * @param {{heightAt: (x: number, z: number) => number}|null} options.terrain
    * @param {{onBlood?: Function}|null} [options.effects] where a cut sends its
    *   blood. Nothing here draws it — see `vfx/BloodBurst.js`.
+   * @param {object|null} [options.motions] the walk and swings on this rig — `EnemyManager#setMotions`
+   * @param {import('./EnemyManager.js').EnemyManager|null} [options.director]
+   *   who decides who may swing, and hears when a blow lands
    */
-  constructor({ source, clip, scale, offset, localHeight, forwardYaw, terrain, effects = null }) {
+  constructor({
+    source,
+    clip,
+    scale,
+    offset,
+    localHeight,
+    forwardYaw,
+    terrain,
+    effects = null,
+    motions = null,
+    director = null
+  }) {
     this.terrain = terrain;
     this.forwardYaw = forwardYaw;
     this.effects = effects;
@@ -323,6 +339,45 @@ export class Enemy {
       this.action.time = Math.random() * this.action.getClip().duration;
       this.action.setEffectiveTimeScale(0.92 + Math.random() * 0.16);
     }
+
+    /* ---- the AI — see `_think` and `settings.enemyAI` ---- */
+    this.director = director;
+    /** Has noticed the player. Set by the AI, read by the director. */
+    this.aware = false;
+    /** One of the nearest few, allowed to stand at striking distance. Set by the director. */
+    this.engaged = false;
+    this._ai = { state: 'idle', t: 0, react: 0, cooldown: 0, wait: 0, struck: false, swing: null };
+    /** m/s it is walking at this frame — what the walk clip's weight and pace follow. */
+    this._speed = 0;
+    this._lastDt = 0;
+    this._walkWeight = 0;
+    this._attackWeight = 0;
+    /** 0..1: how far into its wind-up it is, which is how hard the rim burns. */
+    this._telegraph = 0;
+
+    this.walkAction = null;
+    if (motions?.walk) {
+      this.walkAction = this.mixer.clipAction(motions.walk);
+      this.walkAction.setEffectiveWeight(0);
+      this.walkAction.play();
+      this.walkAction.time = Math.random() * motions.walk.duration;
+    }
+    /** @type {{action: import('three').AnimationAction, config: object}[]} */
+    this.swings = (motions?.attacks ?? []).map(({ clip: swing, config }) => {
+      const action = this.mixer.clipAction(swing);
+      action.setLoop(LoopOnce, 1);
+      action.clampWhenFinished = true;
+      action.enabled = false;
+      return { action, config };
+    });
+    /** The swing playing (or fading out), if any. */
+    this._swingAction = null;
+  }
+
+  /** Winding up or striking — what the director counts against `maxAttackers`. */
+  get attacking() {
+    const state = this._ai.state;
+    return this.state === 'alive' && (state === 'windup' || state === 'strike');
   }
 
   get alive() {
@@ -435,7 +490,9 @@ export class Enemy {
 
   _live(dt, player) {
     const config = settings.enemies;
+    const thinking = settings.enemyAI.enabled && this.director && player;
 
+    if (thinking) this._blend(dt);
     this.mixer.timeScale = settings.global.animationSpeed;
     this.mixer.update(dt);
 
@@ -452,12 +509,19 @@ export class Enemy {
       if (push.x * push.x + push.z * push.z < 1e-4) push.x = push.z = 0;
     }
 
+    if (thinking) this._think(dt, player);
+
     // Re-read the floor every frame rather than at spawn: the terrain sliders
     // are live, and a body left standing in the air the moment someone moves
     // `amplitude` is the kind of thing this stage exists to avoid.
     if (this.terrain) position.y = this.terrain.heightAt(position.x, position.z);
 
     this._applyFlinch(dt);
+
+    if (thinking) {
+      this.staggerTime = Math.max(0, this.staggerTime - dt);
+      return;
+    }
 
     // Reeling: it does not get to turn and square up to you until it is over.
     if (this.staggerTime > 0) {
@@ -477,6 +541,228 @@ export class Enemy {
       MathUtils.euclideanModulo(wanted - this.facing + Math.PI, Math.PI * 2) - Math.PI;
     this.facing = damp(this.facing, this.facing + delta, config.turnRate, dt);
     this.root.rotation.y = this.facing - this.forwardYaw;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* the AI                                                              */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * One frame of the state machine: idle → notice → chase/hold → windup →
+   * strike → recover → hold. Movement is written straight onto the root; the
+   * clips it wants are weighted in `_blend` next frame.
+   *
+   * A blow taken at any point knocks it out of whatever it was doing — a
+   * wind-up is interrupted, not finished — and leaves it aware.
+   */
+  _think(dt, player) {
+    const ai = settings.enemyAI;
+    const s = this._ai;
+    const position = this.root.position;
+    const dx = player.x - position.x;
+    const dz = player.z - position.z;
+    const distance = Math.hypot(dx, dz);
+    s.t += dt;
+    this._speed = 0;
+
+    if (this.staggerTime > 0) {
+      if (this.attacking) this._endSwing();
+      this.aware = true;
+      s.state = 'recover';
+      s.wait = Math.max(s.wait, ai.recoverTime * 0.6);
+      return;
+    }
+
+    switch (s.state) {
+      case 'idle': {
+        if (distance < settings.enemies.watchRadius) this._face(dx, dz, dt, settings.enemies.turnRate);
+        if (distance < ai.detectRadius) {
+          s.state = 'notice';
+          s.t = 0;
+          // Not all at once: each takes its own moment to react.
+          s.react = ai.reactTime * (0.5 + Math.random());
+        }
+        break;
+      }
+
+      case 'notice': {
+        this._face(dx, dz, dt, ai.turnRate);
+        if (s.t >= s.react) {
+          this.aware = true;
+          s.state = 'chase';
+          s.cooldown = MathUtils.randFloat(ai.cooldownMin * 0.4, ai.cooldownMax);
+        }
+        break;
+      }
+
+      case 'chase': {
+        if (distance > ai.detectRadius * ai.loseFactor) {
+          this.aware = false;
+          s.state = 'idle';
+          break;
+        }
+        this._face(dx, dz, dt, ai.turnRate);
+        const want = this.engaged ? ai.engageDistance : ai.waitDistance;
+        if (distance > want + 0.2) {
+          // Close in, never past the mark.
+          this._step(dx / distance, dz / distance, Math.min(ai.walkSpeed, (distance - want) / dt));
+        } else if (!this.engaged && distance < want - 0.8) {
+          // Too close for one not in the fight: give ground back to the ring.
+          this._step(-dx / distance, -dz / distance, ai.walkSpeed * 0.6);
+        }
+        s.cooldown -= dt;
+        if (
+          this.engaged &&
+          distance <= ai.attackRange &&
+          s.cooldown <= 0 &&
+          this.swings.length &&
+          this.director.requestAttack()
+        ) {
+          this._beginSwing();
+        }
+        break;
+      }
+
+      case 'windup':
+      case 'strike':
+        this._swing(dt, dx, dz, distance);
+        break;
+
+      case 'recover':
+      default: {
+        // Open. It does not turn, does not step, does not swing.
+        s.wait -= dt;
+        if (s.wait <= 0) {
+          s.state = this.aware ? 'chase' : 'idle';
+          s.cooldown = MathUtils.randFloat(ai.cooldownMin, ai.cooldownMax);
+        }
+        break;
+      }
+    }
+  }
+
+  /** Walk along a unit direction at `speed` m/s. */
+  _step(ux, uz, speed) {
+    if (!(speed > 0)) return;
+    const position = this.root.position;
+    // `_think` is handed the clamped frame delta through `_lastDt`.
+    position.x += ux * speed * this._lastDt;
+    position.z += uz * speed * this._lastDt;
+    this._speed = speed;
+  }
+
+  /** Turn toward a world direction, the short way round. */
+  _face(dx, dz, dt, rate) {
+    const wanted = Math.atan2(dx, dz);
+    const delta = MathUtils.euclideanModulo(wanted - this.facing + Math.PI, Math.PI * 2) - Math.PI;
+    this.facing = damp(this.facing, this.facing + delta, rate, dt);
+    this.root.rotation.y = this.facing - this.forwardYaw;
+  }
+
+  /** Commit to one of the swings, drawn at random. The wind-up starts now. */
+  _beginSwing() {
+    const s = this._ai;
+    const swing = this.swings[Math.floor(Math.random() * this.swings.length)];
+    const action = swing.action;
+    action.reset();
+    action.enabled = true;
+    action.setEffectiveWeight(this._attackWeight);
+    action.setEffectiveTimeScale(swing.config.windupSpeed);
+    action.play();
+    action.time = swing.config.startAt * action.getClip().duration;
+    this._swingAction = action;
+    s.swing = swing;
+    s.state = 'windup';
+    s.t = 0;
+    s.struck = false;
+  }
+
+  /**
+   * The swing in flight: the slow wind-up with the rim burning, then the blow
+   * at full pace, contact at `hitAt`, and the clip let go at `endAt`.
+   */
+  _swing(dt, dx, dz, distance) {
+    const ai = settings.enemyAI;
+    const s = this._ai;
+    const config = s.swing.config;
+    const action = s.swing.action;
+    const duration = action.getClip().duration;
+    const phase = duration > 0 ? action.time / duration : 1;
+    const windupEnd = Math.max(config.startAt + 0.01, config.hitAt - 0.08);
+
+    if (phase < windupEnd) {
+      // The tell: slow, tracking the player, the warning coming up in the rim.
+      action.setEffectiveTimeScale(config.windupSpeed);
+      this._face(dx, dz, dt, ai.turnRate);
+      this._telegraph = MathUtils.clamp((phase - config.startAt) / (windupEnd - config.startAt), 0, 1);
+      return;
+    }
+
+    s.state = 'strike';
+    action.setEffectiveTimeScale(config.speed);
+    this._telegraph = Math.max(0, this._telegraph - dt * 6);
+
+    if (!s.struck && phase >= config.hitAt) {
+      s.struck = true;
+      // Contact is checked *now*, not at the start: a player who moved out of
+      // reach or round its side during the wind-up is missed.
+      const fx = Math.sin(this.facing);
+      const fz = Math.cos(this.facing);
+      const inFront =
+        distance < 0.3 ||
+        (dx * fx + dz * fz) / distance >= Math.cos(MathUtils.degToRad(ai.hitArc) * 0.5);
+      if (distance <= ai.hitReach && inFront && this.director.canHitPlayer?.() !== false) {
+        const k = distance > 1e-3 ? 1 / distance : 0;
+        this.director.onPlayerHit?.(this, dx * k || fx, dz * k || fz);
+      }
+    }
+
+    if (phase >= config.endAt) {
+      this._endSwing();
+      s.state = 'recover';
+      s.wait = ai.recoverTime;
+    }
+  }
+
+  /** Let the swing go: it fades out under the idle over the next few frames. */
+  _endSwing() {
+    const s = this._ai;
+    s.swing = null;
+    if (s.state === 'windup' || s.state === 'strike') s.state = 'recover';
+    this._telegraph = 0;
+  }
+
+  /**
+   * Weight the clips for what the AI wants: the swing while one is up, the
+   * walk while it is moving (at a pace that matches its feet), the idle under
+   * both. Damped, so every change is a blend.
+   */
+  _blend(dt) {
+    this._lastDt = dt;
+    const ai = settings.enemyAI;
+    const swinging = this._ai.swing !== null;
+
+    this._attackWeight = damp(this._attackWeight, swinging ? 1 : 0, 1e-6, dt);
+    const moving = this._speed > 0.05 ? 1 : 0;
+    this._walkWeight = damp(this._walkWeight, swinging ? 0 : moving, 1e-5, dt);
+
+    if (this._swingAction) {
+      this._swingAction.setEffectiveWeight(this._attackWeight);
+      if (!swinging && this._attackWeight < 0.01) {
+        this._swingAction.stop();
+        this._swingAction.enabled = false;
+        this._swingAction = null;
+      }
+    }
+    if (this.walkAction) {
+      this.walkAction.setEffectiveWeight(this._walkWeight);
+      this.walkAction.setEffectiveTimeScale(
+        Math.max(0.3, this._speed / Math.max(0.1, ai.walkClipSpeed))
+      );
+    }
+    if (this.action) {
+      this.action.setEffectiveWeight(Math.max(0, 1 - this._walkWeight - this._attackWeight));
+    }
   }
 
   /**
@@ -1051,6 +1337,14 @@ if (uCutSide != 0.0 && (dot(vEnemyBind, uCutNormal) - uCutOffset) * uCutSide < 0
       if (flash > 0) u.uRimColor.value.lerp(_white, flash * 0.4);
       u.uRimPower.value = look.rimPower * (1 - 0.45 * flash);
       u.uRimEmissive.value = look.rimEmissive + flash * settings.combat.flash;
+      // The wind-up's warning: the rim burns toward the telegraph colour.
+      const warn = this._telegraph;
+      if (warn > 0) {
+        copyColor(_warn, settings.enemyAI.telegraphColor);
+        u.uRimColor.value.lerp(_warn, warn);
+        u.uRimPower.value *= 1 - 0.5 * warn;
+        u.uRimEmissive.value += warn * settings.enemyAI.telegraphEmissive;
+      }
       copyColor(u.uEdgeColor.value, look.edgeColor);
       u.uEdgeEmissive.value = look.edgeEmissive;
       u.uEdgeWidth.value = look.edgeWidth;

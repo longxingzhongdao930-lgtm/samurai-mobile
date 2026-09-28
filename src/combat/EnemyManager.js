@@ -1,4 +1,4 @@
-import { Box3, Group, MathUtils, Vector3 } from 'three';
+import { AnimationClip, Box3, Group, MathUtils, PropertyBinding, Vector3 } from 'three';
 
 import { settings } from '../config/settings.js';
 import { disposeObject } from '../utils/dispose.js';
@@ -8,6 +8,11 @@ import { Enemy } from './Enemy.js';
 const ENEMY_URL = './models/enemyidle.fbx';
 
 const _v = new Vector3();
+
+/** A bone's name without its rig's namespace: `mixamorig:Hips` → `Hips`. */
+function shortBone(name) {
+  return name.split(':').pop().replace(/^mixamorig/i, '');
+}
 
 /**
  * The most bodies on the field at once — standing *and* lying dead. Thirty is
@@ -60,6 +65,22 @@ export class EnemyManager {
     this._pending = [];
 
     this.source = null;
+
+    /**
+     * The walk and the swings, retargeted onto the enemy's rig — see
+     * `setMotions`. Null until the player's clips are in.
+     * @type {{walk: import('three').AnimationClip|null, attacks: {clip: import('three').AnimationClip, config: object}[]}|null}
+     */
+    this.motions = null;
+    /**
+     * Called when a body's blow lands on the player: `(enemy, dirX, dirZ)`.
+     * What being hit *means* is the app's to decide.
+     */
+    this.onPlayerHit = null;
+    /** Set by the app while no body may start a swing (the Musou, flight, the studio). */
+    this.aiPaused = false;
+    /** Seconds until any body may start the next swing. */
+    this._attackGap = 0;
     this.clip = null;
     this._scale = 1;
     this._offset = new Vector3();
@@ -139,6 +160,67 @@ export class EnemyManager {
   /* ------------------------------------------------------------------ */
 
   /**
+   * Hand the bodies the player's walk and swings, rebuilt for their own rig.
+   *
+   * Both rigs are Mixamo's, so a track finds its joint by the same name once
+   * the namespace is stripped. The only unit that differs is the hips'
+   * translation, which is rescaled by the ratio of the two standing hip
+   * heights and frozen horizontally onto the enemy's own bind pose — the AI
+   * owns where the body is, exactly as the controller does for the player.
+   * Every other translation track is dropped: a rotation is the same on any
+   * rig, a position is not.
+   *
+   * @param {{walk?: import('three').AnimationClip|null, attacks?: Record<string, import('three').AnimationClip|null>}} clips
+   */
+  setMotions({ walk = null, attacks = {} } = {}) {
+    if (!this.source) return;
+    const walkClip = this._toEnemyClip(walk, 'enemyWalk');
+    const swings = [];
+    for (const config of settings.enemyAI.attacks) {
+      const clip = this._toEnemyClip(attacks[config.clip], `enemy:${config.clip}`);
+      if (clip) swings.push({ clip, config });
+    }
+    this.motions = { walk: walkClip, attacks: swings };
+  }
+
+  _toEnemyClip(clip, name) {
+    if (!clip) return null;
+    const bones = new Map();
+    let hips = null;
+    this.source.traverse((node) => {
+      if (!node.isBone) return;
+      const short = shortBone(node.name);
+      bones.set(node.name, node.name);
+      if (!bones.has(short)) bones.set(short, node.name);
+      if (short === 'Hips') hips = node;
+    });
+
+    const tracks = [];
+    for (const original of clip.tracks) {
+      const parsed = PropertyBinding.parseTrackName(original.name);
+      const target = bones.get(parsed.nodeName) ?? bones.get(shortBone(parsed.nodeName));
+      if (!target) continue;
+      const isPosition = parsed.propertyName === 'position';
+      if (isPosition && target !== hips?.name) continue;
+
+      const track = original.clone();
+      track.name = `${target}.${parsed.propertyName}`;
+      if (isPosition && hips) {
+        const values = track.values;
+        const standing = Math.abs(values[1]) > 1e-4 ? values[1] : 1;
+        const ratio = hips.position.y / standing;
+        for (let i = 0; i < values.length; i += 3) {
+          values[i] = hips.position.x;
+          values[i + 1] *= ratio;
+          values[i + 2] = hips.position.z;
+        }
+      }
+      tracks.push(track);
+    }
+    return tracks.length ? new AnimationClip(name, clip.duration, tracks) : null;
+  }
+
+  /**
    * @param {number} dt
    * @param {import('three').Vector3} player
    */
@@ -150,6 +232,8 @@ export class EnemyManager {
       if (this.enemies.length) this.clear();
       return;
     }
+
+    this._direct(dt);
 
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const enemy = this.enemies[i];
@@ -201,6 +285,48 @@ export class EnemyManager {
       this._pending.splice(i, 1);
       this.spawn();
     }
+  }
+
+  /**
+   * The shared half of the AI: who closes in, and whether a swing may start.
+   *
+   * The `maxEngaged` nearest bodies that have noticed the player are the ones
+   * allowed to stand at striking distance; everyone else holds the wider ring.
+   * Recomputed every frame from distance alone, so a body that falls is
+   * replaced by the next nearest without anyone having to be told.
+   */
+  _direct(dt) {
+    this._attackGap = Math.max(0, this._attackGap - dt);
+    const ai = settings.enemyAI;
+    const player = this._player;
+    const ranked = this._ranked ?? (this._ranked = []);
+    ranked.length = 0;
+    for (const enemy of this.enemies) {
+      enemy.engaged = false;
+      if (!enemy.alive || !enemy.aware) continue;
+      ranked.push(enemy);
+    }
+    const distance = (enemy) =>
+      (enemy.position.x - player.x) ** 2 + (enemy.position.z - player.z) ** 2;
+    ranked.sort((a, b) => distance(a) - distance(b));
+    const engaged = Math.max(0, Math.round(ai.maxEngaged));
+    for (let i = 0; i < ranked.length && i < engaged; i++) ranked[i].engaged = true;
+    ranked.length = 0;
+  }
+
+  /**
+   * A body asks to start a swing. Yes only if fewer than `maxAttackers` are
+   * already winding up or striking, the gap since the last one has run out,
+   * and nothing has paused the AI. Saying yes spends the gap.
+   */
+  requestAttack() {
+    const ai = settings.enemyAI;
+    if (this.aiPaused || this._attackGap > 0) return false;
+    let swinging = 0;
+    for (const enemy of this.enemies) if (enemy.alive && enemy.attacking) swinging++;
+    if (swinging >= Math.max(0, Math.round(ai.maxAttackers))) return false;
+    this._attackGap = ai.attackGap;
+    return true;
   }
 
   /** Start the burn-away on the longest-dead body still lying on the field. */
@@ -304,7 +430,9 @@ export class EnemyManager {
       localHeight: this._localHeight,
       forwardYaw: this._forwardYaw,
       terrain: this.terrain,
-      effects: this.effects
+      effects: this.effects,
+      motions: this.motions,
+      director: this
     });
 
     // Facing the player, roughly — a ring of bodies all aimed at exactly the

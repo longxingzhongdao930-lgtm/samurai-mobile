@@ -80,6 +80,15 @@ export class ThirdPersonController {
     this.enemies = enemies;
   }
 
+  /**
+   * A shove from outside — an enemy's blow landing. Added to the velocity, so
+   * the ordinary deceleration bleeds it off; a move holding the body ignores it.
+   */
+  knock(x, z, speed) {
+    this.velocity.x += x * speed;
+    this.velocity.y += z * speed;
+  }
+
   update(dt) {
     const config = settings.locomotion;
     if (dt <= 0) return;

@@ -26,6 +26,9 @@ import { PostProcessing } from '../postprocessing/PostProcessing.js';
 import { WeaponFire } from '../vfx/WeaponFire.js';
 import { BloodBurst } from '../vfx/BloodBurst.js';
 import { BladeImpact } from '../vfx/BladeImpact.js';
+import { ShockRing } from '../vfx/ShockRing.js';
+import { DustBurst } from '../vfx/DustBurst.js';
+import { ComboCounter } from '../ui/ComboCounter.js';
 import { CombatAudio } from '../audio/CombatAudio.js';
 import { ShadowCharacter } from '../vfx/ShadowCharacter.js';
 import { Judgement } from '../vfx/Judgement.js';
@@ -219,6 +222,17 @@ export class App {
     // And what it sounds like. Silent until the page is first touched.
     this.audio = new CombatAudio(this.camera);
 
+    // The Musou's ground: a ring that opens under the last blow and the earth
+    // it throws up — the fist's own two effects, on their own instances. The
+    // dust pool is smaller on a phone.
+    this.musouShock = new ShockRing({ terrain: this.terrain });
+    this.musouDust = new DustBurst(TOUCH ? 512 : 1024);
+    this.scene.add(this.musouShock.mesh, this.musouDust.mesh);
+    /** Musou gauge, 0 … `settings.musou.max`. */
+    this.musouGauge = 0;
+    /** Scratch for one sweep's victims, reused so a swing allocates nothing. */
+    this._victims = [];
+
     // The summons. They clone whatever is on the body at the moment they are
     // called, so this only has to exist before `V` is pressed — it builds
     // nothing until then, and nothing at all if the shadows are never used.
@@ -320,6 +334,8 @@ export class App {
     /* ---- UI ---- */
     this.loading = new LoadingScreen();
     this.toast = new Toast();
+    // Hits in a row, and how many fell — the crowd fight's running score.
+    this.comboCounter = new ComboCounter();
     // On a phone the readout and the editor start put away: both would sit over
     // the buttons. The Editor button in the top bar brings the editor back.
     this.stats = new Stats({ visible: !TOUCH });
@@ -342,7 +358,10 @@ export class App {
         this.enemies.respawnAll();
         this.toast.show('A fresh ring of them');
       },
-      onCastJudgement: () => this._castJudgement()
+      onCastJudgement: () => this._castJudgement(),
+      onFillMusou: () => {
+        this.musouGauge = settings.musou.max;
+      }
     });
     if (TOUCH) this.editor.toggle();
 
@@ -552,7 +571,7 @@ export class App {
     // mid-pose and would still be holding the body when the feet came back down.
     this.character.jump?.cancel();
     this.character.hop?.cancel();
-    for (const move of this.character.attacks ?? []) move.cancel();
+    for (const move of this.character.moves ?? this.character.attacks ?? []) move.cancel();
 
     flight.start();
     this.flightMarking.begin();
@@ -685,13 +704,18 @@ export class App {
    * @param {'finisher'|'kill'|'stagger'} result
    * @param {boolean} primary the aimed body, as opposed to one the sweep also took
    */
-  _impact(enemy, x, z, config, result, primary) {
+  _impact(enemy, x, z, config, result, primary, crowd = 1, quiet = false) {
     const combat = settings.combat;
     const lethal = result !== 'stagger';
     const weight = result === 'finisher' ? combat.finisherBoost : lethal ? 1 : combat.staggerScale;
+    this.comboCounter.hit(lethal);
+    this._feedMusou(lethal);
 
     if (primary) {
-      this._hitStop = Math.max(this._hitStop, config.hitStop * weight);
+      // A sweep through a crowd holds a little longer than one through a
+      // single body — a tenth more per extra body, never more than half again.
+      const many = 1 + Math.min(0.5, (crowd - 1) * 0.1);
+      this._hitStop = Math.max(this._hitStop, config.hitStop * weight * many);
       this._hitStopScale = config.hitStopScale;
       this._hitRelease = 0;
       const shake = config.shake * weight;
@@ -707,7 +731,112 @@ export class App {
     const pz = p.z - z * radius;
     const edge = config.slices === true;
     this.meleeSparks.burst(px, py, pz, x, 0.12, z, combat.sparks, (edge ? 1 : 0.55) * weight);
-    this.audio.impact({ x: px, y: py, z: pz }, { cut: edge, strength: lethal ? weight : 0.6 });
+    if (!quiet) this.audio.impact({ x: px, y: py, z: pz }, { cut: edge, strength: lethal ? weight : 0.6 });
+  }
+
+  /**
+   * A step of the string (or of the Musou) landed: everyone in its sector.
+   *
+   * The sector is `areaRange` metres (plus a body's radius) and `areaArc`
+   * degrees about where the character faces, taken at the contact frame. Each
+   * body is met once, nearest first; the nearest gets the freeze and the punch
+   * and everyone gets sparks, though only the first three get a sound of their
+   * own — twelve impacts on one frame is noise, not weight.
+   *
+   * The throw goes *outward*: along the facing for a narrow cut, blended
+   * toward straight away from the player the wider the sweep, and purely
+   * radial all the way round — so a crowd scatters from a sweep rather than
+   * all flying down one line.
+   */
+  _onArea(move) {
+    const config = move.config;
+    const origin = this.character.position;
+    const yaw = this.character.facing;
+    const fx = Math.sin(yaw);
+    const fz = Math.cos(yaw);
+    const arc = Math.min(360, config.areaArc ?? 360);
+    const half = Math.cos(MathUtils.degToRad(arc) * 0.5);
+    const reach = (config.areaRange ?? 0) + settings.enemies.bodyRadius;
+    const radial = arc >= 360 ? 1 : MathUtils.clamp(arc / 360, 0.25, 0.8);
+
+    const victims = this._victims;
+    victims.length = 0;
+    for (const enemy of this.enemies.enemies) {
+      if (!enemy.alive) continue;
+      const dx = enemy.position.x - origin.x;
+      const dz = enemy.position.z - origin.z;
+      const distance = Math.hypot(dx, dz);
+      if (distance > reach) continue;
+      const ux = distance > 1e-3 ? dx / distance : fx;
+      const uz = distance > 1e-3 ? dz / distance : fz;
+      if (arc < 360 && distance > 0.3 && ux * fx + uz * fz < half) continue;
+      victims.push({ enemy, ux, uz, distance });
+    }
+    victims.sort((a, b) => a.distance - b.distance);
+
+    let landed = 0;
+    for (const { enemy, ux, uz } of victims) {
+      let bx = fx * (1 - radial) + ux * radial;
+      let bz = fz * (1 - radial) + uz * radial;
+      const length = Math.hypot(bx, bz) || 1;
+      bx /= length;
+      bz /= length;
+      const result = this.enemies.hit(enemy, bx, bz, config);
+      if (!result) continue;
+      this._impact(enemy, bx, bz, config, result, landed === 0, victims.length, landed >= 3);
+      landed++;
+    }
+    victims.length = 0;
+
+    // The Musou's last blow opens the ground under it, hit or miss.
+    if (config.shockwave) {
+      const groundY = this.terrain.heightAt(origin.x, origin.z);
+      this.musouShock.burst(origin.x, origin.z, settings.musou.shock, 1);
+      this.musouDust.burst(origin.x, groundY, origin.z, settings.judgement.dust, 1.2);
+      this.rig.shake(config.shake);
+      this.rig.punch(fx, fz, config.shake * settings.combat.punch, settings.combat.fovKick * 1.6, 0);
+      this.audio.impact({ x: origin.x, y: groundY + 0.5, z: origin.z }, { cut: false, strength: 1.4 });
+    }
+  }
+
+  /** Blows and bodies fill the gauge — but not the Musou's own. */
+  _feedMusou(lethal) {
+    const config = settings.musou;
+    if (this.character.musou?.some((move) => move.locked)) return;
+    this.musouGauge = Math.min(config.max, this.musouGauge + config.perHit + (lethal ? config.perKill : 0));
+  }
+
+  /**
+   * The press that spends the gauge, on the frame its first blow starts.
+   *
+   * Everything the opening has to say happens here, together: the world drops
+   * to a crawl, the lens pulls in, and everyone standing too close is shoved
+   * out to the edge of a ring — so the first sweep has room to be a sweep.
+   */
+  _startMusou() {
+    const config = settings.musou;
+    this.musouGauge = 0;
+    this._hitStop = Math.max(this._hitStop, config.introTime);
+    this._hitStopScale = config.introScale;
+    this._hitRelease = 0;
+
+    const origin = this.character.position;
+    const yaw = this.character.facing;
+    this.rig.punch(Math.sin(yaw), Math.cos(yaw), 0.2, settings.combat.fovKick * 2, 0);
+    for (const enemy of this.enemies.enemies) {
+      if (!enemy.alive) continue;
+      const dx = enemy.position.x - origin.x;
+      const dz = enemy.position.z - origin.z;
+      const distance = Math.hypot(dx, dz);
+      if (distance > config.auraRadius) continue;
+      const k = distance > 1e-3 ? 1 / distance : 0;
+      enemy.shove(dx * k || 1, dz * k, config.auraPush * (1 - distance / config.auraRadius) + 1.5);
+    }
+    this.audio.impact(
+      { x: origin.x, y: origin.y + 1, z: origin.z },
+      { cut: true, strength: 1.2 }
+    );
+    this.toast.show('Musou — 旋風陣');
   }
 
   /** The whoosh, a beat before contact — hit or miss. */
@@ -931,6 +1060,23 @@ export class App {
           : 'off';
     }
 
+    // The string is always there on the ground; the Musou is lit only when its
+    // gauge is full, and otherwise *charging* — dimmed, with the gauge showing.
+    const inCombo = this.character.combo?.some((move) => move.locked);
+    const inMusou = this.character.musou?.some((move) => move.locked);
+    state.combo = airborne || !settings.combo.enabled ? 'off' : inCombo ? 'active' : 'ready';
+    const full = this.musouGauge >= settings.musou.max;
+    state.musou = inMusou
+      ? 'active'
+      : airborne || !settings.musou.enabled
+        ? 'off'
+        : full
+          ? 'ready'
+          : 'charging';
+    const gauge = this.musouGauge / Math.max(1, settings.musou.max);
+    this.actionHUD.setGauge('musou', gauge);
+    this.mobileControls?.setGauge('musou', gauge);
+
     this.actionHUD.update(state);
     this.mobileControls?.update(state, airborne);
   }
@@ -1012,6 +1158,13 @@ export class App {
       move.onHit = (enemy, x, z) => this._onStrike(enemy, x, z, move.config);
       move.onSwing = () => this._onSwing(move);
     }
+    // The string and the Musou land on a sector, not on a body.
+    for (const move of [...this.character.combo, ...this.character.musou]) {
+      move.onArea = () => this._onArea(move);
+      move.onSwing = () => this._onSwing(move);
+    }
+    this.controller.musouReady = () => this.musouGauge >= settings.musou.max;
+    this.controller.onMusouStart = () => this._startMusou();
     // Stood up now rather than on the first frame, so their materials are in
     // the scene for the shader warm-up below.
     this.enemies.respawnAll();
@@ -1167,6 +1320,9 @@ export class App {
     // Before the controller: a blow lands inside it, and its sparks must be
     // stamped with this frame's clock.
     this.meleeSparks.sync(this.elapsed, settings.combat.sparks);
+    this.musouDust.sync(this.elapsed, settings.judgement.dust);
+    this.musouShock.update(dt, settings.musou.shock);
+    this.comboCounter.update(raw);
     this.controller.update(dt);
     // Stand the character on the surface. The jump's arc lives inside the model
     // (it is the clip's own hips translation), so this stays the body's *ground*
@@ -1270,6 +1426,9 @@ export class App {
     this.blood.dispose();
     this.meleeSparks.dispose();
     this.audio.dispose();
+    this.musouShock.dispose();
+    this.musouDust.dispose();
+    this.comboCounter.dispose();
     this.weaponFire?.dispose();
     this.characterScreen?.dispose();
     this.character.dispose();

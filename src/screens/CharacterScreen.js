@@ -291,7 +291,7 @@ export class CharacterScreen {
     settings.character.spin = 0;
     this.character.jump?.cancel();
     this.character.hop?.cancel();
-    for (const move of this.character.attacks ?? []) move.cancel();
+    for (const move of this.character.moves ?? this.character.attacks ?? []) move.cancel();
     // Whatever the body was doing out there, it arrives doing what the Motion
     // buttons say — which on the first entry is a plain idle, and on a second
     // one is whatever was left selected, frozen included.

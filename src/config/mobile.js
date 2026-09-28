@@ -52,6 +52,13 @@ export const MOBILE_OVERRIDES = {
     drift: { count: 140, radius: 20 }
   },
 
+  /**
+   * Fewer bodies standing at once: 14 → 10. Every one is a skinned mesh with
+   * its own mixer and a shadow caster, and a phone pays for each of them.
+   * The ceiling (`EnemyManager` MAX_BODIES, 30) is the same on both.
+   */
+  enemies: { count: 10 },
+
   /** Soft transparent quads are pure fill. 190 → 120 puffs. */
   groundFog: { count: 120 },
 

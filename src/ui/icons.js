@@ -132,6 +132,23 @@ export const ABILITY_ICONS = {
       `<path d="M10.4 17.9 8 21.4M13.6 17.9 16 21.4" stroke-width="1.6"/>` +
       // And the air under it.
       `<path d="M5.4 20.4h2.2M16.4 20.4h2.2" stroke-width="1.3" opacity="0.45"/>`
+  ),
+
+  // The string: three cuts one after another, each longer than the last —
+  // read left to right, it is a rhythm rather than one blow.
+  combo: stroke(
+    `<path d="M3.2 15.6 8.4 7.2" opacity="0.55"/>` +
+      `<path d="M8 18.4 14.2 6.6" opacity="0.78"/>` +
+      `<path d="M12.8 21 20.8 4.2" stroke-width="2"/>` +
+      `<path d="M19.2 3.6 21.4 2.4 21.1 5" stroke-width="1.4"/>`
+  ),
+
+  // The whirlwind: a ring of cuts round a point, open where the blade is.
+  musou: stroke(
+    `<path d="M12 3.2a8.8 8.8 0 1 1-8.1 5.4" stroke-width="1.9"/>` +
+      `<path d="M3.9 8.6 3 4.9 6.7 5.6" stroke-width="1.5"/>` +
+      `<path d="M12 7.4a4.6 4.6 0 1 0 4.4 3.2" opacity="0.7"/>` +
+      `<circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>`
   )
 };
 

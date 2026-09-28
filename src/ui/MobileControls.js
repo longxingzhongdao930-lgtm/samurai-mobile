@@ -24,8 +24,14 @@ import { createIcon } from './icons.js';
  * stage, and only the buttons themselves take the pointer.
  */
 
-/** Ability id → where its button goes. Anything unlisted goes by category. */
-const PRIMARY = 'leap';
+/**
+ * Ability id → where its button goes. Anything unlisted goes by category.
+ * The big button under the thumb is the normal string — the one pressed most,
+ * by far, in a crowd. The leap takes a place on the techniques' arc.
+ */
+const PRIMARY = 'combo';
+/** The button that turns into the loose while the body is in the air. */
+const LEAP = 'leap';
 const TOP_BAR = new Set(['customize']);
 
 /** The window's own keys — not moves, so not in `config/abilities.js`. */
@@ -47,8 +53,8 @@ const RUN = 0.9;
  * right: 180 is straight left of the leap, 90 straight above it.
  */
 const ARCS = {
-  technique: { from: 180, to: 90 },
-  ability: { from: 172, to: 98 }
+  technique: { from: 196, to: 78 },
+  ability: { from: 176, to: 94 }
 };
 
 export class MobileControls {
@@ -302,7 +308,7 @@ export class MobileControls {
   update(state, airborne = false) {
     if (airborne !== this._airborne) {
       this._airborne = airborne;
-      const leap = this.buttons.get(PRIMARY);
+      const leap = this.buttons.get(LEAP);
       if (leap) {
         leap._name.textContent = airborne ? 'Loose' : 'Leap';
         leap.setAttribute('aria-label', airborne ? 'Loose the blades' : 'Leap');
@@ -311,12 +317,25 @@ export class MobileControls {
 
     for (const [id, button] of this.buttons) {
       let next = state[id] ?? 'off';
-      if (id === PRIMARY && airborne) next = 'ready';
+      if (id === LEAP && airborne) next = 'ready';
       if (this._state.get(id) === next) continue;
       this._state.set(id, next);
       button.classList.toggle('is-active', next === 'active');
       button.classList.toggle('is-off', next === 'off');
+      button.classList.toggle('is-charging', next === 'charging');
     }
+  }
+
+  /** A gauge round one button, 0..1 — the Musou's. Same contract as `ActionHUD#setGauge`. */
+  setGauge(id, value) {
+    const button = this.buttons.get(id);
+    if (!button) return;
+    const v = Math.round(Math.max(0, Math.min(1, value)) * 200) / 200;
+    if (button._gauge === v) return;
+    button._gauge = v;
+    button.classList.add('has-gauge');
+    button.style.setProperty('--gauge', String(v));
+    button.classList.toggle('is-full', v >= 1);
   }
 
   /** Let go of everything: the stick, and any key a lost finger was holding. */

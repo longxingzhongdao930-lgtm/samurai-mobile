@@ -58,6 +58,12 @@ export class Attack {
      * *before* contact, because the sound of a blade leads the blade.
      */
     this.onSwing = onSwing;
+    /**
+     * Called instead of `onHit` for a move with `areaRange`: it lands on
+     * everyone in the sector at contact, not on the one body it was aimed at,
+     * and who that is gets resolved by whoever owns the bodies.
+     */
+    this.onArea = null;
     this._swung = false;
     /** Playback multiplier for this swing: above 1 when it was chained into. */
     this._rate = 1;
@@ -147,7 +153,7 @@ export class Attack {
     // which is why `locked` is the test rather than the weight. The exception
     // is one that has landed and is in the part of its recovery a combo may
     // cut short (`chainable`).
-    for (const other of this.character?.attacks ?? []) {
+    for (const other of this.character?.moves ?? this.character?.attacks ?? []) {
       if (other !== this && other.locked && !other.chainable) return false;
     }
     return true;
@@ -208,6 +214,9 @@ export class Attack {
     this.action.setEffectiveWeight(0);
     this.action.setEffectiveTimeScale((this.config.timeScale ?? 1) * this._rate);
     this.action.play();
+    // Part-way into the clip, for a step that is only the back half of one.
+    const startAt = this.config.startAt ?? 0;
+    if (startAt > 0) this.action.time = startAt * this.action.getClip().duration;
 
     this.weight = 0;
     this.locked = true;
@@ -340,7 +349,10 @@ export class Attack {
     const from = this._from;
     const to = this._to;
     const warpAt = Math.max(0.01, config.warpAt);
-    const t = MathUtils.clamp(phase / warpAt, 0, 1);
+    // Measured from wherever the clip was started, so a step cut from the back
+    // half of a clip still covers its whole approach.
+    const startAt = Math.min(config.startAt ?? 0, warpAt - 0.01);
+    const t = MathUtils.clamp((phase - startAt) / (warpAt - startAt), 0, 1);
     const turn = smootherstep(MathUtils.clamp(t / Math.max(0.05, config.turnAt), 0, 1));
 
     if (config.passThrough > 0) {
@@ -385,6 +397,14 @@ export class Attack {
    * connects with a corpse it never reached is worse than one that misses.
    */
   _strike(config) {
+    // A sweep lands on the sector, not on the target — which may be no body at
+    // all, only the spot the lunge was aimed at.
+    if ((config.areaRange ?? 0) > 0) {
+      this.target = null;
+      this.onArea?.(this);
+      return;
+    }
+
     const target = this.target;
     this.target = null;
     if (!target || target.alive === false) return;

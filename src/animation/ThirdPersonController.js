@@ -5,6 +5,11 @@ import { damp } from '../utils/math.js';
 const _desired = new Vector2(); // world XZ target velocity, m/s
 const _delta = new Vector2(); // the step from the current velocity toward it
 const _travel = new Vector2(); // ground covered by the jump this frame, model frame
+/** A spot on the ground a step can lunge at when there is no body to close on. */
+const _ahead = { position: { x: 0, y: 0, z: 0 }, alive: true };
+/** Queued presses that are not one move but a choice made when they go off. */
+const COMBO = Symbol('combo');
+const MUSOU = Symbol('musou');
 
 /**
  * Camera-relative third-person movement.
@@ -98,12 +103,14 @@ export class ThirdPersonController {
     for (const move of attacks) {
       if (this.input.consumeAttack(move.configKey) && !requested) requested = move;
     }
+    // The string and the Musou are asked for by name and resolved to a step
+    // only when they go off (`_resolve`) — which step comes next depends on
+    // what the body is doing *then*, not when the key went down.
+    const comboPressed = this.input.consumeAttack('combo');
+    const musouPressed = this.input.consumeAttack('musou');
+    if (musouPressed) requested = MUSOU;
+    else if (!requested && comboPressed) requested = COMBO;
 
-    // The hover, before anything else can have the body. It is advanced even
-    // when it is not up, because a mode that has just been left is still fading
-    // its pose out over the gait — and while it *is* up it takes the stick
-    // outright: nothing below this line can run, which is what makes flight the
-    // one ability that excludes every other one.
     // Expired on the real clock, not the simulation's: a press must not
     // survive a pause or a trip to the character screen and fire on return.
     const now = performance.now();
@@ -114,6 +121,11 @@ export class ThirdPersonController {
       this._queued = null;
     }
 
+    // The hover, before anything else can have the body. It is advanced even
+    // when it is not up, because a mode that has just been left is still fading
+    // its pose out over the gait — and while it *is* up it takes the stick
+    // outright: nothing below this line can run, which is what makes flight the
+    // one ability that excludes every other one.
     const flight = this.character.flight;
     flight?.update(dt, this.speed);
     if (flight?.flying) {
@@ -132,21 +144,42 @@ export class ThirdPersonController {
     // over for the length of the move, so anything the player presses under it
     // is noise.
     let holding = null;
-    for (const move of attacks) {
+    for (const move of this.character.moves ?? attacks) {
       move.update(dt);
       if (move.locked) holding = move;
     }
     if (holding) {
+      // The Musou throws its own blows: each step hands straight on to the
+      // next the moment it may, and nothing the player presses gets in.
+      const musou = this.character.musou ?? [];
+      const at = musou.indexOf(holding);
+      if (at >= 0) {
+        this._queued = null;
+        const next = musou[at + 1];
+        if (next && holding.chainable) {
+          holding.release();
+          next.start(this._stepTarget(next), false);
+          this._applyAttackWarp(next, dt);
+          return;
+        }
+        this._applyAttackWarp(holding, dt);
+        return;
+      }
+
       // The combo: a different move, pressed (or buffered) once this one has
-      // landed and reached `cancelAt`, takes over the rest of its recovery.
-      // Still only if there is someone to throw it at — a chain into air is
-      // the same spent press it would be from a standstill.
-      const next = this._queued;
+      // landed and reached `cancelAt`, takes over the rest of its recovery. A
+      // keyed technique still wants someone to throw it at; a step of the
+      // string swings regardless.
+      const next = this._resolve(this._queued, holding);
       if (next && next !== holding && holding.chainable && next.canStart()) {
-        const target = this._findAttackTarget(next);
+        const step = this._isStep(next);
+        const target = step ? this._stepTarget(next) : this._findAttackTarget(next);
         if (target) {
           holding.release();
-          next.start(target, true);
+          // The string's steps are paced by their own blocks; the chain
+          // speed-up is for a keyed technique cutting in.
+          next.start(target, !step);
+          if (this._queued === MUSOU) this.onMusouStart?.();
           this._queued = null;
           this._applyAttackWarp(next, dt);
           return;
@@ -161,15 +194,18 @@ export class ThirdPersonController {
     // what the move *is*, and a key that fires from anywhere teaches that they
     // are not. So the press is spent and the body carries on walking, which is
     // the same answer the dimmed plate in the HUD gave before the key went
-    // down (see `App#_syncAbilities`).
+    // down (see `App#_syncAbilities`). The string and the Musou are the
+    // exception: they are for crowds, and a sweep at the air is still a sweep.
     // The buffer only carries a press across a move that was holding the body;
     // out here it is spent whether it finds anyone or not.
-    const pressed = this._queued;
+    const token = this._queued;
+    const pressed = this._resolve(token, null);
     this._queued = null;
     if (pressed?.canStart()) {
-      const target = this._findAttackTarget(pressed);
+      const target = this._isStep(pressed) ? this._stepTarget(pressed) : this._findAttackTarget(pressed);
       if (target) {
         pressed.start(target);
+        if (token === MUSOU) this.onMusouStart?.();
         this._applyAttackWarp(pressed, dt);
         return;
       }
@@ -344,6 +380,74 @@ export class ThirdPersonController {
   }
 
   /**
+   * A queued press → the move it means now.
+   *
+   * A keyed technique is itself. The string is the step after the one holding
+   * the body, or the first if the body is not in the string (or has run off
+   * the end of it). The Musou is its first step — if the gauge says it may.
+   *
+   * @param {import('./Attack.js').Attack|symbol|null} token
+   * @param {import('./Attack.js').Attack|null} holding
+   */
+  _resolve(token, holding) {
+    if (!token) return null;
+    if (token === MUSOU) {
+      const first = this.character.musou?.[0];
+      return first && settings.musou.enabled && this.musouReady?.() ? first : null;
+    }
+    if (token === COMBO) {
+      const combo = this.character.combo ?? [];
+      if (!combo.length || !settings.combo.enabled) return null;
+      const at = combo.indexOf(holding);
+      return at >= 0 ? combo[(at + 1) % combo.length] : combo[0];
+    }
+    return token;
+  }
+
+  /** Whether a move is a step of the string or the Musou rather than a keyed technique. */
+  _isStep(move) {
+    return this.character.combo?.includes(move) || this.character.musou?.includes(move);
+  }
+
+  /**
+   * Where a step lunges to: the soft lock.
+   *
+   * The stick wins — pushed, it says which way the blow goes, and the nearest
+   * body roughly that way is what the step closes on. Left alone, it is the
+   * nearest body roughly in front. With nobody there it is a spot straight
+   * ahead, far enough that the warp covers the step's whole `maxWarp`: a
+   * string swung at the air still travels, which is half of what makes it a
+   * string.
+   */
+  _stepTarget(step) {
+    const config = step.config;
+    const position = this.character.position;
+    let yaw = this.character.facing;
+    const axis = this.input.axis;
+    const steered = axis.x !== 0 || axis.y !== 0;
+    if (steered) {
+      const azimuth = this.rig.azimuth;
+      const sin = Math.sin(azimuth);
+      const cos = Math.cos(azimuth);
+      yaw = Math.atan2(axis.y * -sin + axis.x * cos, axis.y * -cos + axis.x * -sin);
+    }
+
+    // In front first; then, if the stick is not saying otherwise, anyone in
+    // reach at all — a string that has cut through the middle of a crowd has
+    // the rest of it at its shoulders and behind it, and swinging on at the
+    // empty ground ahead is the one thing it must not do.
+    const body =
+      this.enemies?.findTarget(position, yaw, config) ??
+      (steered ? null : this.enemies?.findTarget(position, yaw, { range: config.range, cone: 360 }));
+    if (body) return body;
+
+    const reach = config.standoff + config.maxWarp;
+    _ahead.position.x = position.x + Math.sin(yaw) * reach;
+    _ahead.position.z = position.z + Math.cos(yaw) * reach;
+    return _ahead;
+  }
+
+  /**
    * Who this swing is for.
    *
    * Nearest first, but only inside the cone: a blow that snaps onto something
@@ -371,7 +475,7 @@ export class ThirdPersonController {
     this.character.jump?.cancel();
     this.character.hop?.cancel();
     this.character.flight?.cancel();
-    for (const move of this.character.attacks ?? []) move.cancel();
+    for (const move of this.character.moves ?? this.character.attacks ?? []) move.cancel();
     this.velocity.set(0, 0);
     this.speed = 0;
     this.character.position.set(0, 0, 0);

@@ -10,6 +10,16 @@ const ENEMY_URL = './models/enemyidle.fbx';
 const _v = new Vector3();
 
 /**
+ * The most bodies on the field at once — standing *and* lying dead. Thirty is
+ * what a phone can carry as skinned, individually shaded meshes; `count` is
+ * clamped to it and a spawn waits for a corpse to go rather than exceed it.
+ * Raise it here, and nowhere else, once the bodies are cheaper.
+ */
+export const MAX_BODIES = 30;
+/** Bearings round the player the spawn balances across. */
+const SECTORS = 12;
+
+/**
  * The population: who is standing, who is on the ground, and who is next.
  *
  * One rig is loaded and every enemy is a `SkeletonUtils` clone of it, so five
@@ -149,6 +159,7 @@ export class EnemyManager {
       this.enemies.splice(i, 1);
     }
 
+    this._separate();
     this._maintain(dt);
   }
 
@@ -156,7 +167,7 @@ export class EnemyManager {
   _maintain(dt) {
     const config = settings.enemies;
     const standing = this.enemies.reduce((total, enemy) => total + (enemy.alive ? 1 : 0), 0);
-    const wanted = Math.max(0, Math.round(config.count));
+    const wanted = MathUtils.clamp(Math.round(config.count), 0, MAX_BODIES);
 
     // Queue a body for every empty slot. The timer is what keeps a kill from
     // being answered instantly — a replacement blinking in on the frame the
@@ -178,8 +189,62 @@ export class EnemyManager {
     for (let i = this._pending.length - 1; i >= 0; i--) {
       this._pending[i] -= dt;
       if (this._pending[i] > 0) continue;
+      // The ceiling counts *bodies*, corpses included: a Musou that fells ten
+      // at once would otherwise have twenty skinned meshes on the field while
+      // the dead are still lying there. The oldest corpse is sent off early to
+      // make room, and the spawn waits a beat for it.
+      if (this.enemies.length >= MAX_BODIES) {
+        this._retireOldestCorpse();
+        this._pending[i] = 0.25;
+        continue;
+      }
       this._pending.splice(i, 1);
       this.spawn();
+    }
+  }
+
+  /** Start the burn-away on the longest-dead body still lying on the field. */
+  _retireOldestCorpse() {
+    for (const enemy of this.enemies) {
+      if (enemy.state === 'dead') {
+        enemy.retire();
+        return;
+      }
+    }
+  }
+
+  /**
+   * Hold standing bodies apart.
+   *
+   * Knockback, shoves and the ring refilling all push bodies toward each
+   * other, and two that end up inside one another read as one broken body.
+   * At thirty bodies at most every pair is simply checked (435 of them — a
+   * grid would cost more than it saved), and each is moved half the overlap.
+   */
+  _separate() {
+    const min = settings.enemies.spacing;
+    if (!(min > 0)) return;
+    const min2 = min * min;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const a = list[i];
+      if (!a.alive) continue;
+      for (let j = i + 1; j < list.length; j++) {
+        const b = list[j];
+        if (!b.alive) continue;
+        const dx = b.position.x - a.position.x;
+        const dz = b.position.z - a.position.z;
+        const d2 = dx * dx + dz * dz;
+        if (d2 >= min2) continue;
+        const d = Math.sqrt(d2);
+        const ux = d > 1e-4 ? dx / d : 1;
+        const uz = d > 1e-4 ? dz / d : 0;
+        const half = (min - d) * 0.5;
+        a.position.x -= ux * half;
+        a.position.z -= uz * half;
+        b.position.x += ux * half;
+        b.position.z += uz * half;
+      }
     }
   }
 
@@ -205,10 +270,18 @@ export class EnemyManager {
     const inner = Math.max(0.5, Math.min(config.minRadius, config.radius));
     const outer = Math.max(inner + 0.5, config.radius);
 
+    // Into the emptiest part of the ring: the bearing is drawn from whichever
+    // of the sectors round the player has fewest bodies standing in it, so a
+    // crowd refills its gaps instead of piling up on one side.
+    const sector = this._emptiestSector();
+
     let x = this._player.x;
     let z = this._player.z;
     for (let attempt = 0; attempt < 24; attempt++) {
-      const angle = Math.random() * Math.PI * 2;
+      const angle =
+        attempt < 16
+          ? (sector + Math.random()) * ((Math.PI * 2) / SECTORS)
+          : Math.random() * Math.PI * 2;
       const t = Math.sqrt(Math.random());
       const distance = inner + (outer - inner) * t;
       x = this._player.x + Math.sin(angle) * distance;
@@ -242,6 +315,23 @@ export class EnemyManager {
     this.group.add(enemy.root);
     this.enemies.push(enemy);
     return enemy;
+  }
+
+  /** The sector round the player with fewest bodies standing in it, ties drawn at random. */
+  _emptiestSector() {
+    const counts = new Array(SECTORS).fill(0);
+    for (const enemy of this.enemies) {
+      if (!enemy.alive) continue;
+      const angle = Math.atan2(enemy.position.x - this._player.x, enemy.position.z - this._player.z);
+      const k = Math.floor(MathUtils.euclideanModulo(angle, Math.PI * 2) / ((Math.PI * 2) / SECTORS));
+      counts[Math.min(SECTORS - 1, k)]++;
+    }
+    const least = Math.min(...counts);
+    const open = [];
+    counts.forEach((count, k) => {
+      if (count === least) open.push(k);
+    });
+    return open[Math.floor(Math.random() * open.length)];
   }
 
   /** Whether a spot is far enough from everyone already standing on the field. */

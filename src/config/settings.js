@@ -20,6 +20,58 @@
 import { prefersTouchLayout } from '../utils/device.js';
 import { MOBILE_OVERRIDES } from './mobile.js';
 
+/**
+ * One step of the normal string, or of the Musou.
+ *
+ * Every step is an ordinary `animation/Attack.js` move — the same machine the
+ * kick runs on — so it has every field a move block has. What makes it a *step*
+ * is that it is not aimed at one body: `areaRange`/`areaArc` make the blow
+ * land on everyone standing in that sector at contact (`App#_onArea`), and the
+ * warp is a lunge rather than a lock (`maxWarp` is how far it steps in, toward
+ * the nearest body in `range`/`cone`, or straight ahead if there is none).
+ *
+ * `startAt` plays the clip from part-way in: three clips are cut into five
+ * steps by *which part of them* each step is, as much as by pace and reach.
+ */
+function step(fields) {
+  return {
+    enabled: true,
+    /** Which of the character's attack clips it plays — see `CharacterController`. */
+    clip: 'slashHit',
+    range: 5.5,
+    cone: 120,
+    standoff: 1.4,
+    maxWarp: 0.8,
+    warpAt: 0.36,
+    turnAt: 0.45,
+    hitAt: 0.4,
+    reach: 3,
+    recoverAt: 0.66,
+    timeScale: 1,
+    blendIn: 0.06,
+    blendOut: 0.2,
+    impulse: 4,
+    lift: 3,
+    spin: 1.6,
+    hitStop: 0.05,
+    hitStopScale: 0.08,
+    shake: 0.12,
+    slices: false,
+    damage: 1,
+    swingAt: 0.3,
+    cancelAt: 0.5,
+    strikeArc: 360,
+    cleaveReach: 0,
+    cleaveArc: 0,
+    staggerPush: 3,
+    flinch: 0.5,
+    startAt: 0,
+    areaRange: 2.5,
+    areaArc: 140,
+    ...fields
+  };
+}
+
 export const settings = {
   /* ------------------------------------------------------------------ */
   /* Global multipliers                                                  */
@@ -757,6 +809,145 @@ export const settings = {
   },
 
   /* ------------------------------------------------------------------ */
+  /* The normal string                                                   */
+  /* ------------------------------------------------------------------ */
+  /**
+   * `J` (the big button on a phone) — five steps that run into each other.
+   *
+   * Pressed again once a step has landed and passed `cancelAt`, the next step
+   * cuts its recovery short; pressed from a standstill, or after the string has
+   * run out and the body is back in its stance, it starts again from the
+   * first. Each step is its own move block (see `step` above) and they differ
+   * in exactly the three ways a string should: how far it steps in
+   * (`maxWarp`), how wide and far it reaches (`areaArc`/`areaRange`), and how
+   * hard it lands (`damage`, the throw, the freeze).
+   *
+   * The beat: quick, quick, low, heavy — and a finisher that runs *through*
+   * the crowd. Only the last two fell a fresh body on their own.
+   */
+  combo: {
+    enabled: true,
+    /** Which blocks, in order. */
+    steps: ['combo1', 'combo2', 'combo3', 'combo4', 'combo5']
+  },
+  /** 1 — a quick diagonal off the top of the slash, half a step in. */
+  combo1: step({
+    startAt: 0.24, timeScale: 2.1, warpAt: 0.35, swingAt: 0.31, hitAt: 0.38,
+    cancelAt: 0.45, recoverAt: 0.58, maxWarp: 0.6,
+    areaRange: 2.5, areaArc: 150, damage: 1, slices: true,
+    impulse: 3.5, lift: 3, hitStop: 0.045, shake: 0.1, staggerPush: 2.6, flinch: 0.45
+  }),
+  /** 2 — the boot, driving in: the string's first real step forward. */
+  combo2: step({
+    clip: 'kick',
+    startAt: 0.16, timeScale: 1.5, warpAt: 0.36, swingAt: 0.3, hitAt: 0.42,
+    cancelAt: 0.54, recoverAt: 0.7, maxWarp: 0.9, standoff: 1.15,
+    areaRange: 2.3, areaArc: 100, damage: 1,
+    impulse: 5.5, lift: 3.2, hitStop: 0.05, shake: 0.13, staggerPush: 4.2, flinch: 0.6
+  }),
+  /** 3 — low and wide, out of the crouch: the sweep that catches the ring. */
+  combo3: step({
+    clip: 'crouchSlash',
+    startAt: 0.22, timeScale: 1.0, warpAt: 0.6, turnAt: 0.3, swingAt: 0.56, hitAt: 0.68,
+    cancelAt: 0.78, recoverAt: 0.9, maxWarp: 1.2,
+    areaRange: 2.7, areaArc: 210, damage: 1, slices: true,
+    impulse: 4, lift: 3.6, hitStop: 0.055, shake: 0.15, staggerPush: 3.2, flinch: 0.5
+  }),
+  /** 4 — the whole two-handed sweep, heavy: the first step that fells outright. */
+  combo4: step({
+    startAt: 0.1, timeScale: 1.55, warpAt: 0.34, swingAt: 0.31, hitAt: 0.39,
+    cancelAt: 0.5, recoverAt: 0.64, maxWarp: 1.0, standoff: 1.6,
+    areaRange: 3.0, areaArc: 240, damage: 2, slices: true,
+    impulse: 5, lift: 5, hitStop: 0.08, shake: 0.2, staggerPush: 3.4, flinch: 0.55
+  }),
+  /**
+   * 5 — the finisher: a run *through* the middle of them, cutting everything
+   * it passes. Longest lunge, all the way round, the heaviest freeze.
+   */
+  combo5: step({
+    clip: 'crouchSlash',
+    startAt: 0, timeScale: 0.85, warpAt: 0.6, turnAt: 0.3, swingAt: 0.58, hitAt: 0.7,
+    cancelAt: 0.86, recoverAt: 0.9, maxWarp: 3.2, standoff: 1.5, passThrough: 1.6, passAt: 0.88,
+    range: 7, cone: 90,
+    areaRange: 2.6, areaArc: 360, damage: 3, slices: true,
+    impulse: 6.5, lift: 5.5, spin: 2.1, hitStop: 0.11, hitStopScale: 0.05, shake: 0.3,
+    staggerPush: 4, flinch: 0.6
+  }),
+
+  /* ------------------------------------------------------------------ */
+  /* Musou                                                               */
+  /* ------------------------------------------------------------------ */
+  /**
+   * `Q` — the special. A gauge that fills as blows land and bodies fall, and
+   * when it is full, one press spends all of it on three blows the body throws
+   * on its own, each one wider than the last, ending in a shockwave.
+   *
+   * The opening beat is the one the whole move hangs on: the world drops to a
+   * crawl, the nearest bodies are shoved back out of the way (so the first
+   * sweep has a ring to cut through rather than a body in its face), and only
+   * then does the blade come round.
+   */
+  musou: {
+    enabled: true,
+    /** Gauge points it takes, and what fills it: per body struck, and more per body felled. */
+    max: 100,
+    perHit: 3,
+    perKill: 6,
+    /** The opening slow-down: seconds, and how far the world drops. */
+    introTime: 0.32,
+    introScale: 0.12,
+    /** Everyone inside this many metres is shoved out, at this many m/s. */
+    auraRadius: 4.5,
+    auraPush: 7,
+    /** Which blocks, in order — they chain themselves. */
+    steps: ['musou1', 'musou2', 'musou3'],
+    /**
+     * The ring that opens under the last blow — `vfx/ShockRing.js`, the same
+     * wave the fist lands with, in ember rather than the fist's green, and
+     * wide enough to reach the edge of the sweep.
+     */
+    shock: {
+      radius: 7.5,
+      life: 0.8,
+      color: '#ff7a2e',
+      crackColor: '#ffb35c',
+      intensity: 3.0,
+      width: 0.11,
+      softness: 0.14,
+      cracks: 14,
+      crackLength: 0.9,
+      crackWidth: 0.022,
+      crackGlow: 1.6,
+      lift: 0.035
+    }
+  },
+  /** The opening sweep, all the way round. */
+  musou1: step({
+    startAt: 0.2, timeScale: 1.8, warpAt: 0.34, swingAt: 0.3, hitAt: 0.38,
+    cancelAt: 0.44, recoverAt: 0.6, maxWarp: 0.5,
+    areaRange: 4.2, areaArc: 360, damage: 99, slices: true,
+    impulse: 7, lift: 6, hitStop: 0.06, shake: 0.22
+  }),
+  /** Through them. */
+  musou2: step({
+    clip: 'crouchSlash',
+    startAt: 0.1, timeScale: 1.1, warpAt: 0.6, turnAt: 0.3, swingAt: 0.55, hitAt: 0.68,
+    cancelAt: 0.74, recoverAt: 0.9, maxWarp: 4.5, standoff: 1.5, passThrough: 2.4, passAt: 0.88,
+    range: 9, cone: 140,
+    areaRange: 3.4, areaArc: 360, damage: 99, slices: true,
+    impulse: 8, lift: 6.5, hitStop: 0.06, shake: 0.25
+  }),
+  /** And the last one wide enough to reach the edge of the ring — with the ground opening under it. */
+  musou3: step({
+    startAt: 0.08, timeScale: 1.35, warpAt: 0.34, swingAt: 0.31, hitAt: 0.39,
+    cancelAt: 0.9, recoverAt: 0.64, maxWarp: 0.4,
+    areaRange: 7.5, areaArc: 360, damage: 99, slices: true,
+    impulse: 9.5, lift: 8, spin: 2.2, hitStop: 0.16, hitStopScale: 0.04, shake: 0.45,
+    /** The ground opens under this one — `settings.musou.shock`. */
+    shockwave: true
+  }),
+
+  /* ------------------------------------------------------------------ */
   /* Feel                                                                */
   /* ------------------------------------------------------------------ */
   /**
@@ -853,17 +1044,23 @@ export const settings = {
   enemies: {
     enabled: true,
     /** How many are standing at any moment. */
-    count: 5,
+    count: 14,
     /**
      * Wounds a body takes before it goes down — see each move's `damage`. Two
      * means a sword fells a fresh body and a boot only staggers it.
      */
     health: 2,
     /** Metres from the player they spawn inside, and no nearer than. */
-    radius: 13,
-    minRadius: 4.5,
+    radius: 16,
+    minRadius: 5,
     /** Metres between two of them, so they never share a patch of ground. */
     separation: 2.4,
+    /**
+     * Metres two standing bodies are held apart once they are on the field —
+     * knockback and shoves would otherwise stack them into one another. The
+     * spawn's own `separation` above is the wider, placing distance.
+     */
+    spacing: 1.1,
     /** Normalised height, metres — the same treatment the player's rig gets. */
     height: 1.78,
 

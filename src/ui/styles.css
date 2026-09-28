@@ -1176,10 +1176,10 @@ body.cs-open .hint {
   /* One scale for the whole cluster: every size and radius below hangs off it. */
   --u: 1px;
   --leap: calc(84 * var(--u));
-  --plate: calc(62 * var(--u));
-  --seal: calc(54 * var(--u));
-  --r-technique: calc(98 * var(--u));
-  --r-ability: calc(172 * var(--u));
+  --plate: calc(54 * var(--u));
+  --seal: calc(52 * var(--u));
+  --r-technique: calc(122 * var(--u));
+  --r-ability: calc(196 * var(--u));
   --stick: calc(132 * var(--u));
 
   position: fixed;
@@ -1524,13 +1524,153 @@ html.touch-ui .cs__btn {
  */
 @media (orientation: portrait) {
   .mc {
-    --r-technique: calc(90 * var(--u));
-    --r-ability: calc(156 * var(--u));
+    --r-technique: calc(116 * var(--u));
+    --r-ability: calc(186 * var(--u));
     --stick: calc(118 * var(--u));
   }
 
   .mc-stick {
     width: 45%;
     height: 38%;
+  }
+}
+
+/* ----------------------------------------------------------------- gauge */
+
+/*
+ * A gauge round a move's button — the Musou's (`ActionHUD#setGauge`,
+ * `MobileControls#setGauge`). A conic fill cut down to a thin ring with a
+ * radial mask, so it wraps the seal rather than covering it. Charging, the
+ * seal itself is dimmed but the ring keeps its colour; full, the whole thing
+ * breathes.
+ */
+.seal.has-gauge .seal__disc::after,
+.mc-btn.has-gauge::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(
+    var(--blood-lit) calc(var(--gauge, 0) * 360deg),
+    rgba(217, 178, 106, 0.16) 0
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+}
+
+.seal.is-charging .seal__icon,
+.seal.is-charging .seal__name,
+.mc-btn.is-charging .mc-icon,
+.mc-btn.is-charging .mc-name {
+  opacity: 0.38;
+}
+
+.seal.is-full .seal__disc,
+.mc-btn.is-full {
+  border-color: rgba(255, 106, 77, 0.85);
+  animation: gauge-ready 1.3s ease-in-out infinite;
+}
+
+.seal.is-full .seal__icon,
+.mc-btn.is-full .mc-icon {
+  color: var(--blood-lit);
+  filter: drop-shadow(0 0 6px rgba(255, 106, 77, 0.7));
+}
+
+@keyframes gauge-ready {
+  50% {
+    box-shadow: 0 0 26px rgba(255, 106, 77, 0.6), inset 0 0 14px rgba(216, 64, 44, 0.35);
+  }
+}
+
+/* ----------------------------------------------------------- hit counter */
+
+/*
+ * Hits in a row, on the right, out of the way of both the body and the
+ * move panels — see `ui/ComboCounter.js`. Big numerals, the lacquer HUD's
+ * gold, and a pop on every hit.
+ */
+.combo-count {
+  position: fixed;
+  right: 1.4rem;
+  top: 38%;
+  z-index: 18;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  column-gap: 0.35rem;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+  transform: translateX(8px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  font-family: 'Yu Mincho', 'Hiragino Mincho ProN', 'MS Mincho', serif;
+  color: var(--washi);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+}
+
+.combo-count.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.combo-count__hits {
+  font-size: 2.6rem;
+  line-height: 1;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.combo-count__label {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.24em;
+  color: rgba(239, 230, 214, 0.7);
+}
+
+.combo-count__kills {
+  grid-column: 1 / -1;
+  justify-self: end;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--blood-lit);
+}
+
+.combo-count.is-pop .combo-count__hits {
+  animation: combo-pop 0.22s ease-out;
+}
+
+@keyframes combo-pop {
+  0% {
+    transform: scale(1.35);
+    color: var(--washi);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* On a phone: top right, under the bar, clear of the thumbs. */
+html.touch-ui .combo-count {
+  top: calc(env(safe-area-inset-top, 0px) + 4.2rem);
+  right: calc(env(safe-area-inset-right, 0px) + 0.9rem);
+}
+
+html.touch-ui .combo-count__hits {
+  font-size: 1.9rem;
+}
+
+body.cs-open .combo-count {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seal.is-full .seal__disc,
+  .mc-btn.is-full,
+  .combo-count.is-pop .combo-count__hits {
+    animation: none;
   }
 }

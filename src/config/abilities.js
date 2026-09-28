@@ -73,6 +73,17 @@ export const ABILITIES = [
     note: 'The equipment studio: a stage of its own, for looking at the body and dressing it.'
   },
   {
+    id: 'combo',
+    category: 'technique',
+    label: 'Attack',
+    hotkey: 'J',
+    code: 'KeyJ',
+    note:
+      'The normal string. Press again as each blow lands: five steps, each reaching wider — ' +
+      'the last runs straight through them.',
+    attack: true
+  },
+  {
     id: 'kick',
     category: 'technique',
     label: 'Kick',
@@ -124,6 +135,17 @@ export const ABILITIES = [
     note:
       'Leave the ground. Click bodies to forge a blade for each, Space looses them — ' +
       'and nothing else works while you are up there.'
+  },
+  {
+    id: 'musou',
+    category: 'ability',
+    label: 'Musou',
+    hotkey: 'Q',
+    code: 'KeyQ',
+    note:
+      'Fills as your blows land and bodies fall. When it is full: the world slows, ' +
+      'three blows of its own, and the ground opens under the last.',
+    attack: true
   }
 ];
 

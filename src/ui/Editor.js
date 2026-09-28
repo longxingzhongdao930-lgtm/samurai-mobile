@@ -1394,10 +1394,30 @@ export class Editor {
     this._buildSlice(folder);
     this._buildFeel(folder);
 
+    const string = folder.addFolder('Combo string (J)');
+    string.add(settings.combo, 'enabled').name('enabled');
+    settings.combo.steps.forEach((key, i) => this._buildAttack(string, settings[key], `Step ${i + 1}`));
+    string.close();
+
+    const m = settings.musou;
+    const musou = folder.addFolder('Musou (Q)');
+    musou.add(m, 'enabled').name('enabled');
+    R(musou, m, 'max', 10, 400, 1, 'gauge size');
+    R(musou, m, 'perHit', 0, 30, 0.5, 'per hit');
+    R(musou, m, 'perKill', 0, 30, 0.5, 'per kill');
+    R(musou, m, 'introTime', 0, 1, 0.01, 'opening slow (s)');
+    R(musou, m, 'introScale', 0.01, 1, 0.01, 'opening time ×');
+    R(musou, m, 'auraRadius', 0, 10, 0.1, 'shove radius (m)');
+    R(musou, m, 'auraPush', 0, 20, 0.1, 'shove (m/s)');
+    musou.add({ fill: () => this.hooks.onFillMusou?.() }, 'fill').name('Fill gauge');
+    m.steps.forEach((key, i) => this._buildAttack(musou, settings[key], `Blow ${i + 1}`));
+    musou.close();
+
     const e = settings.enemies;
     const enemies = folder.addFolder('Enemies');
     enemies.add(e, 'enabled').name('enemies enabled');
-    R(enemies, e, 'count', 0, 20, 1, 'standing at once');
+    R(enemies, e, 'count', 0, 30, 1, 'standing at once');
+    R(enemies, e, 'spacing', 0, 3, 0.05, 'held apart (m)');
     R(enemies, e, 'radius', 2, 40, 0.5, 'spawn radius (m)');
     R(enemies, e, 'minRadius', 1, 20, 0.5, 'no closer than (m)');
     R(enemies, e, 'separation', 0.5, 6, 0.1, 'apart from each other (m)');
@@ -1540,6 +1560,11 @@ export class Editor {
       R(feel, config, 'cleaveArc', 0, 360, 1, 'cleave arc (°)');
       R(feel, config, 'staggerPush', 0, 10, 0.1, 'stagger shove (m/s)');
       R(feel, config, 'flinch', 0, 1.2, 0.01, 'flinch (rad)');
+      if ('areaRange' in config) {
+        R(feel, config, 'startAt', 0, 0.9, 0.01, 'clip starts at');
+        R(feel, config, 'areaRange', 0, 10, 0.05, 'sweep reach (m)');
+        R(feel, config, 'areaArc', 10, 360, 1, 'sweep arc (°)');
+      }
     }
     // A fact about the move, not about the body it lands on — which is why it
     // is a field here and not in the enemies' block.

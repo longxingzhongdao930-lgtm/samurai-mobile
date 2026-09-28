@@ -520,6 +520,27 @@ export class Enemy {
   }
 
   /**
+   * Drive it back without wounding it — the Musou's opening shove, which clears
+   * a ring to swing through. It reels, rocks and slides like a blow landed, but
+   * keeps every bit of its health.
+   *
+   * @param {number} x unit direction to shove along
+   * @param {number} z
+   * @param {number} speed m/s
+   * @param {number} [flinch] radians it rocks back by
+   */
+  shove(x, z, speed, flinch = 0.3) {
+    if (this.state !== 'alive') return;
+    const combat = settings.combat;
+    this.staggerTime = Math.max(this.staggerTime, combat.staggerTime);
+    this._push.x = x * speed;
+    this._push.z = z * speed;
+    this._flinch.x = z;
+    this._flinch.z = -x;
+    this._flinch.velocity += flinch / springPeak(combat.flinchStiffness, combat.flinchDamping);
+  }
+
+  /**
    * Advance the flinch spring and lay it over whatever pose the idle left.
    *
    * Each spine bone is turned about the one world axis by its share, taken

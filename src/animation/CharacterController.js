@@ -155,6 +155,17 @@ export class CharacterController {
      * @type {import('./Attack.js').Attack[]}
      */
     this.attacks = [];
+    /**
+     * The normal string's steps and the Musou's, in order — `settings.combo`
+     * and `settings.musou`. They are not in `attacks`: those are the three
+     * keyed techniques, and the HUD, the rings and the hotkeys all read that
+     * list as exactly that.
+     * @type {import('./Attack.js').Attack[]}
+     */
+    this.combo = [];
+    this.musou = [];
+    /** Every move of either kind — what a move checks its siblings against. */
+    this.moves = [];
     /** name → retargeted AnimationClip. */
     this.clips = new Map();
     /** name → hips travel lifted off a root-motion clip, in the model's units. */
@@ -275,6 +286,17 @@ export class CharacterController {
       (move) => move.available
     );
 
+    // The string and the Musou are cut from the same three clips. Each step
+    // gets its own *copy* of its clip, because the mixer hands back one action
+    // per clip — and two steps sharing an action would be one step.
+    const stepMove = (key) => {
+      const clip = this.clips.get(settings[key]?.clip ?? 'slashHit');
+      return new Attack(this.mixer, clip ? clip.clone() : null, this, { configKey: key });
+    };
+    this.combo = settings.combo.steps.map(stepMove).filter((move) => move.available);
+    this.musou = settings.musou.steps.map(stepMove).filter((move) => move.available);
+    this.moves = [...this.attacks, ...this.combo, ...this.musou];
+
     // The hover. It masks the gait exactly as the jumps do, and for longer:
     // there is no walk cycle worth leaving under a body that is six metres up.
     this.flight = new Flight(this.mixer, this.clips.get('float'), this, this.clips.get('land'));
@@ -286,7 +308,7 @@ export class CharacterController {
         walk: this.clips.get('walk'),
         run: this.clips.get('run')
       },
-      [this.jump, this.hop, this.flight, ...this.attacks]
+      [this.jump, this.hop, this.flight, ...this.moves]
     );
 
     this.setFacing(character.facing);
@@ -747,8 +769,11 @@ export class CharacterController {
     this.hop = null;
     this.flight?.cancel();
     this.flight = null;
-    for (const move of this.attacks) move.cancel();
+    for (const move of this.moves) move.cancel();
     this.attacks = [];
+    this.combo = [];
+    this.musou = [];
+    this.moves = [];
     this.attack = null;
     this.slashHit = null;
     this.crouchSlash = null;

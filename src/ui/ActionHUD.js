@@ -71,6 +71,7 @@ export class ActionHUD {
       }
 
       const chip = CHIPS[category.id](ability);
+      chip.dataset.id = ability.id;
       chip.title = `${ability.hotkey} — ${ability.note}`;
       items.appendChild(chip);
       this.chips.set(ability.id, chip);
@@ -116,8 +117,10 @@ export class ActionHUD {
   }
 
   /**
-   * @param {Record<string, 'ready'|'active'|'off'>} state keyed by ability id;
-   *   anything missing is treated as unavailable.
+   * @param {Record<string, 'ready'|'active'|'off'|'charging'>} state keyed by
+   *   ability id; anything missing is treated as unavailable. `charging` is a
+   *   move with a gauge that is not full yet: dimmed like `off`, but the gauge
+   *   keeps its colour so the fill can be read.
    */
   update(state) {
     for (const [id, chip] of this.chips) {
@@ -126,7 +129,23 @@ export class ActionHUD {
       this._state.set(id, next);
       chip.classList.toggle('is-active', next === 'active');
       chip.classList.toggle('is-off', next === 'off');
+      chip.classList.toggle('is-charging', next === 'charging');
     }
+  }
+
+  /**
+   * Show a gauge round one chip, 0..1. Written only when it moves by a
+   * visible amount, so a full or empty gauge costs nothing per frame.
+   */
+  setGauge(id, value) {
+    const chip = this.chips.get(id);
+    if (!chip) return;
+    const v = Math.round(Math.max(0, Math.min(1, value)) * 200) / 200;
+    if (chip._gauge === v) return;
+    chip._gauge = v;
+    chip.classList.add('has-gauge');
+    chip.style.setProperty('--gauge', String(v));
+    chip.classList.toggle('is-full', v >= 1);
   }
 
   dispose() {

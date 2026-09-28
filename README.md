@@ -22,7 +22,9 @@ npm run build
 | --- | --- |
 | `WASD` / arrows | Move. `Shift` runs. |
 | `Space` | Leap — a running long jump, or an in-place hop at any lesser pace. In the air it looses the blades. |
+| `J` | Attack — the normal string. Keep pressing as each blow lands: five steps, the last runs through them. |
 | `E` · `R` · `T` | Kick · Slash Hit · Slide Cut. The three techniques. |
+| `Q` | Musou — when its gauge is full. The world slows, three blows of its own, a shockwave. |
 | `V` | Shadows — mark two bodies, and a shadow of you goes for each. |
 | `C` | Judgement — mark one body, and a fist comes down through a seal over its head. |
 | `X` | Flight — leave the ground, mark bodies to forge a blade for each, `Space` looses them. |
@@ -46,7 +48,7 @@ forces it off.
 | | |
 | --- | --- |
 | Left thumb | A floating stick: it comes to wherever the thumb lands. A half push walks slowly; pushed to the rim, the body runs. |
-| Right thumb | **Leap** is the big button (in the air it becomes **Loose**). The three techniques sit on an arc around it, the three abilities on a wider arc behind. |
+| Right thumb | **Attack** is the big button. Leap and the three techniques sit on an arc around it (in the air Leap becomes **Loose**), the abilities and the **Musou** — with its gauge round it — on a wider arc behind. |
 | Open stage | Drag to orbit · pinch to zoom · tap a body to mark it. |
 | Top bar | Character · Pause · Editor. |
 
@@ -255,6 +257,39 @@ on each move's own block, and all of it is live in the editor under
 - **Hit detection.** At contact the body must still be within `reach` and
   inside `strikeArc` of where the character faces; a sweep also takes
   whoever else stands inside `cleaveReach`/`cleaveArc`.
+
+### The crowd fight
+
+The string, the sweep and the special were designed with a crowd brawler
+(voxel-musou) as the reference for *structure* — how a string is timed, how a
+blow meets a crowd, how a special is paced. None of its code is used.
+
+- **The normal string** (`J`, the big button on a phone) is five ordinary
+  `Attack` moves, `settings.combo1` … `combo5`, cut from the three attack clips
+  by *which part* of each clip they play (`startAt`), how fast, how far they
+  step in (`maxWarp`), how wide and far they reach (`areaRange`/`areaArc`) and
+  how hard they land (`damage`). Quick, quick, low, heavy, and a finisher that
+  runs straight through. Pressed again after a step lands, the next one cuts
+  its recovery short; left alone, the string ends and the next press starts it
+  over.
+- **Soft lock.** The stick says which way a step goes; left alone, it closes on
+  the nearest body in front — or, once it has cut through the middle of a
+  crowd, the nearest body anywhere in reach. A step swung at nobody still
+  travels.
+- **Every body in the sector** at contact is struck, nearest first, thrown
+  outward. A sweep through a crowd freezes a little longer than one through a
+  single body, and only the first three get a sound of their own.
+- **Musou** (`Q`): a gauge that fills with hits and kills (`settings.musou`).
+  Full, one press spends it: the world drops to a crawl, everyone close is
+  shoved out to a ring, and three steps throw themselves — a sweep all the way
+  round, a run through, and a last sweep wide enough to reach the edge, with
+  the ground opening under it.
+- **The crowd.** `enemies.count` standing (14 on a desktop, 10 on a phone),
+  hard-capped at `MAX_BODIES` = 30 *bodies* in `combat/EnemyManager.js` —
+  corpses included; at the cap the oldest corpse is burned away early to make
+  room. New bodies spawn into the emptiest of twelve sectors round the player,
+  and standing bodies are held `spacing` apart so knockback never stacks them.
+  A running hit count sits on the right.
 
 ### The ragdoll
 

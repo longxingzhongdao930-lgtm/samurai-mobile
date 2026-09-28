@@ -18,6 +18,8 @@ const _view = /* @__PURE__ */ new Vector3();
  */
 const CLICK_SLOP = 6;
 const CLICK_TIME = 400;
+/** A fingertip is wider than a cursor and rolls as it lifts, so a tap gets more room. */
+const TAP_SLOP = 14;
 
 /**
  * Choosing who the shadows are sent at.
@@ -122,7 +124,8 @@ export class TargetMarking {
       this._down = null;
       if (!down || event.button !== 0) return;
       if (performance.now() - down.at > CLICK_TIME) return;
-      if (Math.hypot(event.clientX - down.x, event.clientY - down.y) > CLICK_SLOP) return;
+      const slop = event.pointerType === 'touch' ? TAP_SLOP : CLICK_SLOP;
+      if (Math.hypot(event.clientX - down.x, event.clientY - down.y) > slop) return;
       this._clicked = true;
     };
     // The pointer leaving the canvas mid-drag is an orbit, not a click.

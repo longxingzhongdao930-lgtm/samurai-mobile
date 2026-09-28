@@ -61,6 +61,15 @@ export class Input {
      */
     this._attacks = {};
 
+    /**
+     * The touch stick, if there is one (`ui/MobileControls.js`).
+     *
+     * Analog where the keys are digital: its length is already how hard it is
+     * pushed, so a half push walks slowly instead of choosing between standing
+     * and walking. `run` is the stick pushed to its rim — the thumb's Shift.
+     */
+    this.stick = { x: 0, y: 0, run: false };
+
     this._onKeyDown = (event) => {
       if (this._isTyping(event.target)) return;
       // Arrow keys scroll the page and space would too; movement keys are ours.
@@ -74,6 +83,7 @@ export class Input {
     this._onKeyUp = (event) => this.pressed.delete(event.code);
     this._onBlur = () => {
       this.pressed.clear();
+      this.setStick(0, 0);
       this._jump = false;
       this._attacks = {};
     };
@@ -112,6 +122,11 @@ export class Input {
       else x -= 1;
     }
 
+    // The stick adds to the keys rather than replacing them, so a keyboard
+    // plugged into a tablet still works alongside it.
+    x += this.stick.x;
+    y += this.stick.y;
+
     const length = Math.hypot(x, y);
     if (length > 1) {
       x /= length;
@@ -120,8 +135,21 @@ export class Input {
 
     this.axis.x = x;
     this.axis.y = y;
-    this.running = held.has('ShiftLeft') || held.has('ShiftRight');
+    this.running = held.has('ShiftLeft') || held.has('ShiftRight') || this.stick.run;
     return this.axis;
+  }
+
+  /**
+   * Where the touch stick is pushed. x = strafe, y = forward, length 0..1.
+   *
+   * @param {number} x
+   * @param {number} y
+   * @param {boolean} run
+   */
+  setStick(x, y, run = false) {
+    this.stick.x = x;
+    this.stick.y = y;
+    this.stick.run = run;
   }
 
   /**

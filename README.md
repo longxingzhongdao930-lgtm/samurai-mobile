@@ -37,6 +37,24 @@ nothing else. `core/Input.js` builds its key map from it, `ui/ActionHUD.js`
 draws the panels from it, and `core/App.js` resolves a state per `id` each
 frame.
 
+### On a phone
+
+A touch screen gets its own layout ([src/ui/MobileControls.js](src/ui/MobileControls.js)),
+detected by `(pointer: coarse)` — `?mobile=1` forces it on a desktop, `?mobile=0`
+forces it off.
+
+| | |
+| --- | --- |
+| Left thumb | A floating stick: it comes to wherever the thumb lands. A half push walks slowly; pushed to the rim, the body runs. |
+| Right thumb | **Leap** is the big button (in the air it becomes **Loose**). The three techniques sit on an arc around it, the three abilities on a wider arc behind. |
+| Open stage | Drag to orbit · pinch to zoom · tap a body to mark it. |
+| Top bar | Character · Pause · Editor. |
+
+Every button *is* its key — a press dispatches the same `keydown`/`keyup` pair
+the keyboard would — so nothing in the game has a mobile branch, and the
+buttons are drawn from the same `config/abilities.js` list as the desktop row.
+The pixel ratio is capped at 1.25 on touch devices.
+
 ---
 
 ## The world

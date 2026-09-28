@@ -75,6 +75,53 @@ export class CameraRig {
     domElement.addEventListener('wheel', this._onWheel, { passive: false });
 
     /**
+     * Pinch zoom — the wheel's twin on a touch screen.
+     *
+     * OrbitControls' own dolly is switched off (it would move the camera, not
+     * the setting), so two fingers are tracked here and their spread writes
+     * `settings.camera.distance` the same way a wheel notch does. The controls
+     * still see both fingers and turn the orbit by their midpoint, which is the
+     * two-finger rotate every touch map does.
+     *
+     * @type {Map<number, {x: number, y: number}>}
+     */
+    this._touches = new Map();
+    this._pinch = 0;
+    this._onTouchDown = (event) => {
+      if (event.pointerType !== 'touch') return;
+      this._touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      this._pinch = this._spread();
+    };
+    this._onTouchMove = (event) => {
+      const touch = this._touches.get(event.pointerId);
+      if (!touch) return;
+      touch.x = event.clientX;
+      touch.y = event.clientY;
+      if (this._touches.size !== 2 || !this.controls.enabled) return;
+
+      const spread = this._spread();
+      if (this._pinch > 0 && spread > 0) {
+        // Plain ratio, not the wheel's `zoomSpeed`: fingers spread twice as
+        // far apart should bring the body twice as close, and no more.
+        const cam = settings.camera;
+        cam.distance = clamp(
+          cam.distance * (this._pinch / spread),
+          cam.minDistance,
+          cam.maxDistance
+        );
+      }
+      this._pinch = spread;
+    };
+    this._onTouchUp = (event) => {
+      if (!this._touches.delete(event.pointerId)) return;
+      this._pinch = this._spread();
+    };
+    domElement.addEventListener('pointerdown', this._onTouchDown);
+    domElement.addEventListener('pointermove', this._onTouchMove);
+    domElement.addEventListener('pointerup', this._onTouchUp);
+    domElement.addEventListener('pointercancel', this._onTouchUp);
+
+    /**
      * Let the run key coexist with the orbit.
      *
      * OrbitControls reads ctrl/meta/shift on pointer-down and turns a rotate
@@ -112,6 +159,13 @@ export class CameraRig {
       cam.minDistance,
       cam.maxDistance
     );
+  }
+
+  /** Pixels between the two fingers on the canvas, or 0 unless there are exactly two. */
+  _spread() {
+    if (this._touches.size !== 2) return 0;
+    const [a, b] = this._touches.values();
+    return Math.hypot(a.x - b.x, a.y - b.y);
   }
 
   /** Point the rig should orbit around (character position). */
@@ -219,6 +273,10 @@ export class CameraRig {
 
   dispose() {
     this.domElement.removeEventListener('wheel', this._onWheel);
+    this.domElement.removeEventListener('pointerdown', this._onTouchDown);
+    this.domElement.removeEventListener('pointermove', this._onTouchMove);
+    this.domElement.removeEventListener('pointerup', this._onTouchUp);
+    this.domElement.removeEventListener('pointercancel', this._onTouchUp);
     window.removeEventListener('pointerdown', this._onPointerDownCapture, true);
     this.controls.dispose();
   }

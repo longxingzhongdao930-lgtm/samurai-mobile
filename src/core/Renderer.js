@@ -6,6 +6,7 @@ import {
 } from 'three';
 import { settings } from '../config/settings.js';
 import { frame } from './FrameUniforms.js';
+import { prefersTouchLayout } from '../utils/device.js';
 
 /**
  * Thin wrapper around WebGLRenderer that owns canvas sizing, pixel-ratio
@@ -49,9 +50,13 @@ export class Renderer {
     this._onResize = null;
   }
 
-  /** Cap the pixel ratio: 4K + heavy transparency is not worth the fill rate. */
+  /**
+   * Cap the pixel ratio: 4K + heavy transparency is not worth the fill rate.
+   * A phone is capped harder — a 3x screen held at arm's length cannot show the
+   * difference, and its GPU pays for every one of those pixels in heat.
+   */
   targetPixelRatio() {
-    return Math.min(window.devicePixelRatio || 1, 1.75);
+    return Math.min(window.devicePixelRatio || 1, prefersTouchLayout() ? 1.25 : 1.75);
   }
 
   get domElement() {

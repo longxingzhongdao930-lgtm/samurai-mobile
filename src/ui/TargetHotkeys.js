@@ -1,6 +1,7 @@
 import { Vector3 } from 'three';
 
 import { ATTACK_ABILITIES } from '../config/abilities.js';
+import { prefersTouchLayout } from '../utils/device.js';
 import { settings } from '../config/settings.js';
 
 const _world = /* @__PURE__ */ new Vector3();
@@ -157,7 +158,8 @@ export class TargetHotkeys {
     for (const ability of ATTACK_ABILITIES) {
       const cap = document.createElement('span');
       cap.className = 'target-key';
-      cap.textContent = ability.hotkey;
+      // Under a thumb there is no key to name — the button says the move.
+      cap.textContent = prefersTouchLayout() ? ability.label : ability.hotkey;
       cap.hidden = true;
       row.appendChild(cap);
       caps.set(ability.id, cap);

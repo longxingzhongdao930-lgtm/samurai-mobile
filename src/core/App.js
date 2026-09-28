@@ -35,10 +35,22 @@ import { Toast } from '../ui/Toast.js';
 import { Stats } from '../ui/Stats.js';
 import { ActionHUD } from '../ui/ActionHUD.js';
 import { TargetHotkeys } from '../ui/TargetHotkeys.js';
+import { MobileControls } from '../ui/MobileControls.js';
+import { prefersTouchLayout } from '../utils/device.js';
 
 import { settings } from '../config/settings.js';
 
 const HDR_URL = './hdri/spruit_sunrise.hdr';
+
+/**
+ * The words the toasts use for a gesture and for the keys they name, so a line
+ * written for a mouse and a keyboard still reads true under a thumb — where the
+ * key is a button with the move's name on it and a click is a tap.
+ */
+const TOUCH = prefersTouchLayout();
+const CLICK = TOUCH ? 'tap' : 'click';
+const SPACE = TOUCH ? 'Loose' : 'Space';
+const FLIGHT_KEY = TOUCH ? 'Flight' : 'X';
 
 /**
  * Application root: owns every subsystem and the frame loop.
@@ -289,10 +301,15 @@ export class App {
     /* ---- UI ---- */
     this.loading = new LoadingScreen();
     this.toast = new Toast();
-    this.stats = new Stats();
+    // On a phone the readout and the editor start put away: both would sit over
+    // the buttons. The Editor button in the top bar brings the editor back.
+    this.stats = new Stats({ visible: !TOUCH });
     // The moves and their keys, along the bottom — one panel per category. Fed a
     // state per ability every frame from `_syncAbilities`; it decides nothing.
     this.actionHUD = new ActionHUD();
+    // The same moves under the thumbs, on a touch screen. It is fed the same
+    // states as the row above, and every button is its key — see the class.
+    this.mobileControls = TOUCH ? new MobileControls({ input: this.input }) : null;
     // The same answer as the ring, over the head instead of under the feet: the
     // ring says which body, these say with which key. Fed from
     // `_updateTargetRings` — it resolves nothing of its own either.
@@ -308,6 +325,7 @@ export class App {
       },
       onCastJudgement: () => this._castJudgement()
     });
+    if (TOUCH) this.editor.toggle();
 
     /**
      * The equipment studio. Built in `load()`, because it needs the rig's
@@ -407,7 +425,7 @@ export class App {
             // line below says which one is up now.
             this.judgeMarking.end();
             const wanted = this.marking.begin();
-            this.toast.show(`Look at a body and click to mark it — ${wanted} of them`);
+            this.toast.show(`Look at a body and ${CLICK} to mark it — ${wanted} of them`);
           }
           break;
         }
@@ -424,7 +442,7 @@ export class App {
           } else {
             this.marking.end();
             this.judgeMarking.begin();
-            this.toast.show('Look at a body and click to call it down on');
+            this.toast.show(`Look at a body and ${CLICK} to call it down on`);
           }
           break;
         }
@@ -461,7 +479,7 @@ export class App {
    */
   _groundedOnly() {
     if (!this.character.flight?.active) return false;
-    this.toast.show('Not from up here — X to come down first');
+    this.toast.show(`Not from up here — ${FLIGHT_KEY} to come down first`);
     return true;
   }
 
@@ -519,7 +537,7 @@ export class App {
 
     flight.start();
     this.flightMarking.begin();
-    this.toast.show('Airborne — click a body to forge a blade for it · Space looses them');
+    this.toast.show(`Airborne — ${CLICK} a body to forge a blade for it · ${SPACE} looses them`);
   }
 
   /**
@@ -532,7 +550,7 @@ export class App {
    */
   _forgeBlade(enemy) {
     const result = this.blades.mark(enemy);
-    if (result === 'full') this.toast.show('The ring is full — Space');
+    if (result === 'full') this.toast.show(`The ring is full — ${SPACE}`);
     else if (result === 'unavailable') this.toast.show('Nothing to forge a blade from');
     // A duplicate is a mis-click on a body that already has one coming, and
     // saying so every time would be noise.
@@ -544,7 +562,7 @@ export class App {
   _loose() {
     const sent = this.blades.launch();
     if (sent > 0) this.toast.show(`${sent} away`);
-    else this.toast.show('Nothing hanging — click a body first');
+    else this.toast.show(`Nothing hanging — ${CLICK} a body first`);
   }
 
   /**
@@ -588,7 +606,11 @@ export class App {
     this.targetMarkers.clear();
     this.rig.controls.enabled = false;
     this.post.setView(screen.stage.scene, screen.camera.camera);
-    this.toast.show('Character screen — drag to orbit · right-drag to pan · wheel to zoom');
+    this.toast.show(
+      TOUCH
+        ? 'Character screen — drag to orbit · pinch to zoom'
+        : 'Character screen — drag to orbit · right-drag to pan · wheel to zoom'
+    );
   }
 
   /**
@@ -820,6 +842,7 @@ export class App {
     }
 
     this.actionHUD.update(state);
+    this.mobileControls?.update(state, airborne);
   }
 
   /**
@@ -957,7 +980,11 @@ export class App {
     this.loading.hide();
     // The moves are named by the row along the bottom, so this only has to
     // cover what the row does not: the stick, and where to look for the rest.
-    this.toast.show('WASD to move · Shift to run · your moves are along the bottom');
+    this.toast.show(
+      TOUCH
+        ? 'Left thumb to move, all the way to run · drag to look · pinch to zoom'
+        : 'WASD to move · Shift to run · your moves are along the bottom'
+    );
 
     this.start();
   }
@@ -1129,6 +1156,7 @@ export class App {
     this.stop();
     window.removeEventListener('keydown', this._onKeyDown);
     this.input.dispose();
+    this.mobileControls?.dispose();
     this.shadows.dispose();
     this.judgement.dispose();
     this.blades.dispose();

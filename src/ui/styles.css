@@ -1150,3 +1150,387 @@ body.cs-open .hint {
     animation: none;
   }
 }
+
+/* ----------------------------------------------------------------- touch */
+
+/*
+ * The touch layout — see `ui/MobileControls.js`. Only ever present with
+ * `html.touch-ui` set, so none of this reaches a desktop.
+ *
+ * The same lacquer, gold and vermilion as the desktop row, because these are
+ * the same moves: the leap is a big round button under the right thumb, the
+ * techniques are plates on an arc around it, the abilities are seals on a wider
+ * arc behind them. Colour still means *now* — vermilion only on the move the
+ * body is committed to.
+ *
+ * The container never takes the pointer. Only the stick's zone and the buttons
+ * do, so the open middle and right of the screen stay the stage: a drag there
+ * orbits, a pinch zooms, a tap marks a body.
+ */
+
+.mc {
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  /* One scale for the whole cluster: every size and radius below hangs off it. */
+  --u: 1px;
+  --leap: calc(84 * var(--u));
+  --plate: calc(62 * var(--u));
+  --seal: calc(54 * var(--u));
+  --r-technique: calc(98 * var(--u));
+  --r-ability: calc(172 * var(--u));
+  --stick: calc(132 * var(--u));
+
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+  color: var(--washi);
+}
+
+.mc * {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- stick ---- */
+
+/* The whole lower left is the stick's: the ring comes to wherever the thumb lands. */
+.mc-stick {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 42%;
+  height: 62%;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.mc-stick__base {
+  position: absolute;
+  left: calc(var(--safe-l) + 28 * var(--u));
+  bottom: calc(var(--safe-b) + 28 * var(--u));
+  width: var(--stick);
+  height: var(--stick);
+  border-radius: 50%;
+  border: 1px solid rgba(217, 178, 106, 0.3);
+  background: radial-gradient(circle, rgba(6, 8, 11, 0.2) 40%, rgba(6, 8, 11, 0.55) 100%);
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.45);
+  opacity: 0.55;
+  transition: opacity 0.18s ease, border-color 0.18s ease;
+}
+
+/* Four ticks on the rim, so it reads as a direction and not just a circle. */
+.mc-stick__base::before {
+  content: '';
+  position: absolute;
+  inset: 7%;
+  border-radius: 50%;
+  border: 1px dashed rgba(217, 178, 106, 0.16);
+}
+
+.mc-stick__base.is-active {
+  opacity: 1;
+  border-color: rgba(217, 178, 106, 0.55);
+}
+
+/* Pushed to the rim: running. The rim takes the vermilion. */
+.mc-stick__base.is-running {
+  border-color: rgba(216, 64, 44, 0.8);
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.45), 0 0 18px rgba(216, 64, 44, 0.3);
+}
+
+.mc-stick__knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 42%;
+  height: 42%;
+  margin: -21% 0 0 -21%;
+  border-radius: 50%;
+  border: 1px solid rgba(217, 178, 106, 0.7);
+  background: radial-gradient(circle at 38% 32%, #2a211b, var(--lacquer) 60%, var(--sumi));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(239, 230, 214, 0.12);
+}
+
+.mc-stick__base.is-running .mc-stick__knob {
+  border-color: var(--blood-lit);
+}
+
+/* ---- the moves ---- */
+
+/* A point, not a box: the leap's centre, and every other button is placed from it. */
+.mc-actions {
+  position: absolute;
+  right: calc(var(--safe-r) + 24 * var(--u) + var(--leap) / 2);
+  bottom: calc(var(--safe-b) + 24 * var(--u) + var(--leap) / 2);
+  width: 0;
+  height: 0;
+}
+
+.mc-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  color: rgba(239, 230, 214, 0.78);
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2 * var(--u));
+  transition: opacity 0.18s ease, filter 0.18s ease, transform 0.08s ease,
+    border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.mc-actions .mc-btn {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--s);
+  height: var(--s);
+  margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
+  transform: translate(calc(var(--cx, 0) * var(--r, 0px)), calc(var(--cy, 0) * var(--r, 0px)));
+}
+
+.mc-actions .mc-btn.is-down {
+  transform: translate(calc(var(--cx, 0) * var(--r, 0px)), calc(var(--cy, 0) * var(--r, 0px)))
+    scale(0.92);
+}
+
+.mc-icon {
+  display: block;
+  width: 44%;
+  height: 44%;
+  flex: none;
+}
+
+.mc-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mc-name {
+  font-size: calc(8.5 * var(--u));
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* The leap: the one big round thing, and the only button the thumb rests on. */
+.mc-leap {
+  --s: var(--leap);
+  border-radius: 50%;
+  border: 1px solid rgba(217, 178, 106, 0.6);
+  background: radial-gradient(circle at 50% 30%, #2b211a, var(--lacquer) 58%, var(--sumi));
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55), inset 0 0 0 4px rgba(6, 8, 11, 0.6),
+    inset 0 0 0 5px rgba(217, 178, 106, 0.22);
+}
+
+.mc-leap .mc-name {
+  font-size: calc(10 * var(--u));
+}
+
+/* The techniques: squared lacquer plates, against the round seals behind them. */
+.mc-plate {
+  --s: var(--plate);
+  --r: var(--r-technique);
+  border: 1px solid rgba(217, 178, 106, 0.45);
+  border-radius: calc(10 * var(--u));
+  background: linear-gradient(180deg, #221a15, var(--lacquer) 55%, var(--sumi));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(239, 230, 214, 0.08);
+}
+
+/* The abilities: smaller round seals, further out — rarer, and reached for less. */
+.mc-seal {
+  --s: var(--seal);
+  --r: var(--r-ability);
+  border-radius: 50%;
+  border: 1px solid rgba(217, 178, 106, 0.4);
+  background: radial-gradient(circle at 50% 34%, #1d1612, var(--sumi) 74%);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.mc-seal .mc-name {
+  font-size: calc(7 * var(--u));
+  letter-spacing: 0.08em;
+}
+
+.mc-btn.is-down {
+  color: var(--washi);
+  filter: brightness(1.35);
+}
+
+/* It is happening: the vermilion, as on the desktop row. */
+.mc-btn.is-active {
+  color: var(--washi);
+  border-color: rgba(216, 64, 44, 0.85);
+  background: radial-gradient(circle at 50% 34%, rgba(126, 34, 22, 0.95), rgba(14, 8, 8, 0.94) 74%);
+  box-shadow: 0 0 22px rgba(216, 64, 44, 0.45);
+}
+
+.mc-btn.is-active .mc-icon {
+  color: var(--blood-lit);
+  filter: drop-shadow(0 0 6px rgba(255, 106, 77, 0.6));
+}
+
+/* Would do nothing right now. Drained, never removed — see `.tech.is-off`. */
+.mc-btn.is-off {
+  opacity: 0.32;
+  filter: grayscale(1);
+}
+
+/* ---- top bar: the window's own keys ---- */
+
+.mc-bar {
+  position: absolute;
+  top: calc(var(--safe-t) + 10 * var(--u));
+  left: calc(var(--safe-l) + 10 * var(--u));
+  display: flex;
+  gap: calc(6 * var(--u));
+}
+
+.mc-util {
+  min-width: calc(46 * var(--u));
+  padding: 0 calc(7 * var(--u));
+  height: calc(44 * var(--u));
+  border-radius: calc(8 * var(--u));
+  border: 1px solid rgba(217, 178, 106, 0.28);
+  background: rgba(6, 8, 11, 0.62);
+}
+
+.mc-util .mc-icon {
+  width: 46%;
+  height: 46%;
+}
+
+.mc-util__glyph {
+  font-size: calc(15 * var(--u));
+  line-height: 1;
+  color: var(--gold);
+}
+
+.mc-util .mc-name,
+.mc-util__name {
+  font-size: calc(7 * var(--u));
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ---- the rest of the page, laid out for thumbs ---- */
+
+/* The desktop row and its key legend are what the buttons replace. */
+html.touch-ui .hud,
+html.touch-ui .hint {
+  display: none;
+}
+
+/* Up top, clear of both thumbs, instead of over the row that is no longer there. */
+html.touch-ui .toast {
+  top: calc(env(safe-area-inset-top, 0px) + 0.8rem);
+  bottom: auto;
+  max-width: min(64vw, 520px);
+  text-align: center;
+  transform: translateX(-50%) translateY(-6px);
+}
+
+html.touch-ui .toast.is-visible {
+  transform: translateX(-50%) translateY(0);
+}
+
+html.touch-ui .stats {
+  top: calc(env(safe-area-inset-top, 0px) + 4rem);
+}
+
+/* The studio has its own panels. Its close button stays pinned in reach. */
+body.cs-open .mc {
+  display: none;
+}
+
+html.touch-ui .cs__close {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  flex: none;
+  background: #10161e;
+  box-shadow: -14px 0 12px #10161e;
+}
+
+html.touch-ui .cs__btn {
+  min-height: 34px;
+}
+
+/*
+ * The studio on a phone: the side rails come down under the body instead of
+ * standing either side of it, so the middle of the screen is still the model.
+ */
+@media (max-width: 900px), (max-height: 520px) {
+  html.touch-ui .cs {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) minmax(0, 44%);
+    gap: 0.4rem;
+    padding: max(0.4rem, env(safe-area-inset-top, 0px)) max(0.4rem, env(safe-area-inset-right, 0px))
+      max(0.4rem, env(safe-area-inset-bottom, 0px)) max(0.4rem, env(safe-area-inset-left, 0px));
+  }
+
+  /* Too short to hand the list the leftover height: the whole rail scrolls. */
+  html.touch-ui .cs__rail {
+    grid-column: 1;
+    grid-row: 3;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  html.touch-ui .cs__cards {
+    flex: none;
+    overflow: visible;
+  }
+
+  html.touch-ui .cs__inspector {
+    grid-column: 2;
+    grid-row: 3;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* A small screen: the whole cluster shrinks together. */
+@media (max-height: 430px), (max-width: 430px) {
+  .mc {
+    --u: 0.82px;
+  }
+}
+
+@media (max-height: 340px) {
+  .mc {
+    --u: 0.7px;
+  }
+}
+
+/*
+ * Portrait: there is no room for a wide arc beside the stick, so the arcs close
+ * up and the stick drops to the bottom corner. The game is built for
+ * landscape; this keeps it playable rather than pretending otherwise.
+ */
+@media (orientation: portrait) {
+  .mc {
+    --r-technique: calc(90 * var(--u));
+    --r-ability: calc(156 * var(--u));
+    --stick: calc(118 * var(--u));
+  }
+
+  .mc-stick {
+    width: 45%;
+    height: 38%;
+  }
+}

@@ -1705,3 +1705,177 @@ body.cs-open .combo-count {
     animation-duration: 0.2s;
   }
 }
+
+/* ------------------------------------------------------------ health */
+
+/*
+ * The player's bar — `ui/PlayerHud.js`. Small, top centre on a desktop, under
+ * the window keys on a phone. Gold frame and vermilion fill, like everything
+ * else the character owns; a pale trail catches up a beat after a hit.
+ */
+.hp {
+  position: fixed;
+  top: 0.9rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 18;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  pointer-events: none;
+  user-select: none;
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  color: rgba(239, 230, 214, 0.75);
+}
+
+.hp__track {
+  position: relative;
+  width: 11rem;
+  height: 0.42rem;
+  overflow: hidden;
+  border: 1px solid rgba(217, 178, 106, 0.45);
+  background: rgba(6, 8, 11, 0.7);
+}
+
+.hp__fill,
+.hp__trail {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+}
+
+.hp__trail {
+  background: rgba(239, 230, 214, 0.55);
+  transition: transform 0.5s ease 0.25s;
+}
+
+.hp__fill {
+  background: linear-gradient(90deg, #8c1f12, var(--blood) 60%, var(--blood-lit));
+  transition: transform 0.08s ease-out;
+}
+
+.hp__value {
+  min-width: 1.8em;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+}
+
+.hp.is-low .hp__fill {
+  animation: hp-low 0.9s ease-in-out infinite;
+}
+
+.hp.is-hit {
+  animation: hp-hit 0.3s ease-out;
+}
+
+@keyframes hp-low {
+  50% {
+    filter: brightness(1.6);
+  }
+}
+
+@keyframes hp-hit {
+  20% {
+    transform: translateX(calc(-50% - 3px));
+  }
+  60% {
+    transform: translateX(calc(-50% + 2px));
+  }
+}
+
+html.touch-ui .hp {
+  top: calc(env(safe-area-inset-top, 0px) + 3.7rem);
+  left: calc(env(safe-area-inset-left, 0px) + 0.7rem);
+  transform: none;
+}
+
+html.touch-ui .hp.is-hit {
+  animation: none;
+}
+
+html.touch-ui .hp__track {
+  width: 8.5rem;
+}
+
+body.cs-open .hp {
+  display: none;
+}
+
+/* The down screen: a veil, one mark, one word, one button. Above everything,
+   the stage editor included — on a narrow screen its panel would otherwise
+   sit over the Retry button. */
+.down {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.4rem;
+  background: radial-gradient(ellipse at center, rgba(40, 6, 4, 0.35), rgba(6, 8, 11, 0.8) 75%);
+  animation: down-in 0.8s ease-out;
+}
+
+.down[hidden] {
+  display: none;
+}
+
+.down__kanji {
+  margin: 0;
+  font-family: 'Yu Mincho', 'Hiragino Mincho ProN', 'MS Mincho', serif;
+  font-size: 3.2rem;
+  line-height: 1;
+  color: var(--blood-lit);
+  text-shadow: 0 0 24px rgba(216, 64, 44, 0.5);
+}
+
+.down__title {
+  margin: 0 0 0.8rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--washi);
+}
+
+.down__retry {
+  min-width: 9rem;
+  min-height: 44px;
+  padding: 0.6rem 1.4rem;
+  border: 1px solid rgba(217, 178, 106, 0.6);
+  background: rgba(23, 18, 15, 0.9);
+  color: var(--washi);
+  font: inherit;
+  font-size: 0.75rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  white-space: pre;
+  cursor: pointer;
+}
+
+.down__retry[hidden] {
+  display: none;
+}
+
+.down__retry:hover,
+.down__retry:focus-visible {
+  border-color: var(--blood-lit);
+  outline: none;
+}
+
+@keyframes down-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* While down, the move buttons stand dimmed and take no touches. */
+body.player-down .mc-actions,
+body.player-down .mc-stick {
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+body.player-down .mc-actions .mc-btn {
+  pointer-events: none;
+}

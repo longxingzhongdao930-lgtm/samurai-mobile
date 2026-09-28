@@ -974,6 +974,22 @@ export const settings = {
     finisherBoost: 1.3,
     /** Seconds a press is held for, so one made a little early still chains. */
     bufferTime: 0.3,
+
+    /**
+     * The player's own health — `App#_onPlayerHit` and `ui/PlayerHud.js`.
+     * Every enemy blow that lands takes `damage`; after one, the player cannot
+     * be hit again for `invulnerable` seconds (so a ring of them cannot chain
+     * blows through one opening). At 0 the body goes down and the controls
+     * stop; retry is offered after `retryDelay`, and a fresh start is covered
+     * for `retryInvulnerable` seconds.
+     */
+    player: {
+      maxHp: 100,
+      damage: 12,
+      invulnerable: 0.6,
+      retryDelay: 1.2,
+      retryInvulnerable: 1.5
+    },
     /** A chained move plays this much faster — the second blow comes quicker. */
     chainSpeed: 1.15,
 

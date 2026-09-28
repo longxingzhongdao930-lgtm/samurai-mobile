@@ -1522,6 +1522,13 @@ export class Editor {
     R(folder, c.sparks, 'sparks', 0, 120, 1, 'spark count');
     R(folder, c.sparks, 'size', 0, 3, 0.01, 'flash size');
     R(folder, settings.enemies, 'health', 1, 6, 1, 'enemy health');
+    const hp = settings.combat.player;
+    const player = folder.addFolder('Player HP');
+    R(player, hp, 'maxHp', 1, 500, 1, 'max HP');
+    R(player, hp, 'damage', 0, 100, 1, 'damage per enemy hit');
+    R(player, hp, 'invulnerable', 0, 3, 0.05, 'invulnerable after hit (s)');
+    R(player, hp, 'retryDelay', 0, 5, 0.1, 'retry offered after (s)');
+    R(player, hp, 'retryInvulnerable', 0, 5, 0.1, 'cover after retry (s)');
     folder.add(settings.audio, 'enabled').name('sound');
     R(folder, settings.audio, 'volume', 0, 1.5, 0.01, 'volume');
   }

@@ -73,6 +73,11 @@ export class ThirdPersonController {
     this._queued = null;
     /** When it was pressed, in real milliseconds — see the expiry below. */
     this._queuedAt = 0;
+    /**
+     * Set while the player is down: every press is swallowed, the body stops,
+     * and nothing new starts. Moves already running only blend out.
+     */
+    this.frozen = false;
   }
 
   /** @param {import('../combat/EnemyManager.js').EnemyManager} enemies */
@@ -95,6 +100,19 @@ export class ThirdPersonController {
 
     const axis = this.input.sample();
     const running = this.input.running;
+
+    if (this.frozen) {
+      this.input.consumeJump();
+      for (const move of this.character.attacks ?? []) this.input.consumeAttack(move.configKey);
+      this.input.consumeAttack('combo');
+      this.input.consumeAttack('musou');
+      this._queued = null;
+      for (const move of this.character.moves ?? []) move.update(dt);
+      this.velocity.set(0, 0);
+      this.speed = 0;
+      this.character.locomotion?.setSpeed(0);
+      return;
+    }
     // The jump is a movement state, so it is advanced from here — the same place
     // that owns the position it moves. `Locomotion` only reads the weight it
     // resolves, later in the frame.

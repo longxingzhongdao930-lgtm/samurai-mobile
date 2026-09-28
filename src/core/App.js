@@ -1,4 +1,4 @@
-import { MathUtils } from 'three';
+import { MathUtils, Vector3 } from 'three';
 
 import { Renderer } from './Renderer.js';
 import { Time } from './Time.js';
@@ -29,6 +29,7 @@ import { BladeImpact } from '../vfx/BladeImpact.js';
 import { ShockRing } from '../vfx/ShockRing.js';
 import { DustBurst } from '../vfx/DustBurst.js';
 import { ComboCounter } from '../ui/ComboCounter.js';
+import { PlayerHud } from '../ui/PlayerHud.js';
 import { CombatAudio } from '../audio/CombatAudio.js';
 import { ShadowCharacter } from '../vfx/ShadowCharacter.js';
 import { Judgement } from '../vfx/Judgement.js';
@@ -48,6 +49,9 @@ import { prefersTouchLayout } from '../utils/device.js';
 import { settings } from '../config/settings.js';
 
 const HDR_URL = './hdri/spruit_sunrise.hdr';
+
+/** The axis the body falls over about when it goes down — see `_updateDown`. */
+const _fallAxis = new Vector3();
 
 /**
  * The words the toasts use for a gesture and for the keys they name, so a line
@@ -340,6 +344,17 @@ export class App {
     this._hurtFlash = document.createElement('div');
     this._hurtFlash.className = 'hurt-flash';
     document.body.appendChild(this._hurtFlash);
+
+    /* ---- the player's health — `settings.combat.player` ---- */
+    this.playerHp = settings.combat.player.maxHp;
+    /** Seconds (real) the player cannot be struck — after a hit, and after a retry. */
+    this._invuln = 0;
+    /** True from the blow that empties the bar until Retry. */
+    this.playerDown = false;
+    /** Seconds since going down — what the fall is timed on. */
+    this._downT = 0;
+    this.playerHud = new PlayerHud({ onRetry: () => this._retry(), touch: TOUCH });
+    this.playerHud.setHp(this.playerHp, settings.combat.player.maxHp);
     // On a phone the readout and the editor start put away: both would sit over
     // the buttons. The Editor button in the top bar brings the editor back.
     this.stats = new Stats({ visible: !TOUCH });
@@ -410,6 +425,13 @@ export class App {
         target instanceof HTMLTextAreaElement
       ) {
         return;
+      }
+
+      // Down: Enter retries once it is offered; only the window's own keys
+      // (pause, editor, stats) still do anything.
+      if (this.playerDown) {
+        if (event.code === 'Enter' && this.playerHud.retryReady) this._retry();
+        if (!['KeyP', 'KeyG', 'KeyF'].includes(event.code)) return;
       }
 
       switch (event.code) {
@@ -825,6 +847,67 @@ export class App {
     flash.classList.remove('is-on');
     void flash.offsetWidth;
     flash.classList.add('is-on');
+
+    // And now it costs something.
+    const hp = settings.combat.player;
+    this.playerHp = Math.max(0, this.playerHp - hp.damage);
+    this._invuln = hp.invulnerable;
+    this.playerHud.setHp(this.playerHp, hp.maxHp);
+    if (this.playerHp <= 0) this._down(x, z);
+  }
+
+  /**
+   * The bar is empty: the body goes over backward along the blow, every
+   * control stops, nothing new may hit or be started, and Retry comes up once
+   * the fall has been seen. Whatever the body was doing is let go.
+   */
+  _down() {
+    if (this.playerDown) return;
+    this.playerDown = true;
+    this._downT = 0;
+    this.controller.frozen = true;
+    this.character.jump?.cancel();
+    this.character.hop?.cancel();
+    for (const move of this.character.moves ?? []) move.release();
+    this.marking.end();
+    this.judgeMarking.end();
+    this.targetRings.clear();
+    this.targetHotkeys.clear();
+    this.playerHud.showDown(settings.combat.player.retryDelay);
+  }
+
+  /**
+   * The fall itself, laid on the body's `tilt` group so it pivots at the feet
+   * and never touches the heading on the root: over backward on a quadratic,
+   * one small bounce, and lying there.
+   */
+  _updateDown(dt) {
+    this._downT += dt;
+    const t = this._downT;
+    const fall = 0.55;
+    let angle = 1.5 * Math.min(1, (t / fall) ** 2);
+    if (t > fall) angle -= 0.08 * Math.sin((t - fall) * 14) * Math.exp(-(t - fall) * 6);
+    const forward = this.character._forwardYaw ?? 0;
+    _fallAxis.set(-Math.cos(forward), 0, Math.sin(forward));
+    this.character.tilt.quaternion.setFromAxisAngle(_fallAxis, angle);
+    this.character.tilt.position.y = 0.12 * Math.min(1, angle / 1.5);
+  }
+
+  /** Back on the feet: full health, a fresh ring of bodies, a moment's cover. */
+  _retry() {
+    if (!this.playerDown) return;
+    const hp = settings.combat.player;
+    this.playerDown = false;
+    this.controller.frozen = false;
+    this.playerHp = hp.maxHp;
+    this._invuln = hp.retryInvulnerable;
+    this.playerHud.setHp(this.playerHp, hp.maxHp);
+    this.playerHud.hideDown();
+    this.character.tilt.quaternion.identity();
+    this.character.tilt.position.set(0, 0, 0);
+    this.musouGauge = 0;
+    this.enemies.respawnAll();
+    this.toast.show('Again');
   }
 
   /** Blows and bodies fill the gauge — but not the Musou's own. */
@@ -1204,7 +1287,10 @@ export class App {
     // Not in the air, and not while the Musou is running — it is the player's
     // moment, and a blow landing in the middle of it would take it back.
     this.enemies.canHitPlayer = () =>
-      !this.character.flight?.active && !this.character.musou?.some((move) => move.locked);
+      !this.playerDown &&
+      this._invuln <= 0 &&
+      !this.character.flight?.active &&
+      !this.character.musou?.some((move) => move.locked);
     // Stood up now rather than on the first frame, so their materials are in
     // the scene for the shader warm-up below.
     this.enemies.respawnAll();
@@ -1363,6 +1449,8 @@ export class App {
     this.musouDust.sync(this.elapsed, settings.judgement.dust);
     this.musouShock.update(dt, settings.musou.shock);
     this.comboCounter.update(raw);
+    this._invuln = Math.max(0, this._invuln - raw);
+    if (this.playerDown) this._updateDown(dt);
     this.controller.update(dt);
     // Stand the character on the surface. The jump's arc lives inside the model
     // (it is the clip's own hips translation), so this stays the body's *ground*
@@ -1388,7 +1476,9 @@ export class App {
     // against this frame.
     // No new swings while the Musou runs or the body is in the air.
     this.enemies.aiPaused =
-      !!this.character.flight?.active || !!this.character.musou?.some((move) => move.locked);
+      this.playerDown ||
+      !!this.character.flight?.active ||
+      !!this.character.musou?.some((move) => move.locked);
     this.enemies.update(dt, position);
     // After them, so a body that has just been felled or has just walked out of
     // the cone loses its ring on the same frame it stops being a target.
@@ -1473,6 +1563,7 @@ export class App {
     this.musouDust.dispose();
     this.comboCounter.dispose();
     this._hurtFlash.remove();
+    this.playerHud.dispose();
     this.weaponFire?.dispose();
     this.characterScreen?.dispose();
     this.character.dispose();

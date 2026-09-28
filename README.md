@@ -305,7 +305,21 @@ interrupts it. `EnemyManager` decides the shared part: only the
 `waitDistance`), and only `maxAttackers` may be swinging at once, at least
 `attackGap` seconds apart. No new swings start during the Musou or flight.
 A landed blow shakes the lens, freezes briefly, flashes the screen edges and
-shoves the player back — there is no health yet.
+shoves the player back.
+
+### Health and going down
+
+The player has `settings.combat.player.maxHp` (100). Every enemy blow that
+lands takes `damage` (12) on top of the flash and shake above, and leaves
+`invulnerable` seconds (0.6) in which nothing else can land — so a ring of
+them cannot chain blows through one opening. At 0 the body falls over
+backward (laid on the character's `tilt` group, pivoting at the feet), every
+control stops, no enemy starts a swing, and after `retryDelay` a Retry button
+comes up — click or tap it, or press `Enter`. Retry restores full health,
+stands a fresh ring of bodies up, and covers the player for
+`retryInvulnerable` seconds. The bar is top centre on a desktop and under the
+window keys on a phone. All of it is in the editor under
+**Combat → Feel & sound → Player HP**.
 
 ### The ragdoll
 

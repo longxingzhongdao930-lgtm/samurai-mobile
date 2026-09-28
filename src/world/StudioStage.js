@@ -296,7 +296,7 @@ export class StudioStage {
     this.key.penumbra = lights.keyPenumbra;
     this.key.decay = 2;
     this.key.castShadow = true;
-    this.key.shadow.mapSize.set(2048, 2048);
+    this.key.shadow.mapSize.set(lights.shadowMapSize, lights.shadowMapSize);
     this.key.shadow.camera.near = 0.4;
     this.key.shadow.camera.far = 24;
     this.key.shadow.bias = lights.shadowBias;

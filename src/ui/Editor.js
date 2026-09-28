@@ -220,8 +220,8 @@ export class Editor {
     R(folder, e, 'shadowNormalBias', 0, 0.15, 0.001, 'shadow normal bias');
     R(folder, e, 'contactShadow', 0, 1.5, 0.01, 'contact shadow');
     // Half-width of the sun's shadow box. Bigger reaches further out for
-    // casters and costs sharpness — the map is a fixed 4096², so this is
-    // metres per texel in disguise. The distance below only has to be far
+    // casters and costs sharpness — the map is `shadowMapSize`² (4096² on a
+    // desktop, set once at boot), so this is metres per texel in disguise. The distance below only has to be far
     // enough up-sun to clear the canopy; at a low elevation that is a long way.
     R(folder, e, 'shadowExtent', 12, 120, 1, 'shadow box (m)');
     R(folder, e, 'shadowDistance', 40, 400, 5, 'sun distance (m)');

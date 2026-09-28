@@ -17,6 +17,9 @@
  *  - `global` holds multipliers that scale everything at once (1 = neutral).
  */
 
+import { prefersTouchLayout } from '../utils/device.js';
+import { MOBILE_OVERRIDES } from './mobile.js';
+
 export const settings = {
   /* ------------------------------------------------------------------ */
   /* Global multipliers                                                  */
@@ -2148,6 +2151,11 @@ export const settings = {
      */
     shadowExtent: 46,
     shadowDistance: 210,
+    /**
+     * Texels along each side of the sun's shadow map. Read once, when the light
+     * is built — a live change would need the map reallocated.
+     */
+    shadowMapSize: 4096,
     floorColor: '#1c2b3a',
     floorTint: '#3c5a74',
     floorRoughness: 0.94,
@@ -2892,7 +2900,9 @@ export const settings = {
 
       shadowBias: 0.001,
       shadowNormalBias: 0.019,
-      shadowRadius: 5.3
+      shadowRadius: 5.3,
+      /** The key's shadow map, per side. Read once, when the set is built. */
+      shadowMapSize: 2048
     },
 
     /** The set the body stands on. */
@@ -2939,6 +2949,10 @@ export const settings = {
     }
   }
 };
+
+// A phone gets its own numbers, patched in *before* the snapshot below so they
+// are what "Reset to defaults" returns to there — see `config/mobile.js`.
+if (prefersTouchLayout()) applySettings(MOBILE_OVERRIDES);
 
 /** Immutable snapshot used by "Reset to defaults" and the preset system. */
 export const DEFAULT_SETTINGS = structuredClone(settings);

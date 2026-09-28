@@ -95,7 +95,8 @@ export class Environment {
       settings.environment.sunIntensity
     );
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(4096, 4096);
+    const mapSize = settings.environment.shadowMapSize;
+    this.sun.shadow.mapSize.set(mapSize, mapSize);
     this.sun.shadow.bias = settings.environment.shadowBias;
     this.sun.shadow.normalBias = settings.environment.shadowNormalBias;
     this.sun.shadow.radius = settings.environment.shadowRadius;

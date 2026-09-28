@@ -57,6 +57,17 @@ export class ThirdPersonController {
      * @type {import('../combat/EnemyManager.js').EnemyManager|null}
      */
     this.enemies = null;
+
+    /**
+     * A press made while a move still had the body, held for
+     * `combat.bufferTime` so it can go off the moment the combo window opens.
+     * Without it a press a few frames early is swallowed, and the combo only
+     * works for players who have learnt its exact timing.
+     * @type {import('./Attack.js').Attack|null}
+     */
+    this._queued = null;
+    /** When it was pressed, in real milliseconds — see the expiry below. */
+    this._queuedAt = 0;
   }
 
   /** @param {import('../combat/EnemyManager.js').EnemyManager} enemies */
@@ -93,9 +104,20 @@ export class ThirdPersonController {
     // its pose out over the gait — and while it *is* up it takes the stick
     // outright: nothing below this line can run, which is what makes flight the
     // one ability that excludes every other one.
+    // Expired on the real clock, not the simulation's: a press must not
+    // survive a pause or a trip to the character screen and fire on return.
+    const now = performance.now();
+    if (requested) {
+      this._queued = requested;
+      this._queuedAt = now;
+    } else if (this._queued && now - this._queuedAt > settings.combat.bufferTime * 1000) {
+      this._queued = null;
+    }
+
     const flight = this.character.flight;
     flight?.update(dt, this.speed);
     if (flight?.flying) {
+      this._queued = null;
       this._fly(dt, axis, running);
       return;
     }
@@ -115,6 +137,21 @@ export class ThirdPersonController {
       if (move.locked) holding = move;
     }
     if (holding) {
+      // The combo: a different move, pressed (or buffered) once this one has
+      // landed and reached `cancelAt`, takes over the rest of its recovery.
+      // Still only if there is someone to throw it at — a chain into air is
+      // the same spent press it would be from a standstill.
+      const next = this._queued;
+      if (next && next !== holding && holding.chainable && next.canStart()) {
+        const target = this._findAttackTarget(next);
+        if (target) {
+          holding.release();
+          next.start(target, true);
+          this._queued = null;
+          this._applyAttackWarp(next, dt);
+          return;
+        }
+      }
       this._applyAttackWarp(holding, dt);
       return;
     }
@@ -125,11 +162,15 @@ export class ThirdPersonController {
     // are not. So the press is spent and the body carries on walking, which is
     // the same answer the dimmed plate in the HUD gave before the key went
     // down (see `App#_syncAbilities`).
-    if (requested?.canStart()) {
-      const target = this._findAttackTarget(requested);
+    // The buffer only carries a press across a move that was holding the body;
+    // out here it is spent whether it finds anyone or not.
+    const pressed = this._queued;
+    this._queued = null;
+    if (pressed?.canStart()) {
+      const target = this._findAttackTarget(pressed);
       if (target) {
-        requested.start(target);
-        this._applyAttackWarp(requested, dt);
+        pressed.start(target);
+        this._applyAttackWarp(pressed, dt);
         return;
       }
     }

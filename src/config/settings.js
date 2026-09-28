@@ -274,7 +274,30 @@ export const settings = {
     /** Metres the lens is kicked. Decays in about a third of a second. */
     shake: 0.16,
     /** A boot does not cut anyone in half — see `settings.slice`. */
-    slices: false
+    slices: false,
+
+    /* ---- feel — see `settings.combat` for what these are for ---- */
+    /**
+     * Wounds dealt, against `enemies.health`. A boot is one: it staggers a
+     * fresh body and fells one that is already reeling, which is what makes it
+     * the opener of a combo rather than a finisher.
+     */
+    damage: 1,
+    /** Normalised time the whoosh starts — a beat before `hitAt`, so sound leads contact. */
+    swingAt: 0.3,
+    /**
+     * Normalised time another move may cut the recovery short. After the
+     * contact, before `recoverAt`: the window a combo is chained in.
+     */
+    cancelAt: 0.56,
+    /** Full width, degrees, of what counts as in front at contact. */
+    strikeArc: 150,
+    /** A boot finds one body. */
+    cleaveReach: 0,
+    cleaveArc: 0,
+    /** m/s a body that survives is driven back, and how far it rocks, radians. */
+    staggerPush: 3.4,
+    flinch: 0.55
   },
 
   /* ------------------------------------------------------------------ */
@@ -365,7 +388,23 @@ export const settings = {
     /** Metres the lens is knocked. */
     shake: 0.24,
     /** This one comes across with the sword: the body it lands on comes apart. */
-    slices: true
+    slices: true,
+
+    /* ---- feel ---- */
+    /** A sword: enough to fell a fresh body outright. */
+    damage: 2,
+    swingAt: 0.31,
+    cancelAt: 0.5,
+    /** A sweep, wide — anything inside it in front of the hips is met. */
+    strikeArc: 220,
+    /**
+     * The sweep takes whoever else is standing in it: metres from the player,
+     * and the full width of the arc, degrees.
+     */
+    cleaveReach: 2.6,
+    cleaveArc: 160,
+    staggerPush: 2.6,
+    flinch: 0.45
   },
 
   /* ------------------------------------------------------------------ */
@@ -493,7 +532,23 @@ export const settings = {
     /** Metres the lens is knocked. The heaviest of the three. */
     shake: 0.28,
     /** A sword, at the waist: the body it lands on comes apart. */
-    slices: true
+    slices: true,
+
+    /* ---- feel ---- */
+    damage: 2,
+    /** The blade comes out of the slide late — the whoosh with it. */
+    swingAt: 0.6,
+    cancelAt: 0.8,
+    /**
+     * Any direction: the move goes *through* its mark, so at contact the body
+     * may already be at the player's shoulder or behind it.
+     */
+    strikeArc: 360,
+    /** Whoever the slide passes close by goes down with the mark. */
+    cleaveReach: 1.9,
+    cleaveArc: 360,
+    staggerPush: 3.0,
+    flinch: 0.5
   },
 
   /* ------------------------------------------------------------------ */
@@ -702,6 +757,84 @@ export const settings = {
   },
 
   /* ------------------------------------------------------------------ */
+  /* Feel                                                                */
+  /* ------------------------------------------------------------------ */
+  /**
+   * What a blow *feels* like, as opposed to what it does.
+   *
+   * Every number here is about the beat around contact: the hit-stop's
+   * release, how much of it a stagger gets, the lens pushed along the blow,
+   * the body flinching, the sparks, and how long a press is remembered so a
+   * combo does not drop it.
+   */
+  combat: {
+    /**
+     * Seconds the world takes to come back up to speed after a hit-stop.
+     * Without it the freeze ends on one frame, which reads as a hitch; with it
+     * the world *resumes*, which reads as weight.
+     */
+    hitStopRelease: 0.08,
+    /** Fraction of the move's hit-stop and shake a blow that does not fell gets. */
+    staggerScale: 0.6,
+    /**
+     * A body felled after it has already taken a blow: the combo's payoff, so
+     * the freeze, the lens and the throw are all this much more.
+     */
+    finisherBoost: 1.3,
+    /** Seconds a press is held for, so one made a little early still chains. */
+    bufferTime: 0.3,
+    /** A chained move plays this much faster — the second blow comes quicker. */
+    chainSpeed: 1.15,
+
+    /**
+     * The lens is pushed along the blow rather than only shaken: metres per
+     * metre of the move's `shake`, and degrees the field of view closes by.
+     */
+    punch: 0.55,
+    fovKick: 2.4,
+    /** Screen roll on contact, radians per metre of shake. */
+    roll: 0.12,
+
+    /** Seconds a body reels for after a blow it survives. */
+    staggerTime: 0.75,
+    /** How fast the shove bleeds off, 1/s. */
+    staggerDrag: 7.5,
+    /** The flinch's spring: stiffness and damping. Under-damped, so it rocks back once. */
+    flinchStiffness: 170,
+    flinchDamping: 12,
+    /** Seconds the rim flares on a hit, and how bright. */
+    flashTime: 0.2,
+    flash: 3.2,
+
+    /** The sparks off the steel at contact — `vfx/BladeImpact.js`. */
+    sparks: {
+      enabled: true,
+      color: '#fff1d6',
+      ringColor: '#ff7a3c',
+      size: 0.9,
+      life: 0.26,
+      intensity: 2.2,
+      spikes: 6,
+      spikeLength: 1.3,
+      sparks: 26,
+      sparkColor: '#ffc27a',
+      sparkSpeed: 7.5,
+      sparkSpread: 0.6,
+      sparkLife: 0.4,
+      sparkSize: 0.045,
+      sparkStretch: 0.05,
+      sparkDrag: 1.8,
+      sparkGravity: -16
+    }
+  },
+
+  /** The fight's sounds — `audio/CombatAudio.js`. Made, not loaded. */
+  audio: {
+    enabled: true,
+    volume: 0.7
+  },
+
+  /* ------------------------------------------------------------------ */
   /* Enemies                                                             */
   /* ------------------------------------------------------------------ */
   /**
@@ -721,6 +854,11 @@ export const settings = {
     enabled: true,
     /** How many are standing at any moment. */
     count: 5,
+    /**
+     * Wounds a body takes before it goes down — see each move's `damage`. Two
+     * means a sword fells a fresh body and a boot only staggers it.
+     */
+    health: 2,
     /** Metres from the player they spawn inside, and no nearer than. */
     radius: 13,
     minRadius: 4.5,

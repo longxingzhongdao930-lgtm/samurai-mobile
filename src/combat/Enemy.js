@@ -1,11 +1,13 @@
 import {
   AnimationMixer,
+  Color,
   DoubleSide,
   Group,
   MathUtils,
   Matrix4,
   MeshDepthMaterial,
   MeshStandardMaterial,
+  Quaternion,
   RGBADepthPacking,
   Vector3
 } from 'three';
@@ -114,6 +116,40 @@ const _cutPoint = /* @__PURE__ */ new Vector3();
 const _world = /* @__PURE__ */ new Vector3();
 const _spray = /* @__PURE__ */ new Vector3();
 const _scratch = /* @__PURE__ */ new Vector3();
+const _parentQ = /* @__PURE__ */ new Quaternion();
+const _parentQInv = /* @__PURE__ */ new Quaternion();
+const _flinchQ = /* @__PURE__ */ new Quaternion();
+const _flinchAxis = /* @__PURE__ */ new Vector3();
+const _ignoreP = /* @__PURE__ */ new Vector3();
+const _ignoreS = /* @__PURE__ */ new Vector3();
+const _white = /* @__PURE__ */ new Color(1, 1, 1);
+
+/**
+ * First peak of `x'' = -k·x - c·x'` started from rest with unit velocity — so
+ * a peak of `a` radians wants an initial velocity of `a / springPeak(k, c)`.
+ */
+function springPeak(stiffness, damping) {
+  const w = Math.sqrt(Math.max(1, stiffness));
+  const zeta = Math.min(0.95, Math.max(0, damping) / (2 * w));
+  const root = Math.sqrt(1 - zeta * zeta);
+  const wd = w * root;
+  const t = Math.atan2(root, zeta) / wd;
+  return (Math.exp(-zeta * w * t) * Math.sin(wd * t)) / wd;
+}
+
+/**
+ * How a flinch is spread up the spine: bone → share of the tilt. The chest
+ * takes most of it and the head snaps a little further than the neck carries
+ * it, which is what makes a blow read as landing on the torso rather than as
+ * the whole body leaning like a post.
+ */
+const FLINCH_BONES = [
+  ['Spine', 0.28],
+  ['Spine1', 0.3],
+  ['Spine2', 0.26],
+  ['Neck', 0.1],
+  ['Head', 0.22]
+];
 
 /** Every bone under a model, in one pass. */
 function collectBones(model) {
@@ -214,6 +250,23 @@ export class Enemy {
     /** True once the body has been cut, which is what makes it two of them. */
     this.sliced = false;
 
+    /* ---- being hit and living through it — see `wound` ---- */
+    /** Wounds left before the next one fells it, out of what it stood up with. */
+    this.maxHealth = Math.max(1, settings.enemies.health);
+    this.health = this.maxHealth;
+    /** Seconds of reeling left. While it runs the body does not turn to watch. */
+    this.staggerTime = 0;
+    /** The shove it is still sliding on, m/s in world XZ. */
+    this._push = { x: 0, z: 0 };
+    /**
+     * The flinch: an angle about a horizontal axis, on a spring. The axis is
+     * the blow's direction crossed with up, so the chest goes back the way the
+     * blow was travelling.
+     */
+    this._flinch = { angle: 0, velocity: 0, x: 0, z: 1 };
+    /** 1 on the frame of a hit, falling to 0 over `combat.flashTime`. */
+    this._flash = 0;
+
     this.root = new Group();
     this.root.name = 'Enemy';
 
@@ -276,6 +329,16 @@ export class Enemy {
     return this.state === 'alive';
   }
 
+  /** Still reeling from a blow it survived. */
+  get staggered() {
+    return this.state === 'alive' && this.staggerTime > 0;
+  }
+
+  /** Has already taken a blow and lived — whatever fells it now is a finisher. */
+  get wounded() {
+    return this.state === 'alive' && this.health < this.maxHealth;
+  }
+
   /** The whole body, or the lower half of one that has been cut. */
   get model() {
     return this.parts[0].model;
@@ -325,6 +388,7 @@ export class Enemy {
    * @param {import('three').Vector3} player where to look, while it still can
    */
   update(dt, player) {
+    this._flash = Math.max(0, this._flash - dt / Math.max(0.01, settings.combat.flashTime));
     this._syncMaterial();
 
     if (this.state === 'alive') {
@@ -375,11 +439,31 @@ export class Enemy {
     this.mixer.timeScale = settings.global.animationSpeed;
     this.mixer.update(dt);
 
+    // The shove, bleeding off. On the ground plane only — the floor below is
+    // re-read straight after, so a body driven down a slope follows it.
+    const position = this.root.position;
+    const push = this._push;
+    if (push.x !== 0 || push.z !== 0) {
+      position.x += push.x * dt;
+      position.z += push.z * dt;
+      const keep = Math.exp(-settings.combat.staggerDrag * dt);
+      push.x *= keep;
+      push.z *= keep;
+      if (push.x * push.x + push.z * push.z < 1e-4) push.x = push.z = 0;
+    }
+
     // Re-read the floor every frame rather than at spawn: the terrain sliders
     // are live, and a body left standing in the air the moment someone moves
     // `amplitude` is the kind of thing this stage exists to avoid.
-    const position = this.root.position;
     if (this.terrain) position.y = this.terrain.heightAt(position.x, position.z);
+
+    this._applyFlinch(dt);
+
+    // Reeling: it does not get to turn and square up to you until it is over.
+    if (this.staggerTime > 0) {
+      this.staggerTime = Math.max(0, this.staggerTime - dt);
+      return;
+    }
 
     if (!config.watch || !player) return;
     const dx = player.x - position.x;
@@ -396,6 +480,83 @@ export class Enemy {
   }
 
   /**
+   * A blow landed. Take `damage` off it; fell it if that was the last of it,
+   * make it reel if it was not.
+   *
+   * The reel is three things at once, the same three the player's own hit is
+   * sold with: the body is *driven* back (a shove it slides on and bleeds off),
+   * the chest *gives* (a spring on the spine, so it rocks away from the blow
+   * and back once), and the rim *flares*. None of it needs a clip — the idle
+   * keeps playing underneath and the flinch rides on top of it.
+   *
+   * @param {number} x unit direction of the blow
+   * @param {number} z
+   * @param {object} force the striking move's settings block
+   * @param {number} damage wounds dealt
+   * @returns {'kill'|'stagger'|null} what it did, or null if it was already down
+   */
+  wound(x, z, force, damage = 1) {
+    if (this.state !== 'alive') return null;
+
+    this._flash = 1;
+    this.health -= Math.max(0, damage);
+    if (this.health <= 0) return this.die(x, z, force, force.slices === true) ? 'kill' : null;
+
+    const combat = settings.combat;
+    this.staggerTime = combat.staggerTime;
+
+    const shove = force.staggerPush ?? 3;
+    this._push.x = x * shove;
+    this._push.z = z * shove;
+
+    // Axis = up × blow, so rotating by +angle tips the top of the body along
+    // the blow. The kick given to the spring is solved for, so its first peak
+    // is exactly `flinch` radians whatever the stiffness and damping are.
+    const flinch = this._flinch;
+    flinch.x = z;
+    flinch.z = -x;
+    flinch.velocity += (force.flinch ?? 0.5) / springPeak(combat.flinchStiffness, combat.flinchDamping);
+    return 'stagger';
+  }
+
+  /**
+   * Advance the flinch spring and lay it over whatever pose the idle left.
+   *
+   * Each spine bone is turned about the one world axis by its share, taken
+   * into its own parent's frame — so the tilt is the same world-space lean
+   * however the rig was exported. Run after the mixer, which rewrites every
+   * local rotation each frame, so nothing accumulates.
+   */
+  _applyFlinch(dt) {
+    const flinch = this._flinch;
+    const combat = settings.combat;
+    const accel = -combat.flinchStiffness * flinch.angle - combat.flinchDamping * flinch.velocity;
+    flinch.velocity += accel * dt;
+    flinch.angle += flinch.velocity * dt;
+    if (Math.abs(flinch.angle) < 1e-4 && Math.abs(flinch.velocity) < 1e-3) {
+      flinch.angle = flinch.velocity = 0;
+      return;
+    }
+
+    // The idle has just written every local; the world matrices are brought
+    // up to that once, and every parent frame below is read off them before
+    // any bone is turned.
+    this.root.updateMatrixWorld(true);
+    _flinchAxis.set(flinch.x, 0, flinch.z).normalize();
+
+    const bones = this.bones;
+    for (const [name, share] of FLINCH_BONES) {
+      const bone = bones.get(name);
+      if (!bone?.parent) continue;
+      bone.parent.matrixWorld.decompose(_ignoreP, _parentQ, _ignoreS);
+      _parentQInv.copy(_parentQ).invert();
+      _flinchQ.setFromAxisAngle(_flinchAxis, flinch.angle * share);
+      // local' = P⁻¹ · q · P · local
+      bone.quaternion.premultiply(_parentQ).premultiply(_flinchQ).premultiply(_parentQInv);
+    }
+  }
+
+  /**
    * Kill it, and throw the body along `(x, z)`.
    *
    * @param {number} x unit direction of the blow
@@ -409,6 +570,9 @@ export class Enemy {
 
     this.state = 'dead';
     this.timer = 0;
+    this._flash = 1;
+    this.staggerTime = 0;
+    this._push.x = this._push.z = 0;
     // Nothing fades. The pose the clip is on *is* the ragdoll's first frame —
     // so the skeleton is brought fully up to date, ancestors included, before
     // it is read: the solver works in world space and every rest length it
@@ -860,9 +1024,12 @@ if (uCutSide != 0.0 && (dot(vEnemyBind, uCutNormal) - uCutOffset) * uCutSide < 0
         material.metalness = look.metalness;
       }
 
+      // The hit flare: the rim goes wider, whiter and brighter for a moment.
+      const flash = this._flash;
       copyColor(u.uRimColor.value, look.rimColor);
-      u.uRimPower.value = look.rimPower;
-      u.uRimEmissive.value = look.rimEmissive;
+      if (flash > 0) u.uRimColor.value.lerp(_white, flash * 0.4);
+      u.uRimPower.value = look.rimPower * (1 - 0.45 * flash);
+      u.uRimEmissive.value = look.rimEmissive + flash * settings.combat.flash;
       copyColor(u.uEdgeColor.value, look.edgeColor);
       u.uEdgeEmissive.value = look.edgeEmissive;
       u.uEdgeWidth.value = look.edgeWidth;

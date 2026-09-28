@@ -327,6 +327,37 @@ export class EnemyManager {
   }
 
   /**
+   * Land a blow that may or may not fell — the player's own moves.
+   *
+   * `kill` above is for the things that always fell (a shadow's cut, the fist,
+   * a blade from the halo). This is the melee: the move's `damage` comes off
+   * the body's health, and whatever is left decides whether it goes down or
+   * reels. A body felled after it has already taken a blow is reported as a
+   * finisher, and thrown that much harder — the combo is what put it there,
+   * and the throw is where the player sees it paid off.
+   *
+   * @param {Enemy} enemy
+   * @param {number} x unit direction of the blow
+   * @param {number} z
+   * @param {object} force the striking move's settings block
+   * @returns {'finisher'|'kill'|'stagger'|null}
+   */
+  hit(enemy, x, z, force = settings.kick) {
+    if (!enemy?.alive) return null;
+    const reeling = enemy.wounded;
+    const boost = reeling ? Math.max(1, settings.combat.finisherBoost) : 1;
+    const blow =
+      boost === 1
+        ? force
+        : { ...force, impulse: force.impulse * boost, lift: force.lift * boost };
+
+    const result = enemy.wound(x, z, blow, force.damage ?? settings.enemies.health);
+    if (result !== 'kill') return result;
+    this.kills++;
+    return reeling ? 'finisher' : 'kill';
+  }
+
+  /**
    * Keep a point out of every standing body.
    *
    * A shove rather than a collision response: the position is simply moved to

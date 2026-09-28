@@ -63,6 +63,18 @@ export class CameraRig {
     this._shakeOffset = new Vector3();
     this._shakeSeed = Math.random() * 100;
 
+    /**
+     * The impact *punch*: the lens pushed along the blow and back, the field of
+     * view closing a little, and a touch of roll — the direction a shake does
+     * not have. `_punchT` counts up from the hit; the envelope is a fast rise
+     * and an exponential return, so it reads as a knock rather than a drift.
+     */
+    this._punchDir = new Vector3();
+    this._punchAmount = 0;
+    this._punchT = 1;
+    this._punchRoll = 0;
+    this._punchFov = 0;
+
     this.controls.target.set(0, settings.camera.targetHeight, 0);
     this.controls.update();
 
@@ -192,6 +204,28 @@ export class CameraRig {
   }
 
   /**
+   * Push the lens along a blow: `(x, z)` is its direction on the ground,
+   * `amount` metres at the peak. Takes the loudest, like `shake`.
+   */
+  punch(x, z, amount, fovKick = 0, roll = 0) {
+    if (amount < this._punchAmount * this._punchEnvelope()) return;
+    this._punchDir.set(x, -0.25, z).normalize();
+    this._punchAmount = amount;
+    this._punchFov = fovKick;
+    // Rolled against the side the blow travels to, randomly signed when it is
+    // dead ahead, so repeated hits do not all lean the same way.
+    this._punchRoll = roll * (Math.random() < 0.5 ? -1 : 1);
+    this._punchT = 0;
+  }
+
+  /** 0 → 1 in 35 ms, then back to 0 on a ~70 ms exponential. */
+  _punchEnvelope() {
+    const t = this._punchT;
+    const rise = 0.035;
+    return t < rise ? t / rise : Math.exp(-(t - rise) * 14);
+  }
+
+  /**
    * The shake itself: two frequencies per axis so it never reads as a wobble,
    * decaying to nothing in about a third of a second.
    */
@@ -217,8 +251,12 @@ export class CameraRig {
     // Undo last frame's shake before the controls see the position.
     this.camera.position.sub(this._shakeOffset);
 
-    if (this.camera.fov !== cam.fov) {
-      this.camera.fov = cam.fov;
+    // Real time, like the shake: the knock lands while the world is frozen.
+    this._punchT += dt;
+    const punch = this._punchEnvelope();
+    const fov = cam.fov - this._punchFov * punch;
+    if (this.camera.fov !== fov) {
+      this.camera.fov = fov;
       this.camera.updateProjectionMatrix();
     }
     this.controls.minPolarAngle = cam.minPolar;
@@ -263,7 +301,18 @@ export class CameraRig {
     _dir.multiplyScalar(1 / len);
     this.camera.position.copy(this.controls.target).addScaledVector(_dir, this.distance);
 
-    this.camera.position.add(this._applyShake(dt));
+    // The punch rides on the shake's offset, so it is taken back off the lens
+    // at the top of the next frame by the same line and never walks the orbit.
+    const offset = this._applyShake(dt);
+    if (punch > 1e-3) {
+      offset.addScaledVector(this._punchDir, this._punchAmount * punch);
+      this.camera.position.add(offset);
+      // After the controls have aimed the lens, so the next `update` re-aims it
+      // and the roll never accumulates.
+      this.camera.rotateZ(this._punchRoll * punch);
+      return;
+    }
+    this.camera.position.add(offset);
   }
 
   resize(width, height) {

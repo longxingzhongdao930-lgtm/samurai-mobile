@@ -1,3 +1,5 @@
+import { MathUtils } from 'three';
+
 import { Renderer } from './Renderer.js';
 import { Time } from './Time.js';
 import { CameraRig } from './CameraRig.js';
@@ -23,6 +25,8 @@ import { TargetMarking } from '../combat/TargetMarking.js';
 import { PostProcessing } from '../postprocessing/PostProcessing.js';
 import { WeaponFire } from '../vfx/WeaponFire.js';
 import { BloodBurst } from '../vfx/BloodBurst.js';
+import { BladeImpact } from '../vfx/BladeImpact.js';
+import { CombatAudio } from '../audio/CombatAudio.js';
 import { ShadowCharacter } from '../vfx/ShadowCharacter.js';
 import { Judgement } from '../vfx/Judgement.js';
 import { BladeStorm } from '../vfx/BladeStorm.js';
@@ -199,6 +203,21 @@ export class App {
      */
     this._hitStop = 0;
     this._hitStopScale = 1;
+    /**
+     * Seconds left of the world coming back up to speed once the freeze is
+     * spent (`combat.hitStopRelease`). A freeze that ends on one frame reads as
+     * a hitch; one the world *resumes* from reads as weight.
+     */
+    this._hitRelease = 0;
+
+    // What comes off the steel at contact — the same sprite machine the halo's
+    // blades land with, on its own pool and its own warmer look. On the
+    // simulation's clock, so the sparks hang in the hit-stop with everything
+    // else.
+    this.meleeSparks = new BladeImpact(384);
+    this.scene.add(this.meleeSparks.mesh);
+    // And what it sounds like. Silent until the page is first touched.
+    this.audio = new CombatAudio(this.camera);
 
     // The summons. They clone whatever is on the body at the moment they are
     // called, so this only has to exist before `V` is pressed — it builds
@@ -627,10 +646,75 @@ export class App {
    * @param {object} config the striking move's settings block
    */
   _onStrike(enemy, x, z, config) {
-    if (!this.enemies.kill(enemy, x, z, config)) return;
-    this._hitStop = config.hitStop;
-    this._hitStopScale = config.hitStopScale;
-    this.rig.shake(config.shake);
+    const result = this.enemies.hit(enemy, x, z, config);
+    if (!result) return;
+    this._impact(enemy, x, z, config, result, true);
+
+    // The cleave: a sweep does not stop at the body it was aimed at. Everyone
+    // else standing inside its reach and its arc is met by the same blade, on
+    // the same frame, thrown outward from the player rather than all along
+    // the one line. No second freeze — the first one is already this blow's.
+    const reach = config.cleaveReach ?? 0;
+    if (reach <= 0) return;
+    const origin = this.character.position;
+    const half = Math.cos(MathUtils.degToRad(Math.min(360, config.cleaveArc ?? 0)) * 0.5);
+    for (const other of this.enemies.enemies) {
+      if (other === enemy || !other.alive) continue;
+      const dx = other.position.x - origin.x;
+      const dz = other.position.z - origin.z;
+      const distance = Math.hypot(dx, dz);
+      if (distance > reach) continue;
+      const ux = distance > 1e-3 ? dx / distance : x;
+      const uz = distance > 1e-3 ? dz / distance : z;
+      if ((config.cleaveArc ?? 0) < 360 && ux * x + uz * z < half) continue;
+      const hit = this.enemies.hit(other, ux, uz, config);
+      if (hit) this._impact(other, ux, uz, config, hit, false);
+    }
+  }
+
+  /**
+   * Sell one blow: the freeze, the lens, the sparks and the sound — each
+   * scaled by what the blow *did*.
+   *
+   * A kill gets the move's full numbers. A stagger gets `staggerScale` of them,
+   * because a body that is still standing should not stop the world as hard as
+   * one that is going down. A finisher — a body felled while it was still
+   * reeling from the last hit — gets `finisherBoost` more, which is the combo
+   * paying off where the player can feel it.
+   *
+   * @param {'finisher'|'kill'|'stagger'} result
+   * @param {boolean} primary the aimed body, as opposed to one the sweep also took
+   */
+  _impact(enemy, x, z, config, result, primary) {
+    const combat = settings.combat;
+    const lethal = result !== 'stagger';
+    const weight = result === 'finisher' ? combat.finisherBoost : lethal ? 1 : combat.staggerScale;
+
+    if (primary) {
+      this._hitStop = Math.max(this._hitStop, config.hitStop * weight);
+      this._hitStopScale = config.hitStopScale;
+      this._hitRelease = 0;
+      const shake = config.shake * weight;
+      this.rig.shake(shake);
+      this.rig.punch(x, z, shake * combat.punch, combat.fovKick * weight, shake * combat.roll);
+    }
+
+    // Contact is on the near side of the body at chest height, not at its feet.
+    const p = enemy.position;
+    const radius = settings.enemies.bodyRadius;
+    const px = p.x - x * radius;
+    const py = p.y + settings.enemies.height * 0.58;
+    const pz = p.z - z * radius;
+    const edge = config.slices === true;
+    this.meleeSparks.burst(px, py, pz, x, 0.12, z, combat.sparks, (edge ? 1 : 0.55) * weight);
+    this.audio.impact({ x: px, y: py, z: pz }, { cut: edge, strength: lethal ? weight : 0.6 });
+  }
+
+  /** The whoosh, a beat before contact — hit or miss. */
+  _onSwing(move) {
+    const p = this.character.position;
+    const at = { x: p.x, y: p.y + this.character.height * 0.6, z: p.z };
+    this.audio.swing(at, move.config.slices ? 1 : 0.25);
   }
 
   /**
@@ -649,6 +733,12 @@ export class App {
   _onShadowStrike(enemy, x, z, force = settings.kick) {
     if (!this.enemies.kill(enemy, x, z, force)) return;
     this.rig.shake(force.shake * 0.5);
+    // Sparks and sound too, on the shadow's terms: no freeze, no punch. The
+    // sound's own distance falloff is what says it happened over there.
+    const p = enemy.position;
+    const y = p.y + settings.enemies.height * 0.58;
+    this.meleeSparks.burst(p.x, y, p.z, x, 0.12, z, settings.combat.sparks, 0.7);
+    this.audio.impact({ x: p.x, y, z: p.z }, { cut: force.slices === true, strength: 0.8 });
   }
 
   /**
@@ -920,6 +1010,7 @@ export class App {
     // impact is the one the move was tuned with.
     for (const move of this.character.attacks) {
       move.onHit = (enemy, x, z) => this._onStrike(enemy, x, z, move.config);
+      move.onSwing = () => this._onSwing(move);
     }
     // Stood up now rather than on the first frame, so their materials are in
     // the scene for the shader warm-up below.
@@ -1020,6 +1111,12 @@ export class App {
     if (this._hitStop > 0) {
       this._hitStop = Math.max(0, this._hitStop - raw);
       scale *= this._hitStopScale;
+      if (this._hitStop === 0) this._hitRelease = settings.combat.hitStopRelease;
+    } else if (this._hitRelease > 0) {
+      // Eased back up rather than let go: smoothstep from the freeze's scale to 1.
+      this._hitRelease = Math.max(0, this._hitRelease - raw);
+      const t = 1 - this._hitRelease / Math.max(1e-3, settings.combat.hitStopRelease);
+      scale *= this._hitStopScale + (1 - this._hitStopScale) * t * t * (3 - 2 * t);
     }
     const dt = this.paused ? 0 : raw * scale;
     this.elapsed += dt;
@@ -1067,6 +1164,9 @@ export class App {
     // Movement first: it sets the heading and the speed the blend animates to.
     // It only ever touches XZ; which is the whole reason the body can be dropped
     // onto the ground here without the controller knowing the ground exists.
+    // Before the controller: a blow lands inside it, and its sparks must be
+    // stamped with this frame's clock.
+    this.meleeSparks.sync(this.elapsed, settings.combat.sparks);
     this.controller.update(dt);
     // Stand the character on the surface. The jump's arc lives inside the model
     // (it is the clip's own hips translation), so this stays the body's *ground*
@@ -1168,6 +1268,8 @@ export class App {
     this.targetMarkers.dispose();
     this.enemies.dispose();
     this.blood.dispose();
+    this.meleeSparks.dispose();
+    this.audio.dispose();
     this.weaponFire?.dispose();
     this.characterScreen?.dispose();
     this.character.dispose();

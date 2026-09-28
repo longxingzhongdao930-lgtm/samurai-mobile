@@ -46,13 +46,23 @@ export class Attack {
    * @param {import('three').AnimationMixer} mixer
    * @param {import('three').AnimationClip|null} clip
    * @param {import('./CharacterController.js').CharacterController} character
-   * @param {{configKey?: string, onHit?: (target: object, dirX: number, dirZ: number) => void}} options
+   * @param {{configKey?: string, onHit?: (target: object, dirX: number, dirZ: number) => void, onSwing?: (move: Attack) => void}} options
    */
-  constructor(mixer, clip, character, { configKey = 'kick', onHit = null } = {}) {
+  constructor(mixer, clip, character, { configKey = 'kick', onHit = null, onSwing = null } = {}) {
     this.character = character;
     this.configKey = configKey;
     /** Called once, on the frame the foot connects with a target still in reach. */
     this.onHit = onHit;
+    /**
+     * Called once per swing at `swingAt`, hit or miss — the whoosh. A beat
+     * *before* contact, because the sound of a blade leads the blade.
+     */
+    this.onSwing = onSwing;
+    this._swung = false;
+    /** Playback multiplier for this swing: above 1 when it was chained into. */
+    this._rate = 1;
+    /** Whether this swing cut short another one's recovery. */
+    this.chained = false;
 
     this.action = null;
     if (clip) {
@@ -134,11 +144,44 @@ export class Attack {
     // clip, and this one plants a leg on ground that would not be there.
     if (this.character?.jump?.locked || this.character?.hop?.locked) return false;
     // Nor over another attack still running — including one only blending out,
-    // which is why `locked` is the test rather than the weight.
+    // which is why `locked` is the test rather than the weight. The exception
+    // is one that has landed and is in the part of its recovery a combo may
+    // cut short (`chainable`).
     for (const other of this.character?.attacks ?? []) {
-      if (other !== this && other.locked) return false;
+      if (other !== this && other.locked && !other.chainable) return false;
     }
     return true;
+  }
+
+  /** Normalised time through the clip, 0..1. */
+  get phase() {
+    const action = this.action;
+    if (!action) return 1;
+    const duration = action.getClip().duration;
+    return duration > 0 ? MathUtils.clamp(action.time / duration, 0, 1) : 1;
+  }
+
+  /**
+   * Whether another move may take over now: this one has already struck, and
+   * is past `cancelAt` but not yet handed the stick back.
+   *
+   * Only ever *after* contact, which is the rule the whole combo hangs on — a
+   * swing is committed until it lands, and only its follow-through is up for
+   * negotiation.
+   */
+  get chainable() {
+    const cancelAt = this.config.cancelAt;
+    return this.locked && this._struck && cancelAt != null && this.phase >= cancelAt;
+  }
+
+  /**
+   * Let go of the body without snapping off it: the stick is handed on and the
+   * pose blends out over `blendOut` underneath whatever takes over.
+   */
+  release() {
+    this.locked = false;
+    this.target = null;
+    this.warp.active = false;
   }
 
   /**
@@ -152,18 +195,24 @@ export class Attack {
    *
    * @param {{position: import('three').Vector3}|null} target
    */
-  start(target = null) {
+  start(target = null, chained = false) {
     if (!this.action) return false;
+
+    // A chained swing comes a touch quicker than one thrown from a standstill:
+    // the body is already moving, and the second blow should arrive like it.
+    this.chained = chained;
+    this._rate = chained ? Math.max(0.1, settings.combat.chainSpeed) : 1;
 
     this.action.reset();
     this.action.enabled = true;
     this.action.setEffectiveWeight(0);
-    this.action.setEffectiveTimeScale(this.config.timeScale ?? 1);
+    this.action.setEffectiveTimeScale((this.config.timeScale ?? 1) * this._rate);
     this.action.play();
 
     this.weight = 0;
     this.locked = true;
     this._struck = false;
+    this._swung = false;
     this.target = target;
     this._resolveWarp(target);
     return true;
@@ -242,13 +291,17 @@ export class Attack {
     // Re-read rather than left as `start` set it, so the pace is a live slider
     // like everything else. Every time below is normalised, so changing it
     // mid-swing shortens the move without moving where the blow lands in it.
-    action.setEffectiveTimeScale(config.timeScale ?? 1);
+    action.setEffectiveTimeScale((config.timeScale ?? 1) * this._rate);
 
-    const duration = action.getClip().duration;
-    const phase = duration > 0 ? MathUtils.clamp(action.time / duration, 0, 1) : 1;
+    const phase = this.phase;
 
     if (this.locked) {
       this._advanceWarp(phase, config);
+
+      if (!this._swung && phase >= (config.swingAt ?? config.hitAt)) {
+        this._swung = true;
+        this.onSwing?.(this);
+      }
 
       if (!this._struck && phase >= config.hitAt) {
         this._struck = true;
@@ -339,13 +392,27 @@ export class Attack {
     const position = this.character.position;
     const dx = target.position.x - position.x;
     const dz = target.position.z - position.z;
-    if (Math.hypot(dx, dz) > config.reach) return;
+    const distance = Math.hypot(dx, dz);
+    if (distance > config.reach) return;
 
     // The blow goes where the body is *pointing*, not where the target happens
     // to be — after the warp those agree, and when they do not it is because
     // the player turned, in which case the pose is the truth.
     const yaw = this.character.facing;
-    this.onHit?.(target, Math.sin(yaw), Math.cos(yaw));
+    const fx = Math.sin(yaw);
+    const fz = Math.cos(yaw);
+
+    // And it has to be in front of that pointing. A body that reeled out to the
+    // shoulder between the press and the contact is missed rather than struck
+    // by a blade that visibly went the other way. `strikeArc` 360 turns the test
+    // off, for a move that passes through its mark.
+    const arc = config.strikeArc ?? 360;
+    if (arc < 360 && distance > 0.25) {
+      const alignment = (dx * fx + dz * fz) / distance;
+      if (alignment < Math.cos(MathUtils.degToRad(arc) * 0.5)) return;
+    }
+
+    this.onHit?.(target, fx, fz);
   }
 
   /** Abandon the swing — for resets, the character screen and teardown. */
@@ -354,6 +421,9 @@ export class Attack {
     this.weight = 0;
     this.target = null;
     this._struck = false;
+    this._swung = false;
+    this._rate = 1;
+    this.chained = false;
     this.warp.active = false;
     if (this.action) {
       this.action.stop();

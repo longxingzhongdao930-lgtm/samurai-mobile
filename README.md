@@ -225,6 +225,37 @@ All three are read off the move that landed, which is the whole difference
 between the attacks at the moment of impact: the kick's is a short flat shove,
 the slash's a longer freeze and a body in two pieces.
 
+### Feel: the beat around contact
+
+Tuned with a physics duel (Stick & Steel) as the reference for *feel* — none
+of its code or assets are used here. Every number is in `settings.combat` and
+on each move's own block, and all of it is live in the editor under
+**Combat → Feel & sound**.
+
+- **Wounds, not one-shots for everything.** Bodies have `enemies.health` (2).
+  A sword (`damage: 2`) still fells a fresh body; a boot (`damage: 1`)
+  staggers it. A body that survives is shoved back, rocks on a spring through
+  its spine (solved so the first peak is exactly `flinch` radians), stops
+  turning to face you, and its rim flares.
+- **Hit-stop that scales with what the blow did** — full on a kill,
+  `staggerScale` of it on a stagger, `finisherBoost` more on a body that was
+  already wounded — and a `hitStopRelease` that eases the world back up to
+  speed instead of snapping.
+- **A lens that is hit along the blow**, not just shaken: a push in the blow's
+  direction, a small FOV kick and a touch of roll (`CameraRig#punch`).
+- **Sparks and sound on the contact frame.** Sparks reuse
+  `vfx/BladeImpact.js`; the sounds are synthesised in
+  [src/audio/CombatAudio.js](src/audio/CombatAudio.js) (no audio files) —
+  a whoosh a beat before contact (`swingAt`), then a thump, and for an edge a
+  hiss and a ring, panned by where the hit is.
+- **Combos.** After a move has landed and passed `cancelAt`, a *different*
+  move may cut its recovery short and plays `chainSpeed` faster. A press made
+  a little early is buffered for `bufferTime`. Kick → Slash is the basic
+  chain: stagger, then finisher.
+- **Hit detection.** At contact the body must still be within `reach` and
+  inside `strikeArc` of where the character faces; a sweep also takes
+  whoever else stands inside `cleaveReach`/`cleaveArc`.
+
 ### The ragdoll
 
 ![Ragdoll](docs/media/ragdoll.jpg)

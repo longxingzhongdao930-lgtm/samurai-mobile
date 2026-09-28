@@ -1392,6 +1392,7 @@ export class Editor {
     this._buildAttack(folder, settings.crouchSlash, 'Slide cut (T)');
     this._buildTargetRing(folder);
     this._buildSlice(folder);
+    this._buildFeel(folder);
 
     const e = settings.enemies;
     const enemies = folder.addFolder('Enemies');
@@ -1456,6 +1457,33 @@ export class Editor {
    * @param {object} config a `settings.kick`-shaped block
    * @param {string} title what the folder is called, hotkey included
    */
+  /** `settings.combat` and `settings.audio`: the beat around contact. */
+  _buildFeel(parent) {
+    const folder = parent.addFolder('Feel & sound');
+    const R = Editor.range;
+    const c = settings.combat;
+    R(folder, c, 'hitStopRelease', 0, 0.3, 0.005, 'hit stop release (s)');
+    R(folder, c, 'staggerScale', 0, 1, 0.01, 'stagger hit ×');
+    R(folder, c, 'finisherBoost', 1, 2.5, 0.01, 'finisher ×');
+    R(folder, c, 'bufferTime', 0, 0.8, 0.01, 'input buffer (s)');
+    R(folder, c, 'chainSpeed', 0.5, 2, 0.01, 'chained move ×');
+    R(folder, c, 'punch', 0, 2, 0.01, 'lens punch ×');
+    R(folder, c, 'fovKick', 0, 10, 0.1, 'fov kick (°)');
+    R(folder, c, 'roll', 0, 0.6, 0.005, 'lens roll ×');
+    R(folder, c, 'staggerTime', 0, 2, 0.01, 'stagger lasts (s)');
+    R(folder, c, 'staggerDrag', 0.5, 20, 0.1, 'shove drag /s');
+    R(folder, c, 'flinchStiffness', 20, 400, 1, 'flinch stiffness');
+    R(folder, c, 'flinchDamping', 1, 40, 0.1, 'flinch damping');
+    R(folder, c, 'flashTime', 0.02, 1, 0.01, 'hit flash (s)');
+    R(folder, c, 'flash', 0, 15, 0.1, 'hit flash brightness');
+    folder.add(c.sparks, 'enabled').name('sparks');
+    R(folder, c.sparks, 'sparks', 0, 120, 1, 'spark count');
+    R(folder, c.sparks, 'size', 0, 3, 0.01, 'flash size');
+    R(folder, settings.enemies, 'health', 1, 6, 1, 'enemy health');
+    folder.add(settings.audio, 'enabled').name('sound');
+    R(folder, settings.audio, 'volume', 0, 1.5, 0.01, 'volume');
+  }
+
   _buildAttack(parent, config, title) {
     const folder = parent.addFolder(title);
     const R = Editor.range;
@@ -1500,6 +1528,19 @@ export class Editor {
     R(impact, config, 'hitStop', 0, 0.3, 0.005, 'hit stop (s)');
     R(impact, config, 'hitStopScale', 0, 1, 0.01, 'hit stop time ×');
     R(impact, config, 'shake', 0, 1, 0.01, 'camera shake (m)');
+
+    // The feel fields — only on blocks that have them.
+    if ('damage' in config) {
+      const feel = folder.addFolder('Feel & combo');
+      R(feel, config, 'damage', 0, 4, 1, 'damage');
+      R(feel, config, 'swingAt', 0, 0.95, 0.01, 'whoosh at');
+      R(feel, config, 'cancelAt', 0.05, 1, 0.01, 'combo window from');
+      R(feel, config, 'strikeArc', 30, 360, 1, 'strike arc (°)');
+      R(feel, config, 'cleaveReach', 0, 5, 0.05, 'cleave reach (m)');
+      R(feel, config, 'cleaveArc', 0, 360, 1, 'cleave arc (°)');
+      R(feel, config, 'staggerPush', 0, 10, 0.1, 'stagger shove (m/s)');
+      R(feel, config, 'flinch', 0, 1.2, 0.01, 'flinch (rad)');
+    }
     // A fact about the move, not about the body it lands on — which is why it
     // is a field here and not in the enemies' block.
     if ('slices' in config) impact.add(config, 'slices').name('cuts in half');

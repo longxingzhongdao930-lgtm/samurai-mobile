@@ -2774,6 +2774,7 @@ html.touch-ui .boss-hud {
 
 .title__panel-head {
   margin: 0 0 0.2rem;
+  text-align: center;
   color: var(--gold);
   letter-spacing: 0.3em;
   font-size: 1rem;
@@ -2910,8 +2911,47 @@ html.touch-ui .boss-hud {
   }
 
   .title__panel {
-    padding: 0.6rem 0.8rem;
-    gap: 0.35rem;
+    width: min(34rem, calc(100vw - 2rem));
+    padding: 0.5rem 0.8rem;
+    gap: 0.3rem;
+  }
+
+  .title__panel-head {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+
+  .title__stage {
+    padding: 0.4rem 0.6rem;
+  }
+
+  .title__stage-text,
+  .title__stage-record,
+  .title__hint {
+    margin: 0.1rem 0 0.3rem;
+  }
+
+  .title__field {
+    min-height: 36px;
+  }
+
+  .title__field input[type='range'] {
+    height: 24px;
+  }
+
+  .title button {
+    min-height: 40px;
+  }
+
+  /* Side by side at the foot of a panel: back, and the destructive one. */
+  .title__panel[data-view='settings'] {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 0.6rem;
+  }
+
+  .title__panel[data-view='settings'] > :not(.title__danger):not(.title__back) {
+    grid-column: 1 / -1;
   }
 }
 
@@ -2959,8 +2999,12 @@ html.touch-ui .tutorial {
   cursor: pointer;
 }
 
-/* The title stands alone: the in-game Stage / PvP buttons wait behind it. */
+/* The title stands alone: the in-game buttons, bars and thumbs wait behind it. */
 body.title-open .stage-open,
-body.title-open .pvp-open {
+body.title-open .pvp-open,
+body.title-open .mc,
+body.title-open .hud,
+body.title-open .hp,
+body.title-open .stage-objective {
   display: none;
 }

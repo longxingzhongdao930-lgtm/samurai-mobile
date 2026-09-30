@@ -1032,6 +1032,10 @@ export class App {
   _closeTitle() {
     this.title.hide();
     this.paused = false;
+    if (this._startHint) {
+      this.toast.show(this._startHint);
+      this._startHint = null;
+    }
   }
 
   /** Open or close 強化; the world holds still while it is up. */
@@ -1865,11 +1869,11 @@ export class App {
     this.loading.hide();
     // The moves are named by the row along the bottom, so this only has to
     // cover what the row does not: the stick, and where to look for the rest.
-    this.toast.show(
-      TOUCH
-        ? '左スティックで移動 · 画面ドラッグで視点 · ピンチで拡大'
-        : 'WASDで移動 · Shiftで走る · 技は画面下に'
-    );
+    // Said once the title is out of the way (at once with `?notitle`).
+    this._startHint = TOUCH
+      ? '左スティックで移動 · 画面ドラッグで視点 · ピンチで拡大'
+      : 'WASDで移動 · Shiftで走る · 技は画面下に';
+    if (!this.title.visible) this._closeTitle();
 
     this.start();
   }

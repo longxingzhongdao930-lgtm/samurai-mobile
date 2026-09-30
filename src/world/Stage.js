@@ -16,6 +16,9 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 import { settings } from '../config/settings.js';
 import { Boss } from '../combat/Boss.js';
+import { Tutorial } from './Tutorial.js';
+
+const SAVE_KEY = 'samurai.stage1';
 
 /**
  * 一ノ章 — one short stage, start to finish:
@@ -45,6 +48,7 @@ const LANE = 2.6;
 
 /** The steps, in order, and what the objective line says during each. */
 const STEPS = {
+  tutorial: '修練',
   approach: '門へ進め',
   plaza: '広場の敵を討て',
   onward: '門が開いた — 先へ',
@@ -108,9 +112,13 @@ export class Stage {
     this.button = document.createElement('button');
     this.button.type = 'button';
     this.button.className = 'stage-open';
-    this.button.textContent = '出陣 · 一ノ章';
+    this.button.textContent = '≡ タイトル';
     this.button.addEventListener('pointerdown', (e) => e.stopPropagation());
-    this.button.addEventListener('click', () => (this.active ? this.leave() : this.start()));
+    this.button.addEventListener('click', () => {
+      if (this.active) this.leave();
+      else this.onTitle?.();
+    });
+    this.tutorial = new Tutorial(app, { onDone: () => this._tutorialDone() });
     document.body.append(this.objective, this.clearScreen, this.button);
   }
 
@@ -209,7 +217,29 @@ export class Stage {
   /* flow                                                                 */
   /* ------------------------------------------------------------------ */
 
-  start() {
+  /* ---- the save: cleared, best time, checkpoint, lesson done ---- */
+
+  get record() {
+    try {
+      return { cleared: false, best: null, checkpoint: 'start', tutorialDone: false, ...JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') };
+    } catch {
+      return { cleared: false, best: null, checkpoint: 'start', tutorialDone: false };
+    }
+  }
+
+  _save(patch) {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ ...this.record, ...patch }));
+    } catch {
+      // Private mode: the record lasts the session.
+    }
+  }
+
+  /**
+   * @param {{resume?: boolean, tutorial?: boolean}} [options] resume from the
+   *   saved mirror; run the lesson first (the default until it has been done once)
+   */
+  start(options = {}) {
     const app = this.app;
     if (app.pvp?.active) return;
     if (!this.active) {
@@ -222,16 +252,43 @@ export class Stage {
     this.objective.hidden = false;
     this.clearScreen.hidden = true;
     this.button.textContent = '退出';
-    this.checkpoint = 'start';
+    const record = this.record;
+    this.checkpoint = options.resume && record.checkpoint === 'save' ? 'save' : 'start';
     this.startedAt = app.elapsed;
+    // Only a run from the gate counts toward the best time.
+    this._fullRun = this.checkpoint === 'start';
     this.soulsAtStart = app.progress.souls;
     app.enemies.manual = true;
     app.enemies.clear();
     this._resetBoss();
+    this.tutorial.cancel();
+    this._mirrorLit(this.checkpoint === 'save');
+    if (this.checkpoint === 'save') {
+      // 続きから: at the mirror, the plaza behind already won.
+      this.retry();
+      app.toast.show('一ノ章 — 鏡より再開', 1400);
+      return;
+    }
     for (const b of Object.values(this.barriers)) this._setBarrier(b, false);
     this._restore();
-    this._go('approach');
+    const lesson = options.tutorial ?? !record.tutorialDone;
+    if (lesson) {
+      this._go('tutorial');
+      this.tutorial.begin();
+    } else {
+      this._go('approach');
+    }
     app.toast.show('一ノ章 — 出陣', 1400);
+  }
+
+  _tutorialDone() {
+    this._save({ tutorialDone: true });
+    if (this.step === 'tutorial') this._go('approach');
+  }
+
+  _mirrorLit(on) {
+    this.mirror.material.emissive.set(on ? '#ffd28a' : '#4a8cff');
+    this.mirrorRing.material.color.set(on ? '#ffd28a' : '#4a8cff');
   }
 
   leave() {
@@ -242,7 +299,8 @@ export class Stage {
     this.group.visible = false;
     this.objective.hidden = true;
     this.clearScreen.hidden = true;
-    this.button.textContent = '出陣 · 一ノ章';
+    this.button.textContent = '≡ タイトル';
+    this.tutorial.cancel();
     this._resetBoss();
     if (this._saved) {
       settings.terrain.amplitude = this._saved.amplitude;
@@ -250,6 +308,7 @@ export class Stage {
     }
     app.enemies.manual = false;
     app.enemies.respawnAll();
+    this.onTitle?.();
   }
 
   /** Back on its feet after a fall: the last checkpoint, the fight there reset. */
@@ -326,6 +385,9 @@ export class Stage {
     this.mirrorRing.material.opacity = 0.35 + 0.2 * Math.sin(time * 3);
 
     switch (this.step) {
+      case 'tutorial':
+        this.tutorial.update();
+        break;
       case 'approach':
         // The first gate opens as you come to it.
         if (!this.barriers.g1.open && p.z > GATE1 - 4) {
@@ -355,8 +417,9 @@ export class Stage {
         if (this.checkpoint !== 'save' && Math.hypot(p.x - (SAVE.x + LANE - 0.6), p.z - SAVE.z) < 2) {
           this.checkpoint = 'save';
           this._heal();
-          this.mirror.material.emissive.set('#ffd28a');
-          this.mirrorRing.material.color.set('#ffd28a');
+          this._mirrorLit(true);
+          // Kept: 続きから on the title starts here.
+          this._save({ checkpoint: 'save' });
           app.toast.show('鏡 — 記録しました', 1400);
           this._setBarrier(this.barriers.g3, true);
         }
@@ -383,6 +446,10 @@ export class Stage {
     this._go('clear');
     const secs = Math.round(app.elapsed - this.startedAt);
     const souls = app.progress.souls - this.soulsAtStart;
+    const record = this.record;
+    // Cleared: the record, and the next run starts from the gate again.
+    const best = !this._fullRun ? record.best : record.best == null ? secs : Math.min(record.best, secs);
+    this._save({ cleared: true, best, checkpoint: 'start' });
     // A moment for the souls to be taken in, then the screen.
     setTimeout(() => {
       if (!this.active || this.step !== 'clear') return;
@@ -405,6 +472,7 @@ export class Stage {
     const g2 = this.barriers.g2.open;
     const g3 = this.barriers.g3.open;
     switch (this.step) {
+      case 'tutorial':
       case 'approach':
         lane(-2, g1 ? PLAZA.z : GATE1 - margin);
         if (g1) circle(PLAZA);

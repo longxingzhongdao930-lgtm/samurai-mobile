@@ -92,6 +92,7 @@ export class Arts {
   shukuchi() {
     const app = this.app;
     if (!this._spend('shukuchi')) return false;
+    if (app.counters) app.counters.shukuchi++;
     const cfg = settings.arts.shukuchi;
     // The way the stick points, in the camera's frame; the facing if it is idle.
     const axis = app.input.axis;

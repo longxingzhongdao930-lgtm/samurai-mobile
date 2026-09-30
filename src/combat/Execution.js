@@ -339,6 +339,7 @@ export class Execution {
     app.audio.impact({ x: e.x, y: cy, z: e.z }, { cut: true, strength: 1.4 });
 
     // The kill itself: parted, with the execution's own share of souls.
+    app.counters && app.counters.execution++;
     app._executionKill = true;
     app.enemies.kill(enemy, dx / d, dz / d, { ...settings.slashHit, slices: true });
     app._executionKill = false;

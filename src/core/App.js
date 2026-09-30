@@ -42,6 +42,7 @@ import { UpgradeMenu } from '../ui/UpgradeMenu.js';
 import { Execution } from '../combat/Execution.js';
 import { Arts } from '../combat/Arts.js';
 import { Stage } from '../world/Stage.js';
+import { TitleScreen } from '../ui/TitleScreen.js';
 import { PointerLook } from './PointerLook.js';
 import { Projectiles } from '../combat/Projectiles.js';
 import { makeEnemyProp } from '../combat/EnemyProps.js';
@@ -290,6 +291,8 @@ export class App {
     this.projectiles = new Projectiles(16);
     this.scene.add(this.projectiles.mesh);
     this.progress = new Progress();
+    /** What the player has done, counted — the lesson (`world/Tutorial.js`) reads it. */
+    this.counters = { hits: 0, parry: 0, execution: 0, shukuchi: 0 };
     this._issenKill = false;
     this._chimeAt = 0;
     this._upgradePaused = false;
@@ -495,6 +498,7 @@ export class App {
           rig: this.rig,
           blocked: () =>
             this.inCharacterScreen ||
+            !!this.title?.visible ||
             this.playerDown ||
             !!this.upgradeMenu?.visible ||
             !!this.pvp?.menu?.visible ||
@@ -543,6 +547,9 @@ export class App {
       ) {
         return;
       }
+
+      // The title is up: it takes the clicks, the game takes no keys.
+      if (this.title?.visible) return;
 
       // Down: Enter retries once it is offered; only the window's own keys
       // (pause, editor, stats) still do anything.
@@ -883,6 +890,7 @@ export class App {
     const weight = result === 'finisher' ? combat.finisherBoost : lethal ? 1 : combat.staggerScale;
     this.comboCounter.hit(lethal);
     this._feedMusou(lethal);
+    if (primary) this.counters.hits++;
 
     if (primary) {
       // A sweep through a crowd holds a little longer than one through a
@@ -1215,6 +1223,17 @@ export class App {
     }
   }
 
+  _openTitle() {
+    this.title.show();
+    this.paused = true;
+    this.pointerLook?.release();
+  }
+
+  _closeTitle() {
+    this.title.hide();
+    this.paused = false;
+  }
+
   /** Open or close 強化; the world holds still while it is up. */
   _toggleUpgrade(open = !this.upgradeMenu.visible) {
     if (open === this.upgradeMenu.visible) return;
@@ -1334,6 +1353,7 @@ export class App {
     if (enemy.alive) enemy.staggerTime = Math.max(enemy.staggerTime, d.parryStagger);
     // Reeling from the parry: open to an execution for as long as it reels.
     if (enemy.alive) enemy._parriedUntil = this.elapsed + d.parryStagger;
+    this.counters.parry++;
     if (enemy.takePosture?.(settings.posture.parryDamage * (enemy.kindCfg?.parryPosture ?? 1))) this._postureBroke(enemy);
     this.meleeSparks.burst(px, y, pz, -x, 0.3, -z, settings.combat.sparks, 1.5);
     const parryColor = getColor(settings.vfx.parry.color);
@@ -2010,7 +2030,24 @@ export class App {
     this.arts = new Arts(this);
     // 一ノ章: the stage — gate, plaza, save point, boss (`world/Stage.js`).
     this.stage = new Stage(this);
-    if (new URLSearchParams(location.search).has('stage')) this.stage.start();
+    // 題: the first screen (`ui/TitleScreen.js`). The world holds still under it.
+    this.title = new TitleScreen({
+      onStage: (resume) => {
+        this._closeTitle();
+        this.stage.start({ resume });
+      },
+      onFree: () => this._closeTitle(),
+      onPvp: () => {
+        this._closeTitle();
+        this.pvp.open();
+      },
+      onUpgrade: () => this._toggleUpgrade(true),
+      record: () => this.stage.record
+    });
+    this.stage.onTitle = () => this._openTitle();
+    const query = new URLSearchParams(location.search);
+    if (query.has('stage')) this.stage.start();
+    else if (!query.has('notitle')) this._openTitle();
 
     this.controller.spendLeap = () => {
       const ok = this.defense.spend(settings.defense.leapCost);

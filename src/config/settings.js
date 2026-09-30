@@ -1327,7 +1327,7 @@ export const settings = {
       /** Ordinary blows neither stagger nor stop it while its stance holds. */
       armor: true,
       /** Blows from the front do this share of their wounds. */
-      frontDamage: 0.5,
+      frontDamage: 0.4,
       postureMax: 260,
       postureRegen: 5,
       /** A parry costs it this many times the usual stance. */
@@ -1338,6 +1338,12 @@ export const settings = {
       hitReach: 3.3,
       damage: 2.2,
       knockback: 2.4,
+      /** Guarding its blow costs this many times the usual stamina. */
+      guardCost: 2.2,
+      /** Its blow is marked on the ground this far ahead, this wide. */
+      omenAhead: 2.2,
+      omenRadius: 2.3,
+      souls: 3,
       color: '#1a0c0c',
       rimColor: '#ff4a2a'
     },
@@ -1357,6 +1363,10 @@ export const settings = {
       hitReach: 4.2,
       damage: 2.6,
       knockback: 3,
+      guardCost: 2.5,
+      omenAhead: 3,
+      omenRadius: 3.2,
+      souls: 1,
       color: '#140608',
       rimColor: '#ff2a55'
     }

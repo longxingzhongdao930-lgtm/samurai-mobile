@@ -996,7 +996,12 @@ export class App {
     // attacker is the other way.
     const outcome = this.defense.defend(-x, -z, this.elapsed);
     if (outcome.result === 'parry') return this._onParried(enemy, x, z);
-    if (outcome.result === 'block') return this._onBlocked(enemy, x, z, outcome);
+    if (outcome.result === 'block') {
+      // A heavy blow on the guard costs more of the arm than a light one.
+      const heavy = enemy?.kindCfg?.guardCost ?? 1;
+      if (heavy > 1) this.defense.spend(settings.defense.guardCost * (heavy - 1));
+      return this._onBlocked(enemy, x, z, outcome);
+    }
     if (outcome.result === 'break') {
       // Out of stamina: the guard is knocked open — a low clang, then the blow.
       const p = this.character.position;
@@ -1100,7 +1105,8 @@ export class App {
     if (!cfg.enabled || this.pvp?.active) return;
     const issen = this._issenKill;
     const kinds = [];
-    const bonus = issen ? cfg.issenBonus : this._executionKill ? settings.execution.soulBonus : 1;
+    const bonus =
+      (issen ? cfg.issenBonus : this._executionKill ? settings.execution.soulBonus : 1) * (enemy.kindCfg?.souls ?? 1);
     const reds = Math.round(cfg.redPerKill * bonus);
     for (let i = 0; i < reds; i++) kinds.push(SOUL.RED);
     if (Math.random() < cfg.yellowChance) kinds.push(SOUL.YELLOW);
@@ -1135,8 +1141,21 @@ export class App {
 
   /** An enemy began a blow: its 妖気 turns red, and its eye glints as the Issen window opens. */
   _onEnemyWindup(enemy) {
-    const lead = settings.enemyAI.telegraphTime - settings.issen.window + 0.05;
+    // The glint as the Issen window opens: late in a long wind-up, early in a quick one.
+    const k = enemy.kindCfg;
+    const windup = k?.ranged ? (enemy._gun ? k.gunAim : k.aim) : settings.enemyAI.telegraphTime * (k?.telegraph ?? 1);
+    const lead = windup - settings.issen.window + 0.05;
     enemy._glintAt = this.elapsed + Math.max(0, lead);
+    // A big body's blow is marked on the ground where it will land.
+    const kind = enemy.kindCfg;
+    if (kind?.omenRadius) {
+      const f = enemy.facing;
+      const ahead = kind.omenAhead ?? 2;
+      const x = enemy.position.x + Math.sin(f) * ahead;
+      const z = enemy.position.z + Math.cos(f) * ahead;
+      const time = settings.enemyAI.telegraphTime * (kind.telegraph ?? 1);
+      this.fx.omen(x, this.terrain.heightAt(x, z), z, getColor(settings.vfx.omen.color), kind.omenRadius, time);
+    }
     const omen = settings.vfx.omen;
     if (omen.allEnemies) {
       this.fx.omen(enemy.position.x, enemy.position.y, enemy.position.z, getColor(omen.color), omen.radius, settings.enemyAI.telegraphTime);

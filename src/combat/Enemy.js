@@ -287,6 +287,14 @@ export class Enemy {
     this._postureIdle = 0;
     /** Stance broken: reeling, and the next blow fells it. */
     this.postureBroken = false;
+    /** What kind of enemy (`settings.enemyKinds`); 'grunt' is the plain swordsman. */
+    this.kind = 'grunt';
+    this.kindCfg = null;
+    this.postureMax = settings.posture.max;
+    /** Size relative to a plain body: reach, collision and the like scale with it. */
+    this.size = 1;
+    /** A 盾 lowers its shield for a moment when kicked (seconds left). */
+    this.shieldOpen = 0;
 
     this.root = new Group();
     this.root.name = 'Enemy';
@@ -399,6 +407,8 @@ export class Enemy {
     this._postureIdle = 0;
     this.posture = Math.max(0, this.posture - Math.max(0, amount));
     if (this.posture > 0) return false;
+    // A broken stance is the one thing that stops an armoured body.
+    this._armorBroken = true;
     this.postureBroken = true;
     this.staggerTime = Math.max(this.staggerTime, config.breakTime);
     this._flash = 1;
@@ -517,14 +527,17 @@ export class Enemy {
     const posture = settings.posture;
     if (this.postureBroken && this.staggerTime <= 0) {
       this.postureBroken = false;
-      this.posture = posture.max;
+      this.posture = this.postureMax;
       this._breakAnnounced = false;
+      this._armorBroken = false;
     } else if (!this.postureBroken) {
       this._postureIdle += dt;
       if (this._postureIdle >= posture.regenDelay) {
-        this.posture = Math.min(posture.max, this.posture + posture.regenRate * dt);
+        const regen = this.kindCfg?.postureRegen ?? posture.regenRate;
+        this.posture = Math.min(this.postureMax, this.posture + regen * dt);
       }
     }
+    this.shieldOpen = Math.max(0, this.shieldOpen - dt);
     const thinking = settings.enemyAI.enabled && this.director && player;
 
     if (thinking) this._blend(dt);
@@ -600,7 +613,7 @@ export class Enemy {
     s.t += dt;
     this._speed = 0;
 
-    if (this.staggerTime > 0) {
+    if (this.staggerTime > 0 && !(this.kindCfg?.armor && !this._armorBroken)) {
       if (this.attacking) this._endSwing();
       this.aware = true;
       s.state = 'recover';
@@ -637,18 +650,24 @@ export class Enemy {
           break;
         }
         this._face(dx, dz, dt, ai.turnRate);
-        const want = this.engaged ? ai.engageDistance : ai.waitDistance;
+        const kind = this.kindCfg;
+        if (kind?.ranged) {
+          this._rangedChase(dt, dx, dz, distance);
+          break;
+        }
+        const walk = ai.walkSpeed * (kind?.speed ?? 1);
+        const want = (this.engaged ? ai.engageDistance : ai.waitDistance) * this.size;
         if (distance > want + 0.2) {
           // Close in, never past the mark.
-          this._step(dx / distance, dz / distance, Math.min(ai.walkSpeed, (distance - want) / dt));
+          this._step(dx / distance, dz / distance, Math.min(walk, (distance - want) / dt));
         } else if (!this.engaged && distance < want - 0.8) {
           // Too close for one not in the fight: give ground back to the ring.
-          this._step(-dx / distance, -dz / distance, ai.walkSpeed * 0.6);
+          this._step(-dx / distance, -dz / distance, walk * 0.6);
         }
         s.cooldown -= dt;
         if (
           this.engaged &&
-          distance <= ai.attackRange &&
+          distance <= (kind?.attackRange ?? ai.attackRange) &&
           s.cooldown <= 0 &&
           this.swings.length &&
           this.director.requestAttack()
@@ -669,10 +688,56 @@ export class Enemy {
         s.wait -= dt;
         if (s.wait <= 0) {
           s.state = this.aware ? 'chase' : 'idle';
-          s.cooldown = MathUtils.randFloat(ai.cooldownMin, ai.cooldownMax);
+          const k = this.kindCfg;
+          s.cooldown = k?.ranged
+            ? MathUtils.randFloat(k.cooldownMin, k.cooldownMax)
+            : MathUtils.randFloat(ai.cooldownMin, ai.cooldownMax) * (k?.cooldown ?? 1);
         }
         break;
       }
+    }
+  }
+
+  /**
+   * Become one of `settings.enemyKinds` — its health, stance, size, colours,
+   * the prop it carries (`combat/EnemyProps.js`), and the numbers the AI reads.
+   * 'grunt' (or an unknown kind) is the plain swordsman, untouched.
+   */
+  setKind(kind, makeProp = null) {
+    const cfg = settings.enemyKinds[kind] ?? null;
+    this.kind = cfg ? kind : 'grunt';
+    this.kindCfg = cfg;
+    this.maxHealth = Math.max(1, cfg?.health ?? settings.enemies.health);
+    this.health = this.maxHealth;
+    this.postureMax = cfg?.postureMax ?? settings.posture.max;
+    this.posture = this.postureMax;
+    this.size = cfg?.scale ?? 1;
+    this.root.scale.setScalar(this.size);
+    this._gun = kind === 'archer' && Math.random() < (cfg?.gunChance ?? 0);
+    if (this._prop) {
+      this._prop.parent?.remove(this._prop);
+      this._prop = null;
+    }
+    const prop = makeProp?.(this.kind, this._gun);
+    if (prop) {
+      // In the body's own frame: +Z is the way it faces.
+      prop.rotation.y = this.forwardYaw;
+      this.root.add(prop);
+      this._prop = prop;
+    }
+  }
+
+  /** 弓 / 鉄砲: hold the middle distance, backing off or closing, and shoot from it. */
+  _rangedChase(dt, dx, dz, distance) {
+    const ai = settings.enemyAI;
+    const k = this.kindCfg;
+    const s = this._ai;
+    const walk = ai.walkSpeed * k.speed;
+    if (distance < k.minRange) this._step(-dx / distance, -dz / distance, walk * 1.2);
+    else if (distance > k.preferred + 1.5) this._step(dx / distance, dz / distance, walk);
+    s.cooldown -= dt;
+    if (distance <= k.maxRange && s.cooldown <= 0 && this.swings.length && !this.director.aiPaused) {
+      this._beginSwing();
     }
   }
 
@@ -704,7 +769,12 @@ export class Enemy {
     action.setEffectiveWeight(this._attackWeight);
     // The wind-up's pace, solved so the tell lasts `telegraphTime` seconds.
     const cfg = swing.config;
-    const telegraph = settings.enemyAI.telegraphTime;
+    const kind = this.kindCfg;
+    const telegraph = kind?.ranged
+      ? this._gun
+        ? kind.gunAim
+        : kind.aim
+      : settings.enemyAI.telegraphTime * (kind?.telegraph ?? 1);
     const span = (Math.max(cfg.startAt + 0.01, cfg.hitAt - 0.08) - cfg.startAt) * action.getClip().duration;
     s.windupSpeed = telegraph > 0 ? span / telegraph : cfg.windupSpeed;
     action.setEffectiveTimeScale(s.windupSpeed);
@@ -735,6 +805,9 @@ export class Enemy {
       // The tell: slow, tracking the player, the warning coming up in the rim.
       action.setEffectiveTimeScale(s.windupSpeed ?? config.windupSpeed);
       this._face(dx, dz, dt, ai.turnRate);
+      // 忍: the wind-up is a burst across the ground, arriving as the blade does.
+      const lunge = this.kindCfg?.lunge;
+      if (lunge && distance > ai.hitReach * 0.75) this._step(dx / distance, dz / distance, lunge);
       this._telegraph = MathUtils.clamp((phase - config.startAt) / (windupEnd - config.startAt), 0, 1);
       return;
     }
@@ -749,10 +822,15 @@ export class Enemy {
       // reach or round its side during the wind-up is missed.
       const fx = Math.sin(this.facing);
       const fz = Math.cos(this.facing);
+      if (this.kindCfg?.ranged) {
+        // Loosed rather than swung: the shot flies on its own (`combat/Projectiles.js`).
+        this.director.onFire?.(this, this._gun);
+      }
       const inFront =
         distance < 0.3 ||
         (dx * fx + dz * fz) / distance >= Math.cos(MathUtils.degToRad(ai.hitArc) * 0.5);
-      if (distance <= ai.hitReach && inFront && this.director.canHitPlayer?.() !== false) {
+      const reach = this.kindCfg?.hitReach ?? ai.hitReach;
+      if (!this.kindCfg?.ranged && distance <= reach && inFront && this.director.canHitPlayer?.() !== false) {
         const k = distance > 1e-3 ? 1 / distance : 0;
         this.director.onPlayerHit?.(this, dx * k || fx, dz * k || fz);
       }
@@ -826,8 +904,17 @@ export class Enemy {
     if (this.state !== 'alive') return null;
 
     this._flash = 1;
+    const kind = this.kindCfg;
+    // Armour: from the front, while its stance holds, a blow does only part of
+    // its wounds — and it does not reel.
+    const armored = kind?.armor && !this._armorBroken && !force.unblockable;
+    if (armored && kind.frontDamage < 1) {
+      const front = -(x * Math.sin(this.facing) + z * Math.cos(this.facing));
+      if (front > 0.3) damage *= kind.frontDamage;
+    }
     this.health -= Math.max(0, damage);
     if (this.health <= 0) return this.die(x, z, force, force.slices === true) ? 'kill' : null;
+    if (armored) return 'stagger';
 
     const combat = settings.combat;
     this.staggerTime = combat.staggerTime;
@@ -1366,15 +1453,16 @@ if (uCutSide != 0.0 && (dot(vEnemyBind, uCutNormal) - uCutOffset) * uCutSide < 0
     for (const part of this.parts) {
       const u = part.uniforms;
 
+      const kind = this.kindCfg;
       for (const material of part.materials) {
-        copyColor(material.color, look.color);
+        copyColor(material.color, kind?.color ?? look.color);
         material.roughness = look.roughness;
         material.metalness = look.metalness;
       }
 
       // The hit flare: the rim goes wider, whiter and brighter for a moment.
       const flash = this._flash;
-      copyColor(u.uRimColor.value, look.rimColor);
+      copyColor(u.uRimColor.value, kind?.rimColor ?? look.rimColor);
       if (flash > 0) u.uRimColor.value.lerp(_white, flash * 0.4);
       u.uRimPower.value = look.rimPower * (1 - 0.45 * flash);
       u.uRimEmissive.value = look.rimEmissive + flash * settings.combat.flash;

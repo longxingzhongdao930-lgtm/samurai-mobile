@@ -301,7 +301,7 @@ export class Arts {
     const target = run.target;
     if (target?.alive) {
       const e = target.position;
-      const force = { ...settings.slashHit, damage: cfg.damage, slices: true };
+      const force = { ...settings.slashHit, unblockable: true, damage: cfg.damage, slices: true };
       const result = app.enemies.hit(target, run.dx, run.dz, app._counterForce(force));
       if (result) app._impact(target, run.dx, run.dz, force, result, true);
       app._iai(e, app.character.facing, 1.2);
@@ -395,7 +395,7 @@ export class Arts {
     p.x = target.position.x + ux * cfg.past;
     p.z = target.position.z + uz * cfg.past;
     app.character.setFacing(Math.atan2(ux, uz));
-    const force = { ...settings.slashHit, damage: cfg.damage };
+    const force = { ...settings.slashHit, unblockable: true, damage: cfg.damage };
     const result = app.enemies.hit(target, ux, uz, app._counterForce(force));
     if (result) app._impact(target, ux, uz, force, result, true);
     const color = getColor(cfg.color);
@@ -474,7 +474,7 @@ export class Arts {
     app.fx.bolt(e.x, top, e.z, e.x, e.y + 0.4, e.z, blue, 0.5, 0.25);
     app.fx.flare(e.x, e.y + 1, e.z, blue, 1.3, 0.3);
     app.fx.ring(e.x, e.y, e.z, blue, 2.2, 0.4);
-    const force = { ...settings.slashHit, damage };
+    const force = { ...settings.slashHit, unblockable: true, damage };
     const result = app.enemies.hit(enemy, dx, dz, app._counterForce(force));
     if (result) app._impact(enemy, dx, dz, force, result, true);
     app._hitStop = Math.max(app._hitStop, cfg.hitStop);
@@ -495,7 +495,7 @@ export class Arts {
       const ux = other.position.x - e.x;
       const uz = other.position.z - e.z;
       const d = Math.hypot(ux, uz) || 1;
-      const force2 = { ...settings.slashHit, damage: cfg.chainDamage };
+      const force2 = { ...settings.slashHit, unblockable: true, damage: cfg.chainDamage };
       const r2 = app.enemies.hit(other, ux / d, uz / d, app._counterForce(force2));
       if (r2) app._impact(other, ux / d, uz / d, force2, r2, false);
     }

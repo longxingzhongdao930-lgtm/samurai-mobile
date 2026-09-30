@@ -439,10 +439,51 @@ export class EnemyManager {
     // same point reads as a firing squad.
     const yaw = Math.atan2(this._player.x - x, this._player.z - z) + (Math.random() - 0.5) * 0.7;
     enemy.place(x, z, yaw);
+    enemy.setKind(this.forceKind ?? this._pickKind(), this.makeProp);
 
     this.group.add(enemy.root);
     this.enemies.push(enemy);
     return enemy;
+  }
+
+  /** Which kind the next body is (`settings.enemyKinds.mix`; the rest are plain). */
+  _pickKind() {
+    const mix = this.kindMix ?? settings.enemyKinds.mix;
+    let roll = Math.random();
+    for (const [kind, share] of Object.entries(mix)) {
+      roll -= share;
+      if (roll < 0) return kind;
+    }
+    return 'grunt';
+  }
+
+  /** Stand one of `kind` at (x, z), facing `yaw` — for set pieces (`world/Stage.js`). */
+  spawnAt(x, z, kind = 'grunt', yaw = 0) {
+    this.forceKind = kind;
+    const enemy = this.spawn();
+    this.forceKind = null;
+    if (!enemy) return null;
+    enemy.place(x, z, yaw);
+    enemy.aware = true;
+    return enemy;
+  }
+
+  /**
+   * A 盾 holding its shield up takes an ordinary blow from the front on it:
+   * nothing lands. A kick (`guardBreak`) knocks the shield aside instead; the
+   * back, a broken stance and the arts (`unblockable`) get through regardless.
+   */
+  _shieldBlocks(enemy, x, z, force) {
+    const cfg = enemy.kindCfg;
+    if (enemy.kind !== 'shield' || !cfg) return false;
+    if (force.guardBreak) {
+      enemy.shieldOpen = cfg.openTime;
+      return false;
+    }
+    if (force.unblockable || enemy.shieldOpen > 0 || enemy.postureBroken) return false;
+    // The blow travels (x, z); from the front means against the way it faces.
+    const front = -(x * Math.sin(enemy.facing) + z * Math.cos(enemy.facing));
+    return front >= Math.cos(((cfg.blockArc ?? 150) * Math.PI) / 360);
   }
 
   /** The sector round the player with fewest bodies standing in it, ties drawn at random. */
@@ -563,6 +604,10 @@ export class EnemyManager {
    */
   hit(enemy, x, z, force = settings.kick) {
     if (!enemy?.alive) return null;
+    if (this._shieldBlocks(enemy, x, z, force)) {
+      this.onBlocked?.(enemy, x, z, force);
+      return null;
+    }
     const reeling = enemy.wounded;
     const boost = reeling ? Math.max(1, settings.combat.finisherBoost) : 1;
     const blow =
@@ -597,14 +642,14 @@ export class EnemyManager {
    */
   pushOut(position, radius) {
     if (radius <= 0) return;
-    const min = radius * radius;
-
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
+      // A big body is a wider wall.
+      const r = radius * enemy.size;
       const dx = position.x - enemy.position.x;
       const dz = position.z - enemy.position.z;
       const squared = dx * dx + dz * dz;
-      if (squared >= min) continue;
+      if (squared >= r * r) continue;
 
       const distance = Math.sqrt(squared);
       if (distance < 1e-4) {
@@ -612,7 +657,7 @@ export class EnemyManager {
         position.x += radius;
         continue;
       }
-      const push = (radius - distance) / distance;
+      const push = (r - distance) / distance;
       position.x += dx * push;
       position.z += dz * push;
     }

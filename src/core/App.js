@@ -42,6 +42,8 @@ import { UpgradeMenu } from '../ui/UpgradeMenu.js';
 import { Execution } from '../combat/Execution.js';
 import { Arts } from '../combat/Arts.js';
 import { PointerLook } from './PointerLook.js';
+import { Projectiles } from '../combat/Projectiles.js';
+import { makeEnemyProp } from '../combat/EnemyProps.js';
 import { getColor } from '../utils/color.js';
 import { CombatAudio } from '../audio/CombatAudio.js';
 import { ShadowCharacter } from '../vfx/ShadowCharacter.js';
@@ -283,6 +285,9 @@ export class App {
     // `combat/Progress.js`, `ui/UpgradeMenu.js`).
     this.souls = new Souls({ capacity: settings.souls.capacity });
     this.scene.add(this.souls.mesh);
+    // Arrows and balls in the air (`combat/Projectiles.js`).
+    this.projectiles = new Projectiles(16);
+    this.scene.add(this.projectiles.mesh);
     this.progress = new Progress();
     this._issenKill = false;
     this._chimeAt = 0;
@@ -1039,6 +1044,56 @@ export class App {
     }
   }
 
+  /** A 弓 / 鉄砲 lets go: from its chest at where the player's chest is going to be. */
+  _enemyFire(enemy, gun) {
+    const cfg = settings.enemyKinds.archer;
+    const e = enemy.position;
+    const f = enemy.facing;
+    const from = new Vector3(e.x + Math.sin(f) * 0.5, e.y + 1.35 * enemy.size, e.z + Math.cos(f) * 0.5);
+    const p = this.character.position;
+    const v = this.controller.velocity;
+    const lead = gun ? 0.08 : 0.3;
+    const to = new Vector3(p.x + v.x * lead, p.y + this.character.height * 0.6, p.z + v.y * lead);
+    this.projectiles.fire(enemy, from, to, gun ? cfg.gunSpeed : cfg.arrowSpeed, gun);
+    if (gun) {
+      this.fx.flare(from.x, from.y, from.z, getColor('#ffd28a'), 0.6, 0.12);
+      this.audio.impact(from, { cut: false, strength: 0.9 });
+    } else {
+      this.audio.swing(from, 0.5);
+    }
+  }
+
+  /** A shot reached the player: the guard gets its say exactly as against a blade. */
+  _onProjectile(owner, x, z, gun) {
+    if (this.playerDown || this._invuln > 0 || this.pvp?.active) return;
+    const outcome = this.defense.defend(-x, -z, this.elapsed);
+    const p = this.character.position;
+    if (outcome.result === 'parry') {
+      // Turned aside: a bright ring off the blade, and nothing lands.
+      const y = p.y + this.character.height * 0.6;
+      this.fx.flare(p.x - x * 0.5, y, p.z - z * 0.5, getColor(settings.vfx.parry.color), 0.8, 0.25);
+      this.audio.clang({ x: p.x, y, z: p.z }, { bright: true, strength: 1 });
+      this.toast.show('弾き', 600);
+      return;
+    }
+    if (outcome.result === 'block') return this._onBlocked(PVP_NOBODY, x, z, outcome);
+    this._takeHit(owner, x, z, outcome.damageScale * (gun ? 1.2 : 0.8));
+  }
+
+  /** A blow met a 盾's shield: steel on lacquer, the arm jarred back, the stance worn. */
+  _onShieldBlock(enemy, x, z) {
+    const e = enemy.position;
+    const y = e.y + settings.enemies.height * 0.6 * enemy.size;
+    this.meleeSparks.burst(e.x - x * 0.5, y, e.z - z * 0.5, -x, 0.2, -z, settings.combat.sparks, 0.8);
+    this.audio.clang({ x: e.x, y, z: e.z }, { strength: 0.8 });
+    this.controller.knock(-x, -z, 1.4);
+    this._hitStop = Math.max(this._hitStop, 0.05);
+    this._hitStopScale = 0.2;
+    this._hitRelease = 0;
+    this.rig.shake(0.06);
+    if (enemy.takePosture?.(enemy.kindCfg?.blockPosture ?? 0)) this._postureBroke(enemy);
+  }
+
   /** A body fell: its souls (not in a duel — there are no bodies there anyway). */
   _onEnemyKilled(enemy) {
     const cfg = settings.souls;
@@ -1259,7 +1314,7 @@ export class App {
     if (enemy.alive) enemy.staggerTime = Math.max(enemy.staggerTime, d.parryStagger);
     // Reeling from the parry: open to an execution for as long as it reels.
     if (enemy.alive) enemy._parriedUntil = this.elapsed + d.parryStagger;
-    if (enemy.takePosture?.(settings.posture.parryDamage)) this._postureBroke(enemy);
+    if (enemy.takePosture?.(settings.posture.parryDamage * (enemy.kindCfg?.parryPosture ?? 1))) this._postureBroke(enemy);
     this.meleeSparks.burst(px, y, pz, -x, 0.3, -z, settings.combat.sparks, 1.5);
     const parryColor = getColor(settings.vfx.parry.color);
     this.fx.flare(px, y, pz, parryColor, settings.vfx.parry.size, 0.3);
@@ -1312,7 +1367,9 @@ export class App {
     this._hitStop = Math.max(this._hitStop, ai.hitStop);
     this._hitStopScale = ai.hitStopScale;
     this._hitRelease = 0;
-    this.controller.knock(x, z, ai.knockback);
+    // A big body hits harder and throws you further (`settings.enemyKinds`).
+    const kind = enemy?.kindCfg;
+    this.controller.knock(x, z, ai.knockback * (kind?.knockback ?? 1));
     const p = this.character.position;
     this.audio.impact({ x: p.x, y: p.y + 1, z: p.z }, { cut: false, strength: 0.7 });
     const flash = this._hurtFlash;
@@ -1322,7 +1379,7 @@ export class App {
 
     // And now it costs something.
     const hp = settings.combat.player;
-    this.playerHp = Math.max(0, this.playerHp - hp.damage * scale);
+    this.playerHp = Math.max(0, this.playerHp - hp.damage * scale * (kind?.damage ?? 1));
     this._invuln = hp.invulnerable;
     this.playerHud.setHp(this.playerHp, hp.maxHp);
     if (this.playerHp <= 0) this._down(x, z);
@@ -1380,6 +1437,7 @@ export class App {
     this.musouGauge = 0;
     this.defense.reset();
     this.souls.clear();
+    this.projectiles.clear();
     this.execution?.reset();
     this.arts?.reset();
     this.enemies.respawnAll();
@@ -1913,6 +1971,11 @@ export class App {
     });
     this.enemies.onPlayerHit = (enemy, x, z) => this._onPlayerHit(enemy, x, z);
     this.enemies.onKill = (enemy) => this._onEnemyKilled(enemy);
+    // The kinds (`settings.enemyKinds`): what each carries, the 弓 / 鉄砲's shots,
+    // and a 盾's shield taking a blow.
+    this.enemies.makeProp = makeEnemyProp;
+    this.enemies.onFire = (enemy, gun) => this._enemyFire(enemy, gun);
+    this.enemies.onBlocked = (enemy, x, z) => this._onShieldBlock(enemy, x, z);
     this.enemies.onWindup = (enemy) => this._onEnemyWindup(enemy);
     this.defense.bind();
     // The duel: its button, its room panel, the opponent's body. After the
@@ -2193,6 +2256,12 @@ export class App {
       !this.playerDown && !this.pvp?.active
     );
     this.playerHud.setSouls(this.progress.souls);
+    this.projectiles.update(
+      dt,
+      _chest,
+      (owner, x, z, gun) => this._onProjectile(owner, x, z, gun),
+      (x, z) => this.terrain.heightAt(x, z)
+    );
     // And who the shadows would be sent at. After the bodies for the same
     // reason: a marked body felled this frame drops its mark on this frame.
     this._updateMarks(dt, position);

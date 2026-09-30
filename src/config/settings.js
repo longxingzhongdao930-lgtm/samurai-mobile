@@ -281,6 +281,8 @@ export const settings = {
    */
   kick: {
     enabled: true,
+    /** A kick knocks a 盾's shield aside (`settings.enemyKinds.shield`). */
+    guardBreak: true,
     /** Metres a target can be locked from. Past this the kick swings at air. */
     range: 3.4,
     /** Full width of the search cone, degrees — a kick behind you is not a kick. */
@@ -933,6 +935,8 @@ export const settings = {
   },
   /** The opening sweep, all the way round. */
   musou1: step({
+    // No shield or armour holds against the Musou.
+    unblockable: true,
     startAt: 0.2, timeScale: 1.8, warpAt: 0.34, swingAt: 0.3, hitAt: 0.38,
     cancelAt: 0.44, recoverAt: 0.6, maxWarp: 0.5,
     areaRange: 4.2, areaArc: 360, damage: 99, slices: true,
@@ -940,6 +944,8 @@ export const settings = {
   }),
   /** Through them. */
   musou2: step({
+    // No shield or armour holds against the Musou.
+    unblockable: true,
     clip: 'crouchSlash',
     startAt: 0.1, timeScale: 1.1, warpAt: 0.6, turnAt: 0.3, swingAt: 0.55, hitAt: 0.68,
     cancelAt: 0.74, recoverAt: 0.9, maxWarp: 4.5, standoff: 1.5, passThrough: 2.4, passAt: 0.88,
@@ -949,6 +955,8 @@ export const settings = {
   }),
   /** And the last one wide enough to reach the edge of the ring — with the ground opening under it. */
   musou3: step({
+    // No shield or armour holds against the Musou.
+    unblockable: true,
     startAt: 0.08, timeScale: 1.35, warpAt: 0.34, swingAt: 0.31, hitAt: 0.39,
     cancelAt: 0.9, recoverAt: 0.64, maxWarp: 0.4,
     areaRange: 7.5, areaArc: 360, damage: 99, slices: true,
@@ -1255,6 +1263,103 @@ export const settings = {
     hitStop: 0.09,
     skyCrack: true,
     color: '#bfe6ff'
+  },
+
+  /**
+   * The kinds of enemy (`combat/Enemy.js#setKind`), one row each — the
+   * data-driven type table the reference games use (hp, speed, damage, size,
+   * colour per type), read by the one AI rather than forked into several.
+   * `mix` is how often each turns up in the free-roam crowd; the rest are the
+   * plain swordsmen. Health is in wounds (a normal blow is one), damage is ×
+   * the player's `combat.player.damage`.
+   */
+  enemyKinds: {
+    mix: { shield: 0.16, ninja: 0.16, archer: 0.12, brute: 0.06 },
+    /** 盾: blocks ordinary blows from the front; a kick, the back, or the arts get through. */
+    shield: {
+      health: 3,
+      speed: 0.75,
+      blockArc: 150,
+      /** A blocked blow still costs it this much stance. */
+      blockPosture: 20,
+      /** A kick knocks the shield aside for this long. */
+      openTime: 2.2,
+      color: '#1d2027',
+      rimColor: '#9fc3ff'
+    },
+    /** 忍: fast, closes in a burst, strikes often and quick — built to be parried. */
+    ninja: {
+      health: 2,
+      speed: 2.1,
+      scale: 0.93,
+      attackRange: 4.5,
+      lunge: 9,
+      telegraph: 0.75,
+      cooldown: 0.45,
+      postureMax: 45,
+      color: '#0b0a10',
+      rimColor: '#b77bff'
+    },
+    /** 弓 / 鉄砲: keeps its distance and shoots. A guard stops it; a parry turns it. */
+    archer: {
+      ranged: true,
+      health: 2,
+      speed: 0.95,
+      minRange: 6,
+      maxRange: 17,
+      preferred: 11,
+      aim: 1.1,
+      cooldownMin: 2.4,
+      cooldownMax: 4,
+      arrowSpeed: 20,
+      /** This share carry a 鉄砲 instead: a longer aim, a much faster shot. */
+      gunChance: 0.4,
+      gunAim: 1.4,
+      gunSpeed: 48,
+      color: '#221a14',
+      rimColor: '#ffb04a'
+    },
+    /** 大型: hard to kill head-on — armour, stance and slow, heavy, well-telegraphed blows. */
+    brute: {
+      health: 12,
+      speed: 0.62,
+      scale: 1.55,
+      /** Ordinary blows neither stagger nor stop it while its stance holds. */
+      armor: true,
+      /** Blows from the front do this share of their wounds. */
+      frontDamage: 0.5,
+      postureMax: 260,
+      postureRegen: 5,
+      /** A parry costs it this many times the usual stance. */
+      parryPosture: 2,
+      telegraph: 1.4,
+      cooldown: 1.4,
+      attackRange: 3,
+      hitReach: 3.3,
+      damage: 2.2,
+      knockback: 2.4,
+      color: '#1a0c0c',
+      rimColor: '#ff4a2a'
+    },
+    /** The boss (`combat/Boss.js` drives its phases on top of this). */
+    boss: {
+      health: 40,
+      speed: 0.8,
+      scale: 2.1,
+      armor: true,
+      frontDamage: 0.6,
+      postureMax: 420,
+      postureRegen: 4,
+      parryPosture: 2.5,
+      telegraph: 1.2,
+      cooldown: 1,
+      attackRange: 3.8,
+      hitReach: 4.2,
+      damage: 2.6,
+      knockback: 3,
+      color: '#140608',
+      rimColor: '#ff2a55'
+    }
   },
 
   /**

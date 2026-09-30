@@ -41,6 +41,7 @@ import { Progress } from '../combat/Progress.js';
 import { UpgradeMenu } from '../ui/UpgradeMenu.js';
 import { Execution } from '../combat/Execution.js';
 import { Arts } from '../combat/Arts.js';
+import { Stage } from '../world/Stage.js';
 import { PointerLook } from './PointerLook.js';
 import { Projectiles } from '../combat/Projectiles.js';
 import { makeEnemyProp } from '../combat/EnemyProps.js';
@@ -1459,7 +1460,9 @@ export class App {
     this.projectiles.clear();
     this.execution?.reset();
     this.arts?.reset();
-    this.enemies.respawnAll();
+    // In the stage, back to the last checkpoint; out of it, a fresh ring.
+    if (this.stage?.active) this.stage.retry();
+    else this.enemies.respawnAll();
     this.toast.show('Again');
   }
 
@@ -1481,6 +1484,7 @@ export class App {
 
   /** Into a room: the arena up, the crowd away, the body on its feet. */
   _pvpEnter() {
+    this.stage?.leave();
     this.arenaHeld = true;
     this.souls.clear();
     this.execution?.reset();
@@ -2004,6 +2008,9 @@ export class App {
     this.execution = new Execution(this);
     // 秘剣: 雷切, 影走り, 縮地 and 居合 (`combat/Arts.js`).
     this.arts = new Arts(this);
+    // 一ノ章: the stage — gate, plaza, save point, boss (`world/Stage.js`).
+    this.stage = new Stage(this);
+    if (new URLSearchParams(location.search).has('stage')) this.stage.start();
 
     this.controller.spendLeap = () => {
       const ok = this.defense.spend(settings.defense.leapCost);
@@ -2265,6 +2272,7 @@ export class App {
     this._updateMiasma(dt, position);
     this._updateOniAura(dt);
     this.execution?.update(dt);
+    this.stage?.update(dt);
     _chest.set(position.x, position.y + this.character.height * 0.6, position.z);
     this.souls.update(
       dt,

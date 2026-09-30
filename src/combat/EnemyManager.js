@@ -244,7 +244,8 @@ export class EnemyManager {
     }
 
     this._separate();
-    this._maintain(dt);
+    // A set piece (`world/Stage.js`) places its own bodies: no ring to keep full.
+    if (!this.manual) this._maintain(dt);
   }
 
   /** Keep `count` of them standing, spawning one `respawnDelay` after a gap opens. */
@@ -668,6 +669,8 @@ export class EnemyManager {
   /** Clear the field and stand a fresh set up immediately. */
   respawnAll() {
     this.clear();
+    // A set piece places its own: a fresh free-roam ring would walk into it.
+    if (this.manual) return;
     const wanted = Math.max(0, Math.round(settings.enemies.count));
     for (let i = 0; i < wanted; i++) this.spawn();
   }

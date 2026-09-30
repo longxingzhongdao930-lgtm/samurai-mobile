@@ -3,8 +3,11 @@ import { Vector3 } from 'three';
 import { settings } from '../config/settings.js';
 import { getColor } from '../utils/color.js';
 import { PhantomBlades } from '../vfx/PhantomBlades.js';
+import { SkyCrack } from '../ui/SkyCrack.js';
 
 const _head = new Vector3();
+const _a = new Vector3();
+const _b = new Vector3();
 
 /**
  * 処刑 (execution) and 飛燕 (hien) — the katana's two set pieces.
@@ -47,6 +50,7 @@ export class Execution {
     document.body.appendChild(this.marker);
     /** Who the prompt is over this frame (and who an attack press would finish). */
     this.candidate = null;
+    this.sky = new SkyCrack();
   }
 
   /* ------------------------------------------------------------------ */
@@ -145,25 +149,84 @@ export class Execution {
     return true;
   }
 
+  /**
+   * The cut leaves the blade: a crescent the width of a body and a half, two
+   * after-images behind it, a scar torn along the ground, the world held for
+   * a beat — and the sky splitting open the way the blade went. It goes the
+   * full `range` whatever it meets, and every body in its lane is cut as the
+   * edge passes it.
+   */
   _launch(target) {
     const app = this.app;
     const cfg = settings.hien;
     const p = app.character.position;
-    const f = app.character.facing;
-    const y = p.y + app.character.height * 0.55;
-    let tx = p.x + Math.sin(f) * cfg.range;
-    let tz = p.z + Math.cos(f) * cfg.range;
+    let dirX = Math.sin(app.character.facing);
+    let dirZ = Math.cos(app.character.facing);
     if (target?.alive) {
-      tx = target.position.x;
-      tz = target.position.z;
+      const dx = target.position.x - p.x;
+      const dz = target.position.z - p.z;
+      const d = Math.hypot(dx, dz);
+      if (d > 0.3) {
+        dirX = dx / d;
+        dirZ = dz / d;
+      }
     }
-    const dist = Math.hypot(tx - p.x, tz - p.z);
-    const time = Math.max(0.08, dist / cfg.speed);
+    const y = p.y + app.character.height * 0.55;
+    const tx = p.x + dirX * cfg.range;
+    const tz = p.z + dirZ * cfg.range;
     const ty = app.terrain.heightAt(tx, tz) + app.character.height * 0.55;
-    app.fx.crescent(p.x, y, p.z, tx, ty, tz, getColor(cfg.color), cfg.radius, time, (Math.random() - 0.5) * 0.9);
-    const dirX = (tx - p.x) / Math.max(dist, 1e-3);
-    const dirZ = (tz - p.z) / Math.max(dist, 1e-3);
-    this._flying.push({ target: target?.alive ? target : null, x: tx, z: tz, dirX, dirZ, at: app.elapsed + time });
+    const time = cfg.range / cfg.speed;
+    const color = getColor(cfg.color);
+    // Always tipped well off flat, so the camera behind sees a crescent, not an edge.
+    const roll = (Math.random() < 0.5 ? -1 : 1) * (0.45 + Math.random() * 0.3);
+
+    // The crescent, and two after-images a beat behind it, fainter and smaller.
+    app.fx.crescent(p.x, y, p.z, tx, ty, tz, color, cfg.radius, time, roll);
+    const clock = app.fx._clock;
+    for (const [lag, scale] of [[0.05, 0.8], [0.1, 0.62]]) {
+      app.fx._clock = clock + lag;
+      app.fx.crescent(p.x, y, p.z, tx, ty, tz, color, cfg.radius * scale, time, roll);
+    }
+    app.fx._clock = clock;
+    // A scar down the ground the whole way it goes.
+    const mid = cfg.range * 0.5;
+    const gx = p.x + dirX * mid;
+    const gz = p.z + dirZ * mid;
+    app.fx.slash(gx, app.terrain.heightAt(gx, gz) + 0.06, gz, dirX, 0, dirZ, color, cfg.range, 0.22, time + 0.9);
+    app.fx.flare(p.x + dirX * 0.8, y, p.z + dirZ * 0.8, color, 1.6, 0.3);
+    app.fx.ring(p.x, p.y, p.z, color, 3.2, 0.5);
+
+    // The world holds its breath on the release.
+    app._hitStop = Math.max(app._hitStop, cfg.hitStop);
+    app._hitStopScale = 0.08;
+    app._hitRelease = 0;
+    app.rig.shake(0.28);
+    app.rig.punch(dirX, dirZ, 0.12, settings.combat.fovKick * 2.5, 0.015);
+    app.audio.clang({ x: p.x, y, z: p.z }, { bright: true, strength: 1.5 });
+    app.audio.impact({ x: p.x, y, z: p.z }, { cut: true, strength: 1.5 });
+
+    // 空裂: the crack runs the way the cut goes across the screen.
+    if (cfg.skyCrack) {
+      _a.set(p.x, y, p.z).project(app.camera);
+      _b.set(tx, ty, tz).project(app.camera);
+      let angle = Math.atan2(-(_b.y - _a.y), _b.x - _a.x);
+      // Straight into the screen has no direction on it: lay it across.
+      if (Math.hypot(_b.x - _a.x, _b.y - _a.y) < 0.15) angle = (Math.random() - 0.5) * 0.5;
+      this.sky.crack(angle);
+    }
+
+    // Everyone in the lane, cut as the edge reaches them.
+    for (const enemy of app.enemies.enemies) {
+      if (!enemy.alive) continue;
+      const rx = enemy.position.x - p.x;
+      const rz = enemy.position.z - p.z;
+      const along = rx * dirX + rz * dirZ;
+      const lateral = Math.abs(rx * dirZ - rz * dirX);
+      if (along < 0 || along > cfg.range + 0.5 || lateral > cfg.width) continue;
+      this._flying.push({ target: enemy, x: enemy.position.x, z: enemy.position.z, dirX, dirZ, at: app.elapsed + along / cfg.speed });
+    }
+    // And where it spends itself.
+    this._flying.push({ target: null, x: tx, z: tz, dirX, dirZ, at: app.elapsed + time });
   }
 
   /* ------------------------------------------------------------------ */
@@ -182,7 +245,7 @@ export class Execution {
       this._flying.splice(i, 1);
       const cfg = settings.hien;
       const y = app.terrain.heightAt(c.x, c.z) + 1;
-      app.fx.flare(c.x, y, c.z, getColor(cfg.color), 0.7, 0.22);
+      app.fx.flare(c.x, y, c.z, getColor(cfg.color), c.target ? 1.1 : 0.8, 0.26);
       if (c.target?.alive) app._hienHit(c.target, c.dirX, c.dirZ);
     }
 
@@ -324,6 +387,7 @@ export class Execution {
   }
 
   dispose() {
+    this.sky.dispose();
     this.blades.dispose();
     this.marker.remove();
   }

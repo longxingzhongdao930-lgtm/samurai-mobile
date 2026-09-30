@@ -1241,13 +1241,19 @@ export const settings = {
    */
   hien: {
     enabled: true,
-    range: 12,
-    speed: 24,
-    cooldown: 1.1,
-    staminaCost: 18,
-    damage: 1,
-    radius: 1.3,
+    /** How far it flies, and how wide a lane of bodies it cuts through on the way. */
+    range: 16,
+    width: 1.5,
+    speed: 30,
+    cooldown: 1.6,
+    staminaCost: 25,
+    /** Wounds per body — 3 fells any standing enemy. */
+    damage: 3,
+    radius: 2.4,
     launchDelay: 0.16,
+    /** The freeze on the release, and whether the sky splits with it. */
+    hitStop: 0.09,
+    skyCrack: true,
     color: '#bfe6ff'
   },
 

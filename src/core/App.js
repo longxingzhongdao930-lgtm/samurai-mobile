@@ -30,6 +30,7 @@ import { ShockRing } from '../vfx/ShockRing.js';
 import { DustBurst } from '../vfx/DustBurst.js';
 import { ComboCounter } from '../ui/ComboCounter.js';
 import { PlayerHud } from '../ui/PlayerHud.js';
+import { PlayerDefense } from '../combat/PlayerDefense.js';
 import { CombatAudio } from '../audio/CombatAudio.js';
 import { ShadowCharacter } from '../vfx/ShadowCharacter.js';
 import { Judgement } from '../vfx/Judgement.js';
@@ -155,6 +156,8 @@ export class App {
 
     this.input = new Input();
     this.controller = new ThirdPersonController(this.character, this.input, this.rig);
+    // The guard (and later the parry and stamina) — see `combat/PlayerDefense.js`.
+    this.defense = new PlayerDefense(this.character);
 
     /* ---- combat ---- */
     // What a body cut in half throws off. A pool with nothing in it until
@@ -834,6 +837,40 @@ export class App {
    * blow.
    */
   _onPlayerHit(enemy, x, z) {
+    // The guard gets the first say: `x, z` is the blow's direction, so the
+    // attacker is the other way.
+    const outcome = this.defense.defend(-x, -z, this.elapsed);
+    if (outcome.result === 'block') return this._onBlocked(enemy, x, z, outcome);
+    this._takeHit(enemy, x, z, outcome.damageScale);
+  }
+
+  /**
+   * A blow caught on the guard: steel on steel, sparks off the front of the
+   * body, a small shove back — and no red, because nothing got through.
+   */
+  _onBlocked(enemy, x, z, outcome) {
+    const p = this.character.position;
+    const y = p.y + this.character.height * 0.6;
+    const px = p.x - x * 0.45;
+    const pz = p.z - z * 0.45;
+    this.meleeSparks.burst(px, y, pz, -x, 0.2, -z, settings.combat.sparks, 0.7);
+    this.audio.clang({ x: px, y, z: pz }, { strength: 0.9 });
+    this.rig.shake(settings.enemyAI.hitShake * 0.4);
+    this.controller.knock(x, z, settings.defense.blockPush);
+    this._hitStop = Math.max(this._hitStop, 0.04);
+    this._hitStopScale = 0.25;
+    this._hitRelease = 0;
+    const chip = settings.combat.player.damage * outcome.damageScale;
+    if (chip > 0) {
+      this.playerHp = Math.max(0, this.playerHp - chip);
+      this.playerHud.setHp(this.playerHp, settings.combat.player.maxHp);
+      if (this.playerHp <= 0) this._down(x, z);
+    }
+    this._invuln = Math.max(this._invuln, 0.25);
+  }
+
+  /** A blow that got through, scaled by what the guard took off it. */
+  _takeHit(enemy, x, z, scale = 1) {
     const ai = settings.enemyAI;
     this.rig.shake(ai.hitShake);
     this.rig.punch(-x, -z, ai.hitShake * 0.6, 0, ai.hitShake * settings.combat.roll);
@@ -850,7 +887,7 @@ export class App {
 
     // And now it costs something.
     const hp = settings.combat.player;
-    this.playerHp = Math.max(0, this.playerHp - hp.damage);
+    this.playerHp = Math.max(0, this.playerHp - hp.damage * scale);
     this._invuln = hp.invulnerable;
     this.playerHud.setHp(this.playerHp, hp.maxHp);
     if (this.playerHp <= 0) this._down(x, z);
@@ -906,6 +943,7 @@ export class App {
     this.character.tilt.quaternion.identity();
     this.character.tilt.position.set(0, 0, 0);
     this.musouGauge = 0;
+    this.defense.reset();
     this.enemies.respawnAll();
     this.toast.show('Again');
   }
@@ -1176,6 +1214,11 @@ export class App {
     const inCombo = this.character.combo?.some((move) => move.locked);
     const inMusou = this.character.musou?.some((move) => move.locked);
     state.combo = airborne || !settings.combo.enabled ? 'off' : inCombo ? 'active' : 'ready';
+    state.guard = this.defense.guarding
+      ? 'active'
+      : airborne || this.playerDown || !settings.defense.enabled || this.defense.broken > 0
+        ? 'off'
+        : 'ready';
     const full = this.musouGauge >= settings.musou.max;
     state.musou = inMusou
       ? 'active'
@@ -1284,6 +1327,7 @@ export class App {
       attacks: { kick: clips.get('kick'), slashHit: clips.get('slashHit') }
     });
     this.enemies.onPlayerHit = (enemy, x, z) => this._onPlayerHit(enemy, x, z);
+    this.defense.bind();
     // Not in the air, and not while the Musou is running — it is the player's
     // moment, and a blow landing in the middle of it would take it back.
     this.enemies.canHitPlayer = () =>
@@ -1449,6 +1493,18 @@ export class App {
     this.musouDust.sync(this.elapsed, settings.judgement.dust);
     this.musouShock.update(dt, settings.musou.shock);
     this.comboCounter.update(raw);
+    {
+      const c = this.character;
+      const free =
+        !this.playerDown &&
+        !this.inCharacterScreen &&
+        !c.flight?.active &&
+        !c.jump?.locked &&
+        !c.hop?.locked &&
+        !(c.moves ?? []).some((move) => move.locked);
+      this.defense.update(dt, this.elapsed, this.input.pressed.has('KeyK'), free);
+      this.controller.guarding = this.defense.guarding;
+    }
     this._invuln = Math.max(0, this._invuln - raw);
     if (this.playerDown) this._updateDown(dt);
     this.controller.update(dt);

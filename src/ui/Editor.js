@@ -1522,6 +1522,14 @@ export class Editor {
     R(folder, c.sparks, 'sparks', 0, 120, 1, 'spark count');
     R(folder, c.sparks, 'size', 0, 3, 0.01, 'flash size');
     R(folder, settings.enemies, 'health', 1, 6, 1, 'enemy health');
+    const d = settings.defense;
+    const guard = folder.addFolder('Guard / parry / stamina');
+    guard.add(d, 'enabled').name('guard enabled');
+    R(guard, d, 'guardArc', 30, 360, 1, 'guard arc (°)');
+    R(guard, d, 'guardChip', 0, 1, 0.01, 'chip through guard');
+    R(guard, d, 'blockPush', 0, 6, 0.1, 'block push (m/s)');
+    R(guard, d, 'guardMoveScale', 0, 1, 0.01, 'move while guarding ×');
+    R(guard, d, 'poseWeight', 0, 3, 0.05, 'guard pose');
     const hp = settings.combat.player;
     const player = folder.addFolder('Player HP');
     R(player, hp, 'maxHp', 1, 500, 1, 'max HP');

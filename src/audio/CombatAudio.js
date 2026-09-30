@@ -209,6 +209,45 @@ export class CombatAudio {
     }
   }
 
+  /**
+   * Steel meeting steel — a blow caught on the guard, or (`bright`) turned
+   * aside by a parry: a hard tick of noise and a ring of inharmonic partials,
+   * higher and longer for the parry.
+   */
+  clang(point, { bright = false, strength = 1 } = {}) {
+    if (!this._ready) return;
+    const context = this.context;
+    const now = context.currentTime;
+    const s = Math.max(0.3, Math.min(1.5, strength));
+    const out = this._voice(point, 0.5 + 0.3 * s, now + 1.2);
+
+    const tick = this._noise(now, 0.05);
+    const band = context.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = bright ? 4200 : 2600;
+    band.Q.value = 1.2;
+    const tickGain = context.createGain();
+    envelope(tickGain.gain, now, 0.001, 0.005, 0.05, 0.9 * s);
+    tick.connect(band).connect(tickGain).connect(out);
+
+    const base = (bright ? 1180 : 820) * (0.97 + Math.random() * 0.06);
+    const ring = bright ? 0.9 : 0.45;
+    for (const [ratio, level] of [
+      [1, 0.16],
+      [2.76, 0.09],
+      [5.4, 0.05]
+    ]) {
+      const partial = context.createOscillator();
+      partial.type = 'sine';
+      partial.frequency.value = base * ratio;
+      const gain = context.createGain();
+      envelope(gain.gain, now, 0.001, 0.008, ring, level * s);
+      partial.connect(gain).connect(out);
+      partial.start(now);
+      partial.stop(now + ring + 0.05);
+    }
+  }
+
   /* ------------------------------------------------------------------ */
   /* plumbing                                                            */
   /* ------------------------------------------------------------------ */

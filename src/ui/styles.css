@@ -1176,10 +1176,10 @@ body.cs-open .hint {
   /* One scale for the whole cluster: every size and radius below hangs off it. */
   --u: 1px;
   --leap: calc(84 * var(--u));
-  --plate: calc(54 * var(--u));
-  --seal: calc(52 * var(--u));
-  --r-technique: calc(122 * var(--u));
-  --r-ability: calc(196 * var(--u));
+  --plate: calc(52 * var(--u));
+  --seal: calc(50 * var(--u));
+  --r-technique: calc(126 * var(--u));
+  --r-ability: calc(204 * var(--u));
   --stick: calc(132 * var(--u));
 
   position: fixed;
@@ -1524,8 +1524,8 @@ html.touch-ui .cs__btn {
  */
 @media (orientation: portrait) {
   .mc {
-    --r-technique: calc(116 * var(--u));
-    --r-ability: calc(186 * var(--u));
+    --r-technique: calc(120 * var(--u));
+    --r-ability: calc(194 * var(--u));
     --stick: calc(118 * var(--u));
   }
 

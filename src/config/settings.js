@@ -1042,6 +1042,43 @@ export const settings = {
   },
 
   /* ------------------------------------------------------------------ */
+  /* Defense                                                             */
+  /* ------------------------------------------------------------------ */
+  /**
+   * The player's guard — `combat/PlayerDefense.js`, decided by the pure rule
+   * in `combat/defense.js` (the PvP server uses the same one).
+   *
+   * Held on `K` (the Guard button on a phone). It covers the front only:
+   * `guardArc` degrees about where the body faces, so a blow from the side or
+   * behind lands anyway. While it is up the body moves at `guardMoveScale` of
+   * its walk and keeps its facing, so it can step round a blow without
+   * turning its back to it.
+   */
+  defense: {
+    enabled: true,
+    guardArc: 150,
+    /** Fraction of a blocked blow's damage that still gets through. */
+    guardChip: 0,
+    /** m/s a blocked blow still pushes the body back. */
+    blockPush: 1.6,
+    guardMoveScale: 0.45,
+    /** How much of the braced (crouch) pose the guard lays over the gait. */
+    poseWeight: 1.2,
+    /** Parry: off until turned on (seconds after the guard goes up). */
+    parryWindow: 0,
+    parryRefund: 0,
+    counterWindow: 0,
+    /** Stamina: off until turned on. */
+    staminaEnabled: false,
+    staminaMax: 100,
+    regenRate: 28,
+    regenDelay: 0.7,
+    guardCost: 0,
+    breakDamage: 0.5,
+    breakTime: 0.9
+  },
+
+  /* ------------------------------------------------------------------ */
   /* Enemy AI                                                            */
   /* ------------------------------------------------------------------ */
   /**

@@ -78,6 +78,8 @@ export class ThirdPersonController {
      * and nothing new starts. Moves already running only blend out.
      */
     this.frozen = false;
+    /** Set by the app while the guard is up: slower, no running, facing held. */
+    this.guarding = false;
   }
 
   /** @param {import('../combat/EnemyManager.js').EnemyManager} enemies */
@@ -265,7 +267,10 @@ export class ThirdPersonController {
     // forward = -(sin, cos), right = (cos, -sin) — see the camera basis above.
     _desired.set(axis.y * -sin + axis.x * cos, axis.y * -cos + axis.x * -sin);
 
-    const wanted = config.enabled ? (running ? config.runSpeed : config.walkSpeed) : 0;
+    const guard = this.guarding ? settings.defense.guardMoveScale : 1;
+    const wanted = config.enabled
+      ? (running && !this.guarding ? config.runSpeed : config.walkSpeed) * guard
+      : 0;
     _desired.multiplyScalar(wanted);
 
     // Stopping is sharper than starting: the deceleration ramp is what stops the
@@ -289,7 +294,7 @@ export class ThirdPersonController {
 
     /* ---- heading ---- */
     const speed = this.velocity.length();
-    if (speed > config.idleThreshold) {
+    if (speed > config.idleThreshold && !this.guarding) {
       // 0 faces +Z, so the heading of a world direction is atan2(x, z).
       const heading = Math.atan2(this.velocity.x, this.velocity.y);
       this.character.turnToward(heading, settings.character.turnRate, dt);

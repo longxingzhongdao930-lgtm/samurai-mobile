@@ -84,6 +84,14 @@ export const ABILITIES = [
     attack: true
   },
   {
+    id: 'guard',
+    category: 'technique',
+    label: 'Guard',
+    hotkey: 'K',
+    code: 'KeyK',
+    note: 'Hold to guard. Covers the front only — a blow from the side or behind still lands.'
+  },
+  {
     id: 'kick',
     category: 'technique',
     label: 'Kick',

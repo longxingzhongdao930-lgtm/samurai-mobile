@@ -53,8 +53,8 @@ const RUN = 0.9;
  * right: 180 is straight left of the leap, 90 straight above it.
  */
 const ARCS = {
-  technique: { from: 196, to: 78 },
-  ability: { from: 176, to: 94 }
+  technique: { from: 194, to: 76 },
+  ability: { from: 176, to: 92 }
 };
 
 export class MobileControls {

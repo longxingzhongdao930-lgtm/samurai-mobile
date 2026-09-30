@@ -143,6 +143,13 @@ export const ABILITY_ICONS = {
       `<path d="M19.2 3.6 21.4 2.4 21.1 5" stroke-width="1.4"/>`
   ),
 
+  // The guard: a blade held crosswise in front of a body, the blow stopping on it.
+  guard: stroke(
+    `<path d="M4 17.5 18.8 4.8" stroke-width="2"/>` +
+      `<path d="M3 15.2 6.4 18.6" stroke-width="1.6"/>` +
+      `<path d="M12.6 20.4c-3.4-1.2-5.2-3.4-5.2-6.6V9.2l5.2-2 5.2 2v4.6c0 3.2-1.8 5.4-5.2 6.6z" opacity="0.6"/>`
+  ),
+
   // The whirlwind: a ring of cuts round a point, open where the blade is.
   musou: stroke(
     `<path d="M12 3.2a8.8 8.8 0 1 1-8.1 5.4" stroke-width="1.9"/>` +

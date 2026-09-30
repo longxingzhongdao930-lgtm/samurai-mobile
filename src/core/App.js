@@ -1023,6 +1023,7 @@ export class App {
 
   _openTitle() {
     this.title.show();
+    this.music.play('title');
     this.paused = true;
     this.pointerLook?.release();
   }
@@ -1865,8 +1866,8 @@ export class App {
     // cover what the row does not: the stick, and where to look for the rest.
     this.toast.show(
       TOUCH
-        ? 'Left thumb to move, all the way to run · drag to look · pinch to zoom'
-        : 'WASD to move · Shift to run · your moves are along the bottom'
+        ? '左スティックで移動 · 画面ドラッグで視点 · ピンチで拡大'
+        : 'WASDで移動 · Shiftで走る · 技は画面下に'
     );
 
     this.start();
@@ -1875,8 +1876,12 @@ export class App {
   start() {
     this.time.reset();
     this.stats?.reset();
+    let skip = 0;
     const loop = () => {
       this._raf = requestAnimationFrame(loop);
+      // Under the title nothing moves: draw every other frame and let the GPU
+      // (and a phone's battery) rest. The clock accumulates across the skip.
+      if (this.title?.visible && ++skip % 2) return;
       this.frame();
     };
     this._raf = requestAnimationFrame(loop);
@@ -1930,9 +1935,7 @@ export class App {
       // floor and mist are not on screen, and the body is not standing on it.
       this.characterScreen.update(dt, raw);
       // After the body, so the flame is born off the pose that is about to be
-      // drawn rather than off the last one. The shadows are not updated here at
-      // all: they stand in the world and hunt bodies that only exist on the play
-      // stage, so entering the studio sends them away (`toggleCharacterScreen`).
+      // drawn rather than off the last one.
       this.weaponFire?.update(dt, this.characterScreen.stage.scene);
 
       gl.shadowMap.needsUpdate = true;
@@ -2051,11 +2054,16 @@ export class App {
     this.execution?.update(dt);
     this.stage?.update(dt);
     _chest.set(position.x, position.y + this.character.height * 0.6, position.z);
+    // After a clear the spoils come in by themselves, from anywhere on the field.
+    const gather = this.stage?.step === 'clear';
+    if (gather && this._gatherSouls?.base !== settings.souls) {
+      this._gatherSouls = { ...settings.souls, pullRadius: 40, base: settings.souls };
+    }
     this.souls.update(
       dt,
       _chest,
-      this.input.pressed.has('KeyZ'),
-      settings.souls,
+      gather || this.input.pressed.has('KeyZ'),
+      gather ? this._gatherSouls : settings.souls,
       (kind) => this._onSoul(kind),
       !this.playerDown && !this.pvp?.active
     );
@@ -2111,7 +2119,7 @@ export class App {
     gl.shadowMap.needsUpdate = this._shadowEvery <= 1 || this._shadowFrame % this._shadowEvery === 0;
     this.post.sync(this.elapsed, look);
     this.post.render();
-    this.renderer.measure(raw);
+    if (!this.paused) this.renderer.measure(raw);
   }
 
   /* ------------------------------------------------------------------ */

@@ -144,7 +144,7 @@ export class DustBurst {
    *
    * @param {number} time the simulation's clock — so the cloud holds with the
    *   hit-stop of the blow that raised it
-   * @param {object} config `settings.judgement.dust`
+   * @param {object} config `settings.musou.dust`
    */
   sync(time, config) {
     const u = this.material.uniforms;
@@ -176,7 +176,7 @@ export class DustBurst {
    * @param {number} x world, at the point of impact
    * @param {number} y the *ground* height there — everything is born on it
    * @param {number} z
-   * @param {object} config `settings.judgement.dust`
+   * @param {object} config `settings.musou.dust`
    * @param {number} [strength] master on counts and speeds
    */
   burst(x, y, z, config, strength = 1) {

@@ -127,7 +127,7 @@ export class BladeImpact {
    *
    * @param {number} time the simulation's clock — a hit holds through the
    *   hit-stop it caused, which is most of why the freeze reads as impact
-   * @param {object} config `settings.flight.blades.impact`
+   * @param {object} config `settings.combat.sparks`
    */
   sync(time, config) {
     const u = this.material.uniforms;
@@ -160,7 +160,7 @@ export class BladeImpact {
    * @param {number} dx unit direction the blade was travelling
    * @param {number} dy
    * @param {number} dz
-   * @param {object} config `settings.flight.blades.impact`
+   * @param {object} config `settings.combat.sparks`
    * @param {number} [strength] master on the counts and the size
    */
   burst(x, y, z, dx, dy, dz, config, strength = 1) {

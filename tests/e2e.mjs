@@ -1016,12 +1016,12 @@ await run('fullRun', async () => {
   await until(() => !document.querySelector('.stage-clear').hidden);
   const clear = await page.evaluate(() => document.querySelector('.stage-clear__stats').textContent);
   await page.click('.stage-clear [data-act="leave"]');
-  await until(() => app.title.visible);
+  await until(() => app.title.visible && app.music.wanted === 'title');
   const back = await page.evaluate(() => ({ title: app.title.visible, record: document.querySelector('.title__record').textContent, rec: save.get('stage1'), manual: app.enemies.manual, piece: app.music.wanted }));
   await ctx.close();
   const ok = music0 === 'title' && lesson.step === 'tutorial' && lesson.card && !lesson.title && fieldMusic.piece === 'field' && fieldMusic.intensity > 0 &&
     intro.intro && intro.locked && intro.hud && bossMusic.piece === 'boss' && bossMusic.framing > 0 && phases.phase === 3 && phases.musicPhase === 3 && phases.hud === '3' &&
-    clearMusic === 'clear' && clear.includes('新記録') && back.title && back.record.includes('討伐済') && back.record.includes('最速') && back.rec.cleared && back.rec.best > 0 &&
+    clearMusic === 'clear' && clear.includes('新記録') && !clear.includes('魂 +0') && back.title && back.record.includes('討伐済') && back.record.includes('最速') && back.rec.cleared && back.rec.best > 0 &&
     !back.manual && back.piece === 'title' && !errors.length;
   return { ok, music0, lesson, fieldMusic, intro, bossMusic, phases, clearMusic, clear, back, errors };
 });

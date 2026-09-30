@@ -445,14 +445,21 @@ export class Stage {
     const fresh = this._fullRun && best === secs && record.best !== secs;
     this._save({ cleared: true, best, checkpoint: 'start' });
     const clock = (n) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
-    // A moment for the souls to be taken in, then the screen.
-    setTimeout(() => {
+    // A moment for the souls to be taken in (they fly in by themselves after a
+    // clear), then the screen — at most six seconds.
+    const shownAt = performance.now() + 2500;
+    const show = () => {
       if (!this.active || this.step !== 'clear') return;
+      if (app.souls.count > 0 && performance.now() < shownAt + 3500) {
+        setTimeout(show, 250);
+        return;
+      }
       const tail = fresh ? ' · 新記録' : best != null ? ` · 最速 ${clock(best)}` : ' · 鏡から再開（記録外）';
       this.clearScreen.querySelector('.stage-clear__stats').textContent =
         `時間 ${clock(secs)} · 魂 +${Math.max(0, app.progress.souls - this.soulsAtStart, souls)}${tail}`;
       this.clearScreen.hidden = false;
-    }, 2500);
+    };
+    setTimeout(show, 2500);
   }
 
   /**

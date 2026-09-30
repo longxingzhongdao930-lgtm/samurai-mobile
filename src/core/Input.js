@@ -70,6 +70,10 @@ export class Input {
      */
     this.stick = { x: 0, y: 0, run: false };
 
+    /** The right mouse button held on the canvas — the guard, as `K` is. */
+    this.mouseGuard = false;
+    this._canvas = null;
+
     this._onKeyDown = (event) => {
       if (this._isTyping(event.target)) return;
       // Arrow keys scroll the page and space would too; movement keys are ours.
@@ -83,6 +87,7 @@ export class Input {
     this._onKeyUp = (event) => this.pressed.delete(event.code);
     this._onBlur = () => {
       this.pressed.clear();
+      this.mouseGuard = false;
       this.setStick(0, 0);
       this._jump = false;
       this._attacks = {};
@@ -91,6 +96,40 @@ export class Input {
     target.addEventListener('keydown', this._onKeyDown);
     target.addEventListener('keyup', this._onKeyUp);
     target.addEventListener('blur', this._onBlur);
+  }
+
+  /**
+   * The mouse on the game canvas: left button = the normal attack (`J`),
+   * right button held = the guard (`K`).
+   *
+   * The press goes in on the way down, exactly as a key's does, so a click
+   * lands on the same frame a key would. A drag still orbits the camera — the
+   * press that starts it is simply also a swing (or a guard) — and the middle
+   * button orbits without doing either. Mouse only: a finger on a phone keeps
+   * orbiting and nothing else, the buttons are its attack and guard.
+   *
+   * @param {HTMLElement} canvas
+   */
+  bindMouse(canvas) {
+    this._canvas = canvas;
+    this._onMouseDown = (event) => {
+      if (event.pointerType !== 'mouse' || this.mouseDisabled?.()) return;
+      if (event.button === 0) this._attacks.combo = true;
+      else if (event.button === 2) this.mouseGuard = true;
+    };
+    this._onMouseUp = (event) => {
+      if (event.pointerType === 'mouse' && event.button === 2) this.mouseGuard = false;
+    };
+    // The right button is the guard, not the browser's menu.
+    this._onContextMenu = (event) => event.preventDefault();
+    canvas.addEventListener('pointerdown', this._onMouseDown);
+    window.addEventListener('pointerup', this._onMouseUp);
+    canvas.addEventListener('contextmenu', this._onContextMenu);
+  }
+
+  /** The guard is asked for: `K`, or the right mouse button. */
+  get guardHeld() {
+    return this.pressed.has('KeyK') || this.mouseGuard;
   }
 
   /** Keystrokes meant for the editor's own fields are not movement. */
@@ -188,6 +227,11 @@ export class Input {
     this.target.removeEventListener('keydown', this._onKeyDown);
     this.target.removeEventListener('keyup', this._onKeyUp);
     this.target.removeEventListener('blur', this._onBlur);
+    if (this._canvas) {
+      this._canvas.removeEventListener('pointerdown', this._onMouseDown);
+      this._canvas.removeEventListener('contextmenu', this._onContextMenu);
+      window.removeEventListener('pointerup', this._onMouseUp);
+    }
     this.pressed.clear();
   }
 }

@@ -170,6 +170,11 @@ export class App {
     this.scene.add(this.character.root);
 
     this.input = new Input();
+    this.input.bindMouse(canvas);
+    // Clicks meant for the studio's own camera, or for picking the bodies the
+    // Shadows / Judgement are sent at, are not swings.
+    this.input.mouseDisabled = () =>
+      this.inCharacterScreen || !!this.marking?.active || !!this.judgeMarking?.active;
     this.controller = new ThirdPersonController(this.character, this.input, this.rig);
     // The guard (and later the parry and stamina) — see `combat/PlayerDefense.js`.
     this.defense = new PlayerDefense(this.character);
@@ -1803,7 +1808,7 @@ export class App {
         !c.jump?.locked &&
         !c.hop?.locked &&
         !(c.moves ?? []).some((move) => move.locked);
-      this.defense.update(dt, this.elapsed, this.input.pressed.has('KeyK'), free);
+      this.defense.update(dt, this.elapsed, this.input.guardHeld, free);
       this.controller.guarding = this.defense.guarding;
       this.playerHud.setStamina(this.defense.stamina, settings.defense.staminaMax);
       const locked = settings.lockOn.enabled && !this.playerDown ? this.lockOn.update() : this.lockOn.release();

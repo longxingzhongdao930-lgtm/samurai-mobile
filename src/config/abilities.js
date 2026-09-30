@@ -76,10 +76,10 @@ export const ABILITIES = [
     id: 'combo',
     category: 'technique',
     label: 'Attack',
-    hotkey: 'J',
+    hotkey: 'LMB',
     code: 'KeyJ',
     note:
-      'The normal string. Press again as each blow lands: five steps, each reaching wider — ' +
+      'Left click (or J). The normal string. Press again as each blow lands: five steps, each reaching wider — ' +
       'the last runs straight through them.',
     attack: true
   },
@@ -87,9 +87,9 @@ export const ABILITIES = [
     id: 'guard',
     category: 'technique',
     label: 'Guard',
-    hotkey: 'K',
+    hotkey: 'RMB',
     code: 'KeyK',
-    note: 'Hold to guard. Covers the front only — a blow from the side or behind still lands.'
+    note: 'Hold the right button (or K) to guard. Covers the front only — a blow from the side or behind still lands.'
   },
   {
     id: 'kick',

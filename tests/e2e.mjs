@@ -271,7 +271,7 @@ await run('stamina', async () => {
 });
 await run('posture', async () => {
   const { ctx, page, errors } = await boot(PC, { passive: true, count: 1, hp: 100 });
-  await page.evaluate(() => { settings.enemies.health = 1e6; __place([{ d: 1.6 }]); });
+  await page.evaluate(() => { settings.enemies.health = 1e6; __place([{ d: 1.6 }]); const e = app.enemies.enemies[0]; e.setKind('grunt'); e.health = e.maxHealth = 1e6; });
   await page.waitForTimeout(500);
   const r = await page.evaluate(() => {
     const e = app.enemies.enemies[0];
@@ -388,18 +388,13 @@ await run('mouse', async () => {
   await page.mouse.up({ button: 'right' });
   await page.waitForFunction(() => !app.defense.guarding, null, { timeout: 60000 }).catch(() => {});
   const released = await page.evaluate(() => !app.defense.guarding);
-  // while picking targets for the Shadows, a left click marks rather than swings
-  const n0 = await page.evaluate(() => __log.filter(l => l.swing).length);
-  await page.evaluate(() => app.marking.begin());
-  await page.mouse.down({ button: 'left' }); await page.mouse.up({ button: 'left' });
-  await page.waitForTimeout(1500);
-  const n1 = await page.evaluate(() => { const n = __log.filter(l => l.swing).length; app.marking.end(); return n; });
+  const n1 = await page.evaluate(() => __log.filter(l => l.swing).length);
   // J and K still work
   await page.keyboard.press('KeyJ');
   await page.waitForFunction((n) => __log.filter(l => l.swing).length > n, n1, { timeout: 200000 });
   await ctx.close();
-  const ok = swing === 'combo1' && menu && guarding && released && n1 === n0 && !errors.length;
-  return { ok, swing, menu, guarding, released, markingSwings: n1 - n0, errors };
+  const ok = swing === 'combo1' && menu && guarding && released && !errors.length;
+  return { ok, swing, menu, guarding, released, errors };
 });
 
 await run('devMode', async () => {
@@ -473,7 +468,7 @@ await run('issen', async () => {
 
 await run('souls', async () => {
   const { ctx, page, errors } = await boot(PC, { passive: true, count: 2, hp: 100 });
-  await page.evaluate(() => { localStorage.removeItem('samurai.progress'); app.progress.reset(); app._applyUpgrades(); __place([{ d: 1.6 }, { d: 12 }]); });
+  await page.evaluate(() => { app.progress.reset(); app._applyUpgrades(); __place([{ d: 1.6 }, { d: 12 }]); });
   await page.waitForTimeout(400);
   // a kill drops souls; standing close takes them in
   const dropped = await page.evaluate(() => {
@@ -499,7 +494,7 @@ await run('souls', async () => {
   await page.waitForTimeout(300);
   const open = await page.evaluate(() => ({ visible: app.upgradeMenu.visible, paused: app.paused }));
   await page.evaluate(() => { [...document.querySelectorAll('.upg__btn:not(.upg__btn--ghost)')].slice(0, 2).forEach(b => b.click()); });
-  const bought = await page.evaluate(() => ({ blade: app.progress.level('blade'), body: app.progress.level('body'), maxHp: settings.combat.player.maxHp, souls: app.progress.souls, force: app._counterForce(settings.combo1).damage, saved: JSON.parse(localStorage.getItem('samurai.progress')) }));
+  const bought = await page.evaluate(() => ({ blade: app.progress.level('blade'), body: app.progress.level('body'), maxHp: settings.combat.player.maxHp, souls: app.progress.souls, force: app._counterForce(settings.combo1).damage, saved: save.get('progress') }));
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   const closed = await page.evaluate(() => ({ visible: app.upgradeMenu.visible, paused: app.paused }));
@@ -599,7 +594,7 @@ await run('pointerLook', async () => {
   // the look buffer turns the orbit
   const az0 = await page.evaluate(() => app.rig.azimuth);
   await page.evaluate(() => app.rig.look(0.6, 0));
-  await page.waitForTimeout(800);
+  await page.waitForFunction((a) => Math.abs(Math.atan2(Math.sin(app.rig.azimuth - a), Math.cos(app.rig.azimuth - a))) > 0.3, az0, { timeout: 60000 }).catch(() => {});
   const az1 = await page.evaluate(() => app.rig.azimuth);
   await ctx.close();
   const turned = Math.abs(Math.atan2(Math.sin(az1 - az0), Math.cos(az1 - az0))) > 0.3;

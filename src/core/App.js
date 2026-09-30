@@ -456,8 +456,9 @@ export class App {
         return;
       }
 
-      // The title is up: it takes the clicks, the game takes no keys.
-      if (this.title?.visible) return;
+      // The title is up: it takes the clicks, the game takes no keys — only the
+      // developer's two (editor, frame readout, `?dev=1`).
+      if (this.title?.visible && event.code !== 'KeyG' && event.code !== 'KeyF') return;
 
       // Down: Enter retries once it is offered; only the window's own keys
       // (pause, editor, stats) still do anything.

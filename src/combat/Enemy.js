@@ -667,9 +667,14 @@ export class Enemy {
     action.reset();
     action.enabled = true;
     action.setEffectiveWeight(this._attackWeight);
-    action.setEffectiveTimeScale(swing.config.windupSpeed);
+    // The wind-up's pace, solved so the tell lasts `telegraphTime` seconds.
+    const cfg = swing.config;
+    const telegraph = settings.enemyAI.telegraphTime;
+    const span = (Math.max(cfg.startAt + 0.01, cfg.hitAt - 0.08) - cfg.startAt) * action.getClip().duration;
+    s.windupSpeed = telegraph > 0 ? span / telegraph : cfg.windupSpeed;
+    action.setEffectiveTimeScale(s.windupSpeed);
     action.play();
-    action.time = swing.config.startAt * action.getClip().duration;
+    action.time = cfg.startAt * action.getClip().duration;
     this._swingAction = action;
     s.swing = swing;
     s.state = 'windup';
@@ -692,7 +697,7 @@ export class Enemy {
 
     if (phase < windupEnd) {
       // The tell: slow, tracking the player, the warning coming up in the rim.
-      action.setEffectiveTimeScale(config.windupSpeed);
+      action.setEffectiveTimeScale(s.windupSpeed ?? config.windupSpeed);
       this._face(dx, dz, dt, ai.turnRate);
       this._telegraph = MathUtils.clamp((phase - config.startAt) / (windupEnd - config.startAt), 0, 1);
       return;

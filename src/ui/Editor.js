@@ -1530,6 +1530,11 @@ export class Editor {
     R(guard, d, 'blockPush', 0, 6, 0.1, 'block push (m/s)');
     R(guard, d, 'guardMoveScale', 0, 1, 0.01, 'move while guarding ×');
     R(guard, d, 'poseWeight', 0, 3, 0.05, 'guard pose');
+    R(guard, d, 'parryWindow', 0, 0.6, 0.01, 'parry window (s)');
+    R(guard, d, 'parryStagger', 0, 4, 0.05, 'parried enemy reels (s)');
+    R(guard, d, 'counterWindow', 0, 4, 0.05, 'counter window (s)');
+    R(guard, d, 'counterDamage', 0, 4, 1, 'counter bonus damage');
+    R(guard, settings.enemyAI, 'telegraphTime', 0, 3, 0.05, 'enemy wind-up (s)');
     const hp = settings.combat.player;
     const player = folder.addFolder('Player HP');
     R(player, hp, 'maxHp', 1, 500, 1, 'max HP');

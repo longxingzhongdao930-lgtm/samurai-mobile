@@ -347,6 +347,10 @@ export class App {
     this._hurtFlash = document.createElement('div');
     this._hurtFlash.className = 'hurt-flash';
     document.body.appendChild(this._hurtFlash);
+    // And the white one when a parry lands.
+    this._parryFlash = document.createElement('div');
+    this._parryFlash.className = 'hurt-flash parry-flash';
+    document.body.appendChild(this._parryFlash);
 
     /* ---- the player's health — `settings.combat.player` ---- */
     this.playerHp = settings.combat.player.maxHp;
@@ -694,9 +698,11 @@ export class App {
    * @param {object} config the striking move's settings block
    */
   _onStrike(enemy, x, z, config) {
-    const result = this.enemies.hit(enemy, x, z, config);
+    const countering = this.defense.counter > 0;
+    const result = this.enemies.hit(enemy, x, z, this._counterForce(config));
     if (!result) return;
-    this._impact(enemy, x, z, config, result, true);
+    if (countering) this.defense.counter = 0;
+    this._impact(enemy, x, z, config, countering && result === 'kill' ? 'finisher' : result, true);
 
     // The cleave: a sweep does not stop at the body it was aimed at. Everyone
     // else standing inside its reach and its arc is met by the same blade, on
@@ -810,7 +816,9 @@ export class App {
       const length = Math.hypot(bx, bz) || 1;
       bx /= length;
       bz /= length;
-      const result = this.enemies.hit(enemy, bx, bz, config);
+      const countering = this.defense.counter > 0;
+      const result = this.enemies.hit(enemy, bx, bz, this._counterForce(config));
+      if (countering && result) this.defense.counter = 0;
       if (!result) continue;
       this._impact(enemy, bx, bz, config, result, landed === 0, victims.length, landed >= 3);
       landed++;
@@ -840,6 +848,7 @@ export class App {
     // The guard gets the first say: `x, z` is the blow's direction, so the
     // attacker is the other way.
     const outcome = this.defense.defend(-x, -z, this.elapsed);
+    if (outcome.result === 'parry') return this._onParried(enemy, x, z);
     if (outcome.result === 'block') return this._onBlocked(enemy, x, z, outcome);
     this._takeHit(enemy, x, z, outcome.damageScale);
   }
@@ -867,6 +876,50 @@ export class App {
       if (this.playerHp <= 0) this._down(x, z);
     }
     this._invuln = Math.max(this._invuln, 0.25);
+  }
+
+  /**
+   * The guard went up just in time: the blow is turned aside. Nothing gets
+   * through, the attacker is thrown back off balance, and for
+   * `counterWindow` seconds the player's next blow lands harder.
+   *
+   * Sold louder than a block on every channel: a brighter, longer ring,
+   * twice the sparks, a small shock ring on the ground, the edges of the
+   * screen flashing white, and a short freeze on the moment itself.
+   */
+  _onParried(enemy, x, z) {
+    const d = settings.defense;
+    const p = this.character.position;
+    const y = p.y + this.character.height * 0.6;
+    const px = p.x - x * 0.5;
+    const pz = p.z - z * 0.5;
+    // The attacker: shoved away from the player, and left reeling long enough
+    // to be punished.
+    enemy.shove?.(-x, -z, 3.5, 0.6);
+    if (enemy.alive) enemy.staggerTime = Math.max(enemy.staggerTime, d.parryStagger);
+    this.meleeSparks.burst(px, y, pz, -x, 0.3, -z, settings.combat.sparks, 1.5);
+    this.musouShock.burst(px, pz, settings.musou.shock, 0.25);
+    this.audio.clang({ x: px, y, z: pz }, { bright: true, strength: 1.2 });
+    this.rig.shake(0.12);
+    this.rig.punch(-x, -z, 0.08, settings.combat.fovKick, 0);
+    this._hitStop = Math.max(this._hitStop, 0.09);
+    this._hitStopScale = 0.12;
+    this._hitRelease = 0;
+    this._invuln = Math.max(this._invuln, 0.3);
+    const flash = this._parryFlash;
+    flash.classList.remove('is-on');
+    void flash.offsetWidth;
+    flash.classList.add('is-on');
+    this.toast.show('Parry — counter!', 900);
+  }
+
+  /**
+   * The counter: a blow thrown while the parry's window is open does
+   * `counterDamage` more, and the window is spent by the first one that lands.
+   */
+  _counterForce(config) {
+    if (!(this.defense.counter > 0)) return config;
+    return { ...config, damage: (config.damage ?? 1) + settings.defense.counterDamage };
   }
 
   /** A blow that got through, scaled by what the guard took off it. */
@@ -1619,6 +1672,7 @@ export class App {
     this.musouDust.dispose();
     this.comboCounter.dispose();
     this._hurtFlash.remove();
+    this._parryFlash.remove();
     this.playerHud.dispose();
     this.weaponFire?.dispose();
     this.characterScreen?.dispose();

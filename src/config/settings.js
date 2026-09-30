@@ -1064,10 +1064,18 @@ export const settings = {
     guardMoveScale: 0.45,
     /** How much of the braced (crouch) pose the guard lays over the gait. */
     poseWeight: 1.2,
-    /** Parry: off until turned on (seconds after the guard goes up). */
-    parryWindow: 0,
+    /**
+     * The parry: a guard raised no more than `parryWindow` seconds before the
+     * blow turns it aside completely. Earlier than that it is an ordinary
+     * block; after the blow it is too late. A parry throws the attacker off
+     * balance for `parryStagger` seconds and opens a `counterWindow` in which
+     * the player's next blow does `counterDamage` more.
+     */
+    parryWindow: 0.18,
     parryRefund: 0,
-    counterWindow: 0,
+    parryStagger: 1.4,
+    counterWindow: 1.2,
+    counterDamage: 1,
     /** Stamina: off until turned on. */
     staminaEnabled: false,
     staminaMax: 100,
@@ -1127,6 +1135,12 @@ export const settings = {
     /** At contact: metres it reaches, and the full width in front it covers, degrees. */
     hitReach: 2.2,
     hitArc: 100,
+    /**
+     * Seconds every wind-up lasts, whichever swing it is — the time the player
+     * has to read the tell and time a parry. 0 falls back to each swing's own
+     * `windupSpeed`.
+     */
+    telegraphTime: 0.75,
     /** The warning glow while it winds up. */
     telegraphColor: '#ff3a14',
     telegraphEmissive: 4.5,

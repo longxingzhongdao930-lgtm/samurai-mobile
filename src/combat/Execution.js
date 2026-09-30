@@ -156,12 +156,12 @@ export class Execution {
    * full `range` whatever it meets, and every body in its lane is cut as the
    * edge passes it.
    */
-  _launch(target) {
+  _launch(target, exclude = null, dir = null) {
     const app = this.app;
     const cfg = settings.hien;
     const p = app.character.position;
-    let dirX = Math.sin(app.character.facing);
-    let dirZ = Math.cos(app.character.facing);
+    let dirX = dir?.dirX ?? Math.sin(app.character.facing);
+    let dirZ = dir?.dirZ ?? Math.cos(app.character.facing);
     if (target?.alive) {
       const dx = target.position.x - p.x;
       const dz = target.position.z - p.z;
@@ -217,7 +217,8 @@ export class Execution {
 
     // Everyone in the lane, cut as the edge reaches them.
     for (const enemy of app.enemies.enemies) {
-      if (!enemy.alive) continue;
+      // `exclude`: the body 居合's draw already cut — one blow each, never two.
+      if (!enemy.alive || enemy === exclude) continue;
       const rx = enemy.position.x - p.x;
       const rz = enemy.position.z - p.z;
       const along = rx * dirX + rz * dirZ;

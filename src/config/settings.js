@@ -1257,6 +1257,70 @@ export const settings = {
     color: '#bfe6ff'
   },
 
+  /**
+   * 秘剣 — the sword arts (`combat/Arts.js`) on the keys Judgement, Shadows and
+   * Flight used to have: 雷切 (C), 影走り (V), 縮地 (X), and 居合 on 飛燕's long
+   * press. Times in seconds, distances in metres, damage in wounds (3 fells).
+   */
+  arts: {
+    raikiri: {
+      enabled: true,
+      stamina: 30,
+      cooldown: 5,
+      /** Lightning gathering on the blade before the drive. */
+      charge: 0.4,
+      distance: 7,
+      time: 0.2,
+      width: 1.3,
+      damage: 3,
+      /** Leaps on from each body struck, to this many neighbours this close. */
+      chains: 2,
+      chainRange: 5,
+      chainDamage: 1,
+      skyHeight: 9,
+      hitStop: 0.1,
+      color: '#8fd4ff'
+    },
+    kagebashiri: {
+      enabled: true,
+      stamina: 30,
+      cooldown: 4,
+      count: 5,
+      range: 12,
+      /** Seconds between one body and the next, and how far past each it lands. */
+      interval: 0.13,
+      past: 0.8,
+      damage: 3,
+      color: '#6a3cff'
+    },
+    shukuchi: {
+      enabled: true,
+      stamina: 12,
+      cooldown: 0.6,
+      distance: 6,
+      time: 0.12,
+      /** Untouchable for this long after arriving, as well as on the way. */
+      invuln: 0.15,
+      color: '#9fdcff'
+    },
+    iai: {
+      enabled: true,
+      /** Hold 飛燕 this long and the press becomes the stance. */
+      hold: 0.28,
+      /** The stance lets go by itself after this long. */
+      maxHold: 1.6,
+      stamina: 30,
+      /** How far the step-in reaches for a body, and where it stops short of it. */
+      reach: 9,
+      standoff: 1.1,
+      emptyStep: 4,
+      time: 0.1,
+      damage: 3,
+      hitStop: 0.14,
+      color: '#cfe8ff'
+    }
+  },
+
   issen: {
     enabled: true,
     window: 0.28,

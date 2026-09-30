@@ -124,33 +124,31 @@ export const ABILITIES = [
     label: 'Hien',
     hotkey: 'B',
     code: 'KeyB',
-    note: '飛燕 — throws a crescent of edge at the body in front, up to twelve metres off. Costs stamina.'
+    note: '飛燕 — tap: a crescent of edge down the lane. Hold: 居合 — the stance; let go to cross the ground, draw, and send the wave on.'
   },
   {
-    id: 'shadows',
+    id: 'kagebashiri',
     category: 'ability',
-    label: 'Shadows',
+    label: 'Kagebashiri',
     hotkey: 'V',
     code: 'KeyV',
-    note: 'Look at two bodies and click to mark them. A shadow of you goes for each.'
+    note: '影走り — vanish and reappear past up to five bodies in turn, cutting each.'
   },
   {
-    id: 'judgement',
+    id: 'raikiri',
     category: 'ability',
-    label: 'Judgement',
+    label: 'Raikiri',
     hotkey: 'C',
     code: 'KeyC',
-    note: 'Mark one body. A seal opens over its head and a fist comes down through it.'
+    note: '雷切 — lightning gathers on the blade, then a drive that calls the sky down on everyone on the line and leaps on to their neighbours.'
   },
   {
-    id: 'flight',
+    id: 'shukuchi',
     category: 'ability',
-    label: 'Flight',
+    label: 'Shukuchi',
     hotkey: 'X',
     code: 'KeyX',
-    note:
-      'Leave the ground. Click bodies to forge a blade for each, Space looses them — ' +
-      'and nothing else works while you are up there.'
+    note: '縮地 — a blink of six metres the way you are moving, untouchable on the way.'
   },
   {
     id: 'musou',

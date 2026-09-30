@@ -1464,6 +1464,21 @@ export class Editor {
     R(exec, settings.camera, 'sensitivity', 0.0005, 0.008, 0.0001, 'mouse sensitivity');
     exec.close();
 
+    const ar2 = settings.arts;
+    const arts = folder.addFolder('Arts (雷切 / 影走り / 縮地 / 居合)');
+    R(arts, ar2.raikiri, 'distance', 2, 15, 0.5, '雷切 drive (m)');
+    R(arts, ar2.raikiri, 'charge', 0, 1.5, 0.05, '雷切 charge (s)');
+    R(arts, ar2.raikiri, 'chains', 0, 6, 1, '雷切 chains');
+    R(arts, ar2.raikiri, 'cooldown', 0, 20, 0.5, '雷切 cooldown (s)');
+    R(arts, ar2.kagebashiri, 'count', 1, 10, 1, '影走り bodies');
+    R(arts, ar2.kagebashiri, 'interval', 0.03, 0.5, 0.01, '影走り step (s)');
+    R(arts, ar2.kagebashiri, 'cooldown', 0, 20, 0.5, '影走り cooldown (s)');
+    R(arts, ar2.shukuchi, 'distance', 1, 15, 0.5, '縮地 distance (m)');
+    R(arts, ar2.shukuchi, 'cooldown', 0, 5, 0.05, '縮地 cooldown (s)');
+    R(arts, ar2.iai, 'hold', 0.1, 1, 0.01, '居合 hold (s)');
+    R(arts, ar2.iai, 'reach', 2, 15, 0.5, '居合 reach (m)');
+    arts.close();
+
     const is = settings.issen;
     const issen = folder.addFolder('Issen (一閃)');
     issen.add(is, 'enabled').name('issen');

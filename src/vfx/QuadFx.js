@@ -33,7 +33,9 @@ export const FX = Object.freeze({
   /** A crescent of edge thrown across the ground from `pos` along `axis`: 飛燕. */
   CRESCENT: 6,
   /** A column of light standing up out of the ground: the execution's pillar. */
-  PILLAR: 7
+  PILLAR: 7,
+  /** Lightning from `pos` to `pos + axis`, re-striking as it holds: 雷切. */
+  BOLT: 8
 });
 
 const VERTEX = /* glsl */ `
@@ -96,6 +98,13 @@ const VERTEX = /* glsl */ `
       float open = 1.0 + 0.6 * smoothstep(0.85, 1.0, t);
       vec3 wp = aPos + travel * s + rr * position.x * aSize * open + f * position.y * aSize * 0.55;
       mv = viewMatrix * vec4(wp, 1.0);
+    } else if (kind == 8) {
+      // A strip from start to end, turned to the lens about its own axis; the
+      // zig-zag itself is drawn inside it by the fragment shader.
+      vec3 axis = aAxis;
+      vec3 mid = aPos + axis * (position.x * 0.5 + 0.5);
+      vec3 side = normalize(cross(normalize(axis), normalize(cameraPosition - mid)));
+      mv = viewMatrix * vec4(mid + side * position.y * aAux, 1.0);
     } else if (kind == 7) {
       // Turned to the lens about the vertical only: smoke and light have an up.
       vec3 toCam = cameraPosition - aPos;
@@ -184,6 +193,25 @@ const FRAGMENT = /* glsl */ `
       float core = smoothstep(w * 0.35, 0.0, d) * tip;
       float fade = 1.0 - smoothstep(0.85, 1.0, vT);
       a = (band * 1.1 + core) * fade;
+      c = mix(c, vec3(1.0), core);
+    } else if (kind == 8) {
+      // Lightning: linearly interpolated noise (sharp corners are what read as
+      // a bolt, not a wobble), two octaves, pinned at both ends, re-rolled
+      // twenty-odd times a second so it gutters and re-strikes.
+      float u = p.x * 0.5 + 0.5;
+      float strike = floor(uTime * 22.0);
+      float s1 = u * 9.0 + vSeed * 37.0 + strike * 3.17;
+      float i1 = floor(s1);
+      float n1 = mix(fract(sin(i1 * 12.9898 + vSeed) * 43758.5), fract(sin((i1 + 1.0) * 12.9898 + vSeed) * 43758.5), fract(s1));
+      float s2 = u * 23.0 + vSeed * 11.0 + strike * 1.73;
+      float i2 = floor(s2);
+      float n2 = mix(fract(sin(i2 * 78.233 + vSeed) * 43758.5), fract(sin((i2 + 1.0) * 78.233 + vSeed) * 43758.5), fract(s2));
+      float y = ((n1 * 2.0 - 1.0) * 0.55 + (n2 * 2.0 - 1.0) * 0.22) * sin(3.14159 * u);
+      float d = abs(p.y - y);
+      float core = smoothstep(0.07, 0.0, d);
+      float glow = exp(-d * d * 30.0) * 0.45;
+      float flicker = 0.55 + 0.45 * step(0.35, fract(sin(strike * 7.13 + vSeed * 3.0) * 4375.5));
+      a = (core * 1.6 + glow) * flicker * (1.0 - vT * vT);
       c = mix(c, vec3(1.0), core);
     } else if (kind == 7) {
       // Pillar: bright spine, soft sides, burning away from the top down.
@@ -317,6 +345,11 @@ export class QuadFx {
   /** 飛燕: a crescent `radius` wide flying from (x, y, z) to (tx, ty, tz) in `time`. */
   crescent(x, y, z, tx, ty, tz, color, radius = 1.3, time = 0.4, roll = 0.35) {
     this._write(x, y, z, tx - x, ty - y, tz - z, color, time / 0.85, radius, FX.CRESCENT, roll);
+  }
+
+  /** Lightning from (x, y, z) to (tx, ty, tz), `width` metres of room to kink in. */
+  bolt(x, y, z, tx, ty, tz, color, width = 0.6, life = 0.35) {
+    this._write(x, y, z, tx - x, ty - y, tz - z, color, life, 1, FX.BOLT, width);
   }
 
   /** A column `height` tall and `width` wide standing up out of (x, y, z). */

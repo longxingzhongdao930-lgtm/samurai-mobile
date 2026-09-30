@@ -150,6 +150,25 @@ export const ABILITY_ICONS = {
       `<path d="M12.6 20.4c-3.4-1.2-5.2-3.4-5.2-6.6V9.2l5.2-2 5.2 2v4.6c0 3.2-1.8 5.4-5.2 6.6z" opacity="0.6"/>`
   ),
 
+  // 影走り: a blade and the shadows it left behind it.
+  kagebashiri: stroke(
+    `<path d="M4 19 19.5 5" stroke-width="2"/>` +
+      `<path d="M4 14.5 12 7" opacity="0.5"/>` +
+      `<path d="M9 20 17 12.5" opacity="0.35"/>`
+  ),
+
+  // 雷切: a bolt split by a blade.
+  raikiri: stroke(
+    `<path d="M13.5 2.5 7.5 12.5h5l-2.5 9 7-11.5h-5l2.2-7.5z" stroke-width="1.6"/>` +
+      `<path d="M3 20.5 21 3.5" opacity="0.5"/>`
+  ),
+
+  // 縮地: a footprint, and the ground folding up behind it.
+  shukuchi: stroke(
+    `<path d="M3 18h7M5 14h8M3 10h6" opacity="0.55"/>` +
+      `<path d="M16.5 6.5c2 0 3.2 1.8 3.2 4.2 0 3.6-1.6 7.8-3.6 7.8s-2.8-2.6-2.8-6c0-3.4 1.2-6 3.2-6z" stroke-width="1.6"/>`
+  ),
+
   // 飛燕: a crescent of edge leaving the blade and flying.
   hien: stroke(
     `<path d="M3 20 9.5 13.5" stroke-width="2"/>` +

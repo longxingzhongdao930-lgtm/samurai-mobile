@@ -40,6 +40,7 @@ import { Souls, SOUL, SOUL_COLORS } from '../combat/Souls.js';
 import { Progress } from '../combat/Progress.js';
 import { UpgradeMenu } from '../ui/UpgradeMenu.js';
 import { Execution } from '../combat/Execution.js';
+import { Arts } from '../combat/Arts.js';
 import { PointerLook } from './PointerLook.js';
 import { getColor } from '../utils/color.js';
 import { CombatAudio } from '../audio/CombatAudio.js';
@@ -569,11 +570,9 @@ export class App {
           this.toggleCharacterScreen();
           break;
         case 'KeyX': {
-          // Auto-repeat is the key still being held, not a second press — and
-          // this one is a toggle, so a held key would flip the mode thirty
-          // times a second.
+          // 縮地 (it replaced Flight on this key — `combat/Arts.js`).
           if (this.inCharacterScreen || event.repeat) break;
-          this._toggleFlight();
+          this.arts?.shukuchi();
           break;
         }
         case 'Space': {
@@ -595,19 +594,8 @@ export class App {
           if (this._groundedOnly()) break;
           // One key, three meanings, in the order they can be true: call the
           // pair back, throw a half-taken mark away, or start taking one.
-          if (this.shadows.active) {
-            this.shadows.dismiss();
-            this.toast.show('The shadows burn away');
-          } else if (this.marking.active) {
-            this.marking.cancel();
-          } else {
-            // Only one arm at a time. There is one left button and it cannot be
-            // asked to mean two things, so the other mode goes quietly — the
-            // line below says which one is up now.
-            this.judgeMarking.end();
-            const wanted = this.marking.begin();
-            this.toast.show(`Look at a body and ${CLICK} to mark it — ${wanted} of them`);
-          }
+          // 影走り (it replaced Shadows on this key).
+          if (!event.repeat) this.arts?.kagebashiri();
           break;
         }
         case 'KeyC': {
@@ -616,15 +604,8 @@ export class App {
           // The same three meanings, except that the middle one is missing: a
           // fist already on its way through cannot be called back, and the
           // press says so rather than being swallowed.
-          if (this.judgement.active) {
-            this.toast.show('It is already coming down');
-          } else if (this.judgeMarking.active) {
-            this.judgeMarking.cancel();
-          } else {
-            this.marking.end();
-            this.judgeMarking.begin();
-            this.toast.show(`Look at a body and ${CLICK} to call it down on`);
-          }
+          // 雷切 (it replaced Judgement on this key).
+          if (!event.repeat) this.arts?.raikiri();
           break;
         }
         case 'KeyL':
@@ -634,7 +615,8 @@ export class App {
           if (!event.repeat) this._toggleUpgrade();
           break;
         case 'KeyB':
-          if (!event.repeat && !this.inCharacterScreen) this.execution?.hien();
+          // Decided on release: a tap is 飛燕, a hold is 居合 (`combat/Arts.js`).
+          if (!event.repeat && !this.inCharacterScreen) this.arts?.hienDown();
           break;
         case 'Escape':
           if (this.upgradeMenu.visible) {
@@ -663,6 +645,7 @@ export class App {
     window.addEventListener('keydown', this._onKeyDown);
     // `L` is decided on release: short → lock / next, long → let go.
     this._onKeyUp = (event) => {
+      if (event.code === 'KeyB') this.arts?.hienUp();
       if (event.code !== 'KeyL' || !this._lockDownAt) return;
       const held = (performance.now() - this._lockDownAt) / 1000;
       this._lockDownAt = 0;
@@ -1398,6 +1381,7 @@ export class App {
     this.defense.reset();
     this.souls.clear();
     this.execution?.reset();
+    this.arts?.reset();
     this.enemies.respawnAll();
     this.toast.show('Again');
   }
@@ -1423,6 +1407,7 @@ export class App {
     this.arenaHeld = true;
     this.souls.clear();
     this.execution?.reset();
+    this.arts?.reset();
     this._toggleUpgrade(false);
     this.lockOn.release();
     if (this.character.flight?.active) this._toggleFlight();
@@ -1795,20 +1780,9 @@ export class App {
       // Lit from the moment `V` arms the mark, not from the moment the pair
       // steps out: the key has been spent either way, and the chip is what says
       // the next press means something else.
-      shadows: airborne
-        ? 'off'
-        : this.shadows.active || this.marking.active
-          ? 'active'
-          : 'ready',
-      // The same, and `off` while the fist is actually through — that is the
-      // one window in which the key genuinely does nothing.
-      judgement: airborne || this.judgement.active
-        ? 'off'
-        : this.judgeMarking.active
-          ? 'active'
-          : settings.judgement.enabled
-            ? 'ready'
-            : 'off'
+      raikiri: this.arts?.state('raikiri') ?? 'off',
+      kagebashiri: this.arts?.state('kagebashiri') ?? 'off',
+      shukuchi: this.arts?.state('shukuchi') ?? 'off'
     };
 
     for (const move of this.character.attacks ?? []) {
@@ -1829,7 +1803,7 @@ export class App {
       : airborne || this.playerDown || !settings.defense.enabled || this.defense.broken > 0
         ? 'off'
         : 'ready';
-    state.hien = this.execution?.hienReady ? 'ready' : 'off';
+    state.hien = this.arts?.stance ? 'active' : this.execution?.hienReady ? 'ready' : 'off';
     const full = this.musouGauge >= settings.musou.max;
     state.musou = inMusou
       ? 'active'
@@ -1946,6 +1920,8 @@ export class App {
     this.pvp = new PvpMode(this);
     // 処刑 and 飛燕 (`combat/Execution.js`): they swing the character's own slash.
     this.execution = new Execution(this);
+    // 秘剣: 雷切, 影走り, 縮地 and 居合 (`combat/Arts.js`).
+    this.arts = new Arts(this);
 
     this.controller.spendLeap = () => {
       const ok = this.defense.spend(settings.defense.leapCost);
@@ -2157,8 +2133,9 @@ export class App {
       const candidate = this.execution.findCandidate();
       if (candidate && this.input.consumeAttack('combo')) this.execution.start(candidate);
     }
+    this.arts?.update(dt);
     // Held still for the length of it; handed back after.
-    const scripted = !!this.execution?.active;
+    const scripted = !!this.execution?.active || !!this.arts?.busy;
     if (scripted) this.controller.frozen = true;
     else if (this._wasScripted) this.controller.frozen = this.playerDown;
     this._wasScripted = scripted;

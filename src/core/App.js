@@ -31,6 +31,7 @@ import { DustBurst } from '../vfx/DustBurst.js';
 import { ComboCounter } from '../ui/ComboCounter.js';
 import { PlayerHud } from '../ui/PlayerHud.js';
 import { PlayerDefense } from '../combat/PlayerDefense.js';
+import { LockOn } from '../combat/LockOn.js';
 import { CombatAudio } from '../audio/CombatAudio.js';
 import { ShadowCharacter } from '../vfx/ShadowCharacter.js';
 import { Judgement } from '../vfx/Judgement.js';
@@ -158,6 +159,8 @@ export class App {
     this.controller = new ThirdPersonController(this.character, this.input, this.rig);
     // The guard (and later the parry and stamina) — see `combat/PlayerDefense.js`.
     this.defense = new PlayerDefense(this.character);
+    /** When `L` went down (real ms) — a short press cycles, a long one releases. */
+    this._lockDownAt = 0;
 
     /* ---- combat ---- */
     // What a body cut in half throws off. A pool with nothing in it until
@@ -361,6 +364,13 @@ export class App {
     /** Seconds since going down — what the fall is timed on. */
     this._downT = 0;
     this.playerHud = new PlayerHud({ onRetry: () => this._retry(), touch: TOUCH });
+    // Lock-on. Its candidates are a function, so PvP can hand it the opponent.
+    this.lockOn = new LockOn({
+      candidates: () => this.lockCandidates(),
+      origin: () => this.character.position,
+      facing: () => this.character.facing,
+      camera: this.camera
+    });
     this.playerHud.setHp(this.playerHp, settings.combat.player.maxHp);
     // On a phone the readout and the editor start put away: both would sit over
     // the buttons. The Editor button in the top bar brings the editor back.
@@ -517,7 +527,14 @@ export class App {
           }
           break;
         }
+        case 'KeyL':
+          if (!event.repeat) this._lockDownAt = performance.now();
+          break;
         case 'Escape':
+          if (this.lockOn.active && !this.inCharacterScreen) {
+            this.lockOn.release();
+            break;
+          }
           if (this.inCharacterScreen) {
             this.characterScreen.exit();
           } else if (this.character.flight?.active) {
@@ -534,6 +551,16 @@ export class App {
       }
     };
     window.addEventListener('keydown', this._onKeyDown);
+    // `L` is decided on release: short → lock / next, long → let go.
+    this._onKeyUp = (event) => {
+      if (event.code !== 'KeyL' || !this._lockDownAt) return;
+      const held = (performance.now() - this._lockDownAt) / 1000;
+      this._lockDownAt = 0;
+      if (this.playerDown || this.inCharacterScreen || !settings.lockOn.enabled) return;
+      if (held >= settings.lockOn.holdToRelease) this.lockOn.release();
+      else if (!this.lockOn.cycle()) this.toast.show('Nothing to lock onto', 700);
+    };
+    window.addEventListener('keyup', this._onKeyUp);
   }
 
   /* ------------------------------------------------------------------ */
@@ -1023,6 +1050,11 @@ export class App {
     this.defense.reset();
     this.enemies.respawnAll();
     this.toast.show('Again');
+  }
+
+  /** What the lock can take: the standing crowd (PvP hands it the opponent instead). */
+  lockCandidates() {
+    return this.enemies.enemies;
   }
 
   /** Blows and bodies fill the gauge — but not the Musou's own. */
@@ -1587,6 +1619,10 @@ export class App {
       this.defense.update(dt, this.elapsed, this.input.pressed.has('KeyK'), free);
       this.controller.guarding = this.defense.guarding;
       this.playerHud.setStamina(this.defense.stamina, settings.defense.staminaMax);
+      const locked = settings.lockOn.enabled && !this.playerDown ? this.lockOn.update() : this.lockOn.release();
+      this.controller.lockTarget = locked;
+      this.rig.setLockTarget(locked ? locked.position : null);
+      this.mobileControls?.setLocked(!!locked);
     }
     this._invuln = Math.max(0, this._invuln - raw);
     if (this.playerDown) this._updateDown(dt);
@@ -1703,6 +1739,8 @@ export class App {
     this.comboCounter.dispose();
     this._hurtFlash.remove();
     this._parryFlash.remove();
+    this.lockOn.dispose();
+    window.removeEventListener('keyup', this._onKeyUp);
     this.playerHud.dispose();
     this.weaponFire?.dispose();
     this.characterScreen?.dispose();

@@ -1915,3 +1915,29 @@ html.touch-ui .hp__stamina {
 .hp.is-winded .hp__stamina i {
   background: var(--blood-lit);
 }
+
+/* ------------------------------------------------------------ lock-on */
+
+/* A diamond over the locked body's head — `combat/LockOn.js`. */
+.lock-marker {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 17;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  border: 2px solid var(--blood-lit);
+  transform-origin: center;
+  rotate: 45deg;
+  box-shadow: 0 0 10px rgba(255, 106, 77, 0.6);
+}
+
+.lock-marker[hidden] {
+  display: none;
+}
+
+.mc-util.is-active {
+  border-color: var(--blood-lit);
+  color: var(--washi);
+}

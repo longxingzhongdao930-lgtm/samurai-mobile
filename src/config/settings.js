@@ -1095,6 +1095,23 @@ export const settings = {
   },
 
   /**
+   * Lock-on — `combat/LockOn.js`. `L` (the Lock button on a phone): a tap
+   * locks the best body within `range`, or moves to the next; held for
+   * `holdToRelease` seconds it lets go. A body past `breakRange` loses the
+   * lock to the next one. The camera eases round behind the character at
+   * `cameraRate` (per second), and leaves the lens alone for `manualHold`
+   * seconds after the player drags it.
+   */
+  lockOn: {
+    enabled: true,
+    range: 14,
+    breakRange: 20,
+    holdToRelease: 0.45,
+    cameraRate: 4,
+    manualHold: 1.2
+  },
+
+  /**
    * Enemy posture — how much a body can take before its stance gives way.
    * Every blow it survives costs `hitDamage` (or a move's own
    * `postureDamage`), a parry `parryDamage`. At zero the stance breaks: it

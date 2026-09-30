@@ -80,6 +80,8 @@ export class ThirdPersonController {
     this.frozen = false;
     /** Set by the app while the guard is up: slower, no running, facing held. */
     this.guarding = false;
+    /** The locked body, if any (`combat/LockOn.js`) — faced, and attacked first. */
+    this.lockTarget = null;
   }
 
   /** @param {import('../combat/EnemyManager.js').EnemyManager} enemies */
@@ -297,7 +299,14 @@ export class ThirdPersonController {
 
     /* ---- heading ---- */
     const speed = this.velocity.length();
-    if (speed > config.idleThreshold && !this.guarding) {
+    const lock = this.lockTarget;
+    if (lock?.alive && !(running && speed > config.idleThreshold)) {
+      // Locked: square up to it — walking, standing or guarding, the body
+      // strafes round the target rather than turning its back. Only a run
+      // turns it to where it is going.
+      const heading = Math.atan2(lock.position.x - position.x, lock.position.z - position.z);
+      this.character.turnToward(heading, settings.character.turnRate, dt);
+    } else if (speed > config.idleThreshold && !this.guarding) {
       // 0 faces +Z, so the heading of a world direction is atan2(x, z).
       const heading = Math.atan2(this.velocity.x, this.velocity.y);
       this.character.turnToward(heading, settings.character.turnRate, dt);
@@ -454,6 +463,14 @@ export class ThirdPersonController {
    * string swung at the air still travels, which is half of what makes it a
    * string.
    */
+  /** The locked body, if it is alive and within `range` of the character. */
+  _lockedWithin(range) {
+    const lock = this.lockTarget;
+    if (!lock?.alive) return null;
+    const p = this.character.position;
+    return Math.hypot(lock.position.x - p.x, lock.position.z - p.z) <= range ? lock : null;
+  }
+
   _stepTarget(step) {
     const config = step.config;
     const position = this.character.position;
@@ -472,6 +489,7 @@ export class ThirdPersonController {
     // the rest of it at its shoulders and behind it, and swinging on at the
     // empty ground ahead is the one thing it must not do.
     const body =
+      this._lockedWithin(config.range) ??
       this.enemies?.findTarget(position, yaw, config) ??
       (steered ? null : this.enemies?.findTarget(position, yaw, { range: config.range, cone: 360 }));
     if (body) return body;
@@ -499,6 +517,8 @@ export class ThirdPersonController {
   _findAttackTarget(attack) {
     if (!this.enemies) return null;
     const config = attack.config;
+    const locked = this._lockedWithin(config.range);
+    if (locked) return locked;
     return this.enemies.findTarget(this.character.position, this.character.facing, {
       range: config.range,
       cone: config.cone

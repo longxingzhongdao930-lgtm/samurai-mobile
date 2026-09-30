@@ -37,7 +37,9 @@ const TOP_BAR = new Set(['customize']);
 /** The window's own keys — not moves, so not in `config/abilities.js`. */
 const UTILITIES = [
   { id: 'pause', label: 'Pause', code: 'KeyP', glyph: '‖' },
-  { id: 'editor', label: 'Editor', code: 'KeyG', glyph: '⚙' }
+  { id: 'editor', label: 'Editor', code: 'KeyG', glyph: '⚙' },
+  // Tap: lock / next. Hold: let go (decided by the app on release).
+  { id: 'lock', label: 'Lock', code: 'KeyL', glyph: '◎' }
 ];
 
 /**
@@ -226,6 +228,7 @@ export class MobileControls {
     }
     for (const utility of UTILITIES) {
       const button = this._keyButton(utility.code, 'mc-util', utility.label);
+      button.dataset.util = utility.id;
       const glyph = el('span', 'mc-util__glyph');
       glyph.textContent = utility.glyph;
       button.append(glyph, text('mc-util__name', utility.label));
@@ -324,6 +327,13 @@ export class MobileControls {
       button.classList.toggle('is-off', next === 'off');
       button.classList.toggle('is-charging', next === 'charging');
     }
+  }
+
+  /** Light the Lock button while a lock is held. */
+  setLocked(locked) {
+    if (locked === this._locked) return;
+    this._locked = locked;
+    this.element.querySelector('.mc-util[data-util="lock"]')?.classList.toggle('is-active', locked);
   }
 
   /** A gauge round one button, 0..1 — the Musou's. Same contract as `ActionHUD#setGauge`. */

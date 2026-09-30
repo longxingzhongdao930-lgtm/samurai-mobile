@@ -1544,6 +1544,14 @@ export class Editor {
     R(guard, d, 'parryRefund', 0, 60, 1, 'parry refund');
     R(guard, d, 'breakDamage', 0, 1, 0.01, 'guard-break damage ×');
     R(guard, d, 'breakTime', 0, 3, 0.05, 'guard-break lockout (s)');
+    const lo = settings.lockOn;
+    const lockF = folder.addFolder('Lock-on');
+    lockF.add(lo, 'enabled').name('lock-on');
+    R(lockF, lo, 'range', 2, 40, 0.5, 'lock range (m)');
+    R(lockF, lo, 'breakRange', 2, 60, 0.5, 'lost past (m)');
+    R(lockF, lo, 'holdToRelease', 0.1, 2, 0.05, 'hold to release (s)');
+    R(lockF, lo, 'cameraRate', 0, 20, 0.1, 'camera follow');
+    R(lockF, lo, 'manualHold', 0, 5, 0.05, 'after a drag, wait (s)');
     const po = settings.posture;
     const posture = folder.addFolder('Enemy posture');
     posture.add(po, 'enabled').name('posture');

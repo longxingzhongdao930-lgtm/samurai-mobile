@@ -75,6 +75,14 @@ export class CameraRig {
     this._punchRoll = 0;
     this._punchFov = 0;
 
+    /** Lock-on: the point to keep in frame, and when the player last dragged. */
+    this._lock = null;
+    this._manualAt = -Infinity;
+    this._onManual = (event) => {
+      if (event.buttons || event.pointerType === 'touch') this._manualAt = performance.now();
+    };
+    domElement.addEventListener('pointermove', this._onManual);
+
     this.controls.target.set(0, settings.camera.targetHeight, 0);
     this.controls.update();
 
@@ -178,6 +186,11 @@ export class CameraRig {
     if (this._touches.size !== 2) return 0;
     const [a, b] = this._touches.values();
     return Math.hypot(a.x - b.x, a.y - b.y);
+  }
+
+  /** Keep a point in frame (lock-on), or null to let the orbit be. */
+  setLockTarget(point) {
+    this._lock = point;
   }
 
   /** Point the rig should orbit around (character position). */
@@ -291,6 +304,23 @@ export class CameraRig {
      */
     this.camera.position.add(_follow);
 
+    // Lock-on: ease the orbit round until the camera sits behind the
+    // character on the line from the locked body — unless the player has had
+    // a hand on the lens in the last `manualHold` seconds.
+    const lock = settings.lockOn;
+    if (this._lock && performance.now() - this._manualAt > lock.manualHold * 1000) {
+      const desired = Math.atan2(this.anchor.x - this._lock.x, this.anchor.z - this._lock.z);
+      _dir.copy(this.camera.position).sub(target);
+      const current = Math.atan2(_dir.x, _dir.z);
+      const delta = Math.atan2(Math.sin(desired - current), Math.cos(desired - current));
+      const turn = delta * (1 - Math.exp(-lock.cameraRate * dt));
+      const c = Math.cos(turn);
+      const s = Math.sin(turn);
+      const x = _dir.x * c + _dir.z * s;
+      const z = -_dir.x * s + _dir.z * c;
+      this.camera.position.set(target.x + x, this.camera.position.y, target.z + z);
+    }
+
     this.controls.update();
 
     // Enforce the orbit distance (the wheel and any code writing the setting
@@ -322,6 +352,7 @@ export class CameraRig {
 
   dispose() {
     this.domElement.removeEventListener('wheel', this._onWheel);
+    this.domElement.removeEventListener('pointermove', this._onManual);
     this.domElement.removeEventListener('pointerdown', this._onTouchDown);
     this.domElement.removeEventListener('pointermove', this._onTouchMove);
     this.domElement.removeEventListener('pointerup', this._onTouchUp);

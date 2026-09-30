@@ -2315,3 +2315,76 @@ html:not(.dev) .hint__dev {
   color: var(--washi);
   font-size: 1.1rem;
 }
+
+/* The keys line says its piece and then gets out of the way (it stays in ?dev=1). */
+html:not(.dev) .hint {
+  animation: hint-away 1.2s ease 12s forwards;
+}
+
+@keyframes hint-away {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+/* PC mouse look: the one line that says how to get the view back. */
+.look-hint {
+  position: fixed;
+  top: 4.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  margin: 0;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(6, 8, 11, 0.55);
+  color: rgba(239, 230, 214, 0.85);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.look-hint.is-live {
+  opacity: 1;
+}
+
+/* 処刑: the prompt over a body that can be finished. */
+.exec-marker {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 17;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid rgba(255, 90, 110, 0.85);
+  border-radius: 0.3rem;
+  background: rgba(40, 4, 12, 0.72);
+  color: #ffd7dd;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  pointer-events: none;
+  text-shadow: 0 0 6px rgba(255, 60, 90, 0.9);
+  animation: exec-pulse 0.6s ease-in-out infinite alternate;
+}
+
+.exec-marker[hidden] {
+  display: none;
+}
+
+@keyframes exec-pulse {
+  from {
+    box-shadow: 0 0 0 rgba(255, 60, 90, 0);
+  }
+  to {
+    box-shadow: 0 0 12px rgba(255, 60, 90, 0.8);
+  }
+}
+
+/* The phone's attack button, while a press would be an execution. */
+.mc-btn.is-execute {
+  border-color: rgba(255, 80, 100, 0.95) !important;
+  box-shadow: 0 0 14px rgba(255, 60, 90, 0.85), inset 0 0 12px rgba(255, 60, 90, 0.5) !important;
+}

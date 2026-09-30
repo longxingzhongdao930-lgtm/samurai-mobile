@@ -111,7 +111,14 @@ export const settings = {
     maxPolar: 1.62,
     fov: 55,
     targetHeight: 1.3,
-    damping: 0.001
+    damping: 0.001,
+    /**
+     * PC mouse look (`core/PointerLook.js`): a click takes the pointer and the
+     * mouse turns the view; `Esc` gives it back. Off → the old drag orbit.
+     */
+    pointerLock: true,
+    /** Radians per pixel of mouse travel. */
+    sensitivity: 0.0024
   },
 
   /* ------------------------------------------------------------------ */
@@ -800,7 +807,10 @@ export const settings = {
      * they come up and go out on the ring's, because they are one mark.
      */
     hotkeys: {
-      enabled: true,
+      // Off: the key letters over a body are a tutorial crutch that clutters
+      // the fight. The ring under the feet already says who; the editor can
+      // bring them back.
+      enabled: false,
       /** Metres above the top of the body the row floats. */
       lift: 0.75,
       /** Master on the row's size, 1 being the size the stylesheet sets. */
@@ -1160,6 +1170,8 @@ export const settings = {
     },
     /** The glint in an enemy's eye as its blow comes in — the Issen cue. */
     glint: { enabled: true, color: '#ff6a4a', size: 0.5 },
+    /** 鬼気: the player's own aura while the Musou gauge is full. */
+    oniAura: { enabled: true, rate: 9, color: '#ff3a5a' },
     /** A boss's tell: a disc on the ground that fills and flashes. */
     omen: { color: '#ff2a2a', allEnemies: false, radius: 2.4 }
   },
@@ -1196,6 +1208,47 @@ export const settings = {
       body: { label: '体 Body', values: [100, 125, 150, 180], costs: [15, 40, 80] },
       spirit: { label: '魂 Spirit', values: [1, 1.25, 1.5, 1.8], costs: [15, 40, 80] }
     }
+  },
+
+  /**
+   * 処刑: a body whose stance is broken (or, with `afterParry`, still reeling
+   * from a parry) within `range` in front is finished by the attack button:
+   * five blades of light circle it, closing, and all go in at `plungeAt`.
+   */
+  execution: {
+    enabled: true,
+    afterParry: true,
+    range: 2.8,
+    arc: 150,
+    duration: 1.25,
+    plungeAt: 0.72,
+    radius: 1.5,
+    closeRadius: 1.0,
+    height: 1.0,
+    spin: 7,
+    hitStop: 0.28,
+    /** Red souls × this, and Musou added, for a body finished this way. */
+    soulBonus: 2,
+    gaugeBonus: 20,
+    color: '#b06bff',
+    core: '#fff4ff',
+    intensity: 2.2
+  },
+
+  /**
+   * 飛燕: `B` (飛燕 on a phone) throws a crescent of edge at the body in front
+   * up to `range` metres off; the blow lands when it arrives.
+   */
+  hien: {
+    enabled: true,
+    range: 12,
+    speed: 24,
+    cooldown: 1.1,
+    staminaCost: 18,
+    damage: 1,
+    radius: 1.3,
+    launchDelay: 0.16,
+    color: '#bfe6ff'
   },
 
   issen: {

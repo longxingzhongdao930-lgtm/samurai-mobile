@@ -39,6 +39,8 @@ import { SwordTrail } from '../vfx/SwordTrail.js';
 import { Souls, SOUL, SOUL_COLORS } from '../combat/Souls.js';
 import { Progress } from '../combat/Progress.js';
 import { UpgradeMenu } from '../ui/UpgradeMenu.js';
+import { Execution } from '../combat/Execution.js';
+import { PointerLook } from './PointerLook.js';
 import { getColor } from '../utils/color.js';
 import { CombatAudio } from '../audio/CombatAudio.js';
 import { ShadowCharacter } from '../vfx/ShadowCharacter.js';
@@ -62,7 +64,7 @@ const HDR_URL = './hdri/spruit_sunrise.hdr';
 
 /** The axis the body falls over about when it goes down — see `_updateDown`. */
 /** Keys a duel ignores: Judgement, Shadows, Flight, the studio, pause. */
-const PVP_BLOCKED = new Set(['KeyV', 'KeyC', 'KeyX', 'Tab', 'KeyP', 'KeyU']);
+const PVP_BLOCKED = new Set(['KeyV', 'KeyC', 'KeyX', 'Tab', 'KeyP', 'KeyU', 'KeyB']);
 const _bladeA = new Vector3();
 const _bladeB = new Vector3();
 const _chest = new Vector3();
@@ -477,6 +479,20 @@ export class App {
       }
     });
     if (TOUCH) this.editor?.toggle();
+    // PC: click to take the mouse, move to look (`core/PointerLook.js`). Never
+    // while something wants a cursor: a panel, the studio, the editor, the veil.
+    this.pointerLook = TOUCH
+      ? null
+      : new PointerLook({
+          domElement: this.canvas,
+          rig: this.rig,
+          blocked: () =>
+            this.inCharacterScreen ||
+            this.playerDown ||
+            !!this.upgradeMenu?.visible ||
+            !!this.pvp?.menu?.visible ||
+            (DEV && !!this.editor && !this.editor._hidden)
+        });
 
     /**
      * The equipment studio. Built in `load()`, because it needs the rig's
@@ -616,6 +632,9 @@ export class App {
           break;
         case 'KeyU':
           if (!event.repeat) this._toggleUpgrade();
+          break;
+        case 'KeyB':
+          if (!event.repeat && !this.inCharacterScreen) this.execution?.hien();
           break;
         case 'Escape':
           if (this.upgradeMenu.visible) {
@@ -793,7 +812,7 @@ export class App {
     this.targetRings.clear();
     this.targetHotkeys.clear();
     this.targetMarkers.clear();
-    this.rig.controls.enabled = false;
+    this.rig.setParked(true);
     this.post.setView(screen.stage.scene, screen.camera.camera);
     this.toast.show(
       TOUCH
@@ -816,6 +835,8 @@ export class App {
    * @param {object} config the striking move's settings block
    */
   _onStrike(enemy, x, z, config) {
+    // An execution's own swing: the blades deal the blow (`combat/Execution.js`).
+    if (this._scripted) return;
     // The opponent is not ours to wound: the server judges the claim and
     // answers with the damage (`_pvpLandedHit`).
     if (enemy?.isOpponent) {
@@ -1011,16 +1032,41 @@ export class App {
     this.fx.flare(at.x, y, at.z, getColor(cfg.color), 0.9 * scale, 0.25);
   }
 
+  /** 飛燕 arrived on a body. */
+  _hienHit(enemy, x, z) {
+    const config = { ...settings.slashHit, damage: settings.hien.damage };
+    const result = this.enemies.hit(enemy, x, z, this._counterForce(config));
+    if (!result) return;
+    if (this.defense.counter > 0) this.defense.counter = 0;
+    this._impact(enemy, x, z, config, result, true);
+  }
+
+  /** 鬼気: while the Musou gauge is full the player smoulders red. */
+  _updateOniAura(dt) {
+    const cfg = settings.vfx.oniAura;
+    if (!cfg.enabled || this.musouGauge < settings.musou.max || this.playerDown) return;
+    this._oniAcc = (this._oniAcc ?? 0) + cfg.rate * dt;
+    const p = this.character.position;
+    const color = getColor(cfg.color);
+    while (this._oniAcc >= 1) {
+      this._oniAcc -= 1;
+      const a = Math.random() * Math.PI * 2;
+      const r = 0.2 + Math.random() * 0.25;
+      this.miasma.puff(p.x + Math.sin(a) * r, p.y + 0.2 + Math.random() * 1.2, p.z + Math.cos(a) * r, 0, 0.9, 0, color, 0.34, 1.1);
+    }
+  }
+
   /** A body fell: its souls (not in a duel — there are no bodies there anyway). */
   _onEnemyKilled(enemy) {
     const cfg = settings.souls;
     if (!cfg.enabled || this.pvp?.active) return;
     const issen = this._issenKill;
     const kinds = [];
-    const reds = Math.round(cfg.redPerKill * (issen ? cfg.issenBonus : 1));
+    const bonus = issen ? cfg.issenBonus : this._executionKill ? settings.execution.soulBonus : 1;
+    const reds = Math.round(cfg.redPerKill * bonus);
     for (let i = 0; i < reds; i++) kinds.push(SOUL.RED);
     if (Math.random() < cfg.yellowChance) kinds.push(SOUL.YELLOW);
-    if (issen || Math.random() < cfg.blueChance) kinds.push(SOUL.BLUE);
+    if (issen || this._executionKill || Math.random() < cfg.blueChance) kinds.push(SOUL.BLUE);
     const p = enemy.position;
     this.souls.drop(p.x, p.y + settings.enemies.height * 0.55, p.z, kinds);
   }
@@ -1228,6 +1274,8 @@ export class App {
     // to be punished.
     enemy.shove?.(-x, -z, 3.5, 0.6);
     if (enemy.alive) enemy.staggerTime = Math.max(enemy.staggerTime, d.parryStagger);
+    // Reeling from the parry: open to an execution for as long as it reels.
+    if (enemy.alive) enemy._parriedUntil = this.elapsed + d.parryStagger;
     if (enemy.takePosture?.(settings.posture.parryDamage)) this._postureBroke(enemy);
     this.meleeSparks.burst(px, y, pz, -x, 0.3, -z, settings.combat.sparks, 1.5);
     const parryColor = getColor(settings.vfx.parry.color);
@@ -1349,6 +1397,7 @@ export class App {
     this.musouGauge = 0;
     this.defense.reset();
     this.souls.clear();
+    this.execution?.reset();
     this.enemies.respawnAll();
     this.toast.show('Again');
   }
@@ -1373,6 +1422,7 @@ export class App {
   _pvpEnter() {
     this.arenaHeld = true;
     this.souls.clear();
+    this.execution?.reset();
     this._toggleUpgrade(false);
     this.lockOn.release();
     if (this.character.flight?.active) this._toggleFlight();
@@ -1779,6 +1829,7 @@ export class App {
       : airborne || this.playerDown || !settings.defense.enabled || this.defense.broken > 0
         ? 'off'
         : 'ready';
+    state.hien = this.execution?.hienReady ? 'ready' : 'off';
     const full = this.musouGauge >= settings.musou.max;
     state.musou = inMusou
       ? 'active'
@@ -1824,7 +1875,7 @@ export class App {
 
   /** However the screen was closed, the play stage comes back here. */
   _onScreenExit() {
-    this.rig.controls.enabled = true;
+    this.rig.setParked(false);
     this.post.setView(this.scene, this.camera);
     this.toast.show('Back on the stage');
   }
@@ -1893,6 +1944,8 @@ export class App {
     // The duel: its button, its room panel, the opponent's body. After the
     // character has loaded, because the opponent is a clone of it.
     this.pvp = new PvpMode(this);
+    // 処刑 and 飛燕 (`combat/Execution.js`): they swing the character's own slash.
+    this.execution = new Execution(this);
 
     this.controller.spendLeap = () => {
       const ok = this.defense.spend(settings.defense.leapCost);
@@ -2099,6 +2152,16 @@ export class App {
     // In a duel the server says when anyone may move: not before the count,
     // not after the round, and not for a beat after a blow was parried.
     if (this.pvp?.active) this.controller.frozen = this.playerDown || this.pvp.frozen || this.pvp.stunned;
+    // 処刑: an attack press next to a body that can be finished is the execution.
+    if (this.execution && !this.execution.active && this.input._attacks.combo) {
+      const candidate = this.execution.findCandidate();
+      if (candidate && this.input.consumeAttack('combo')) this.execution.start(candidate);
+    }
+    // Held still for the length of it; handed back after.
+    const scripted = !!this.execution?.active;
+    if (scripted) this.controller.frozen = true;
+    else if (this._wasScripted) this.controller.frozen = this.playerDown;
+    this._wasScripted = scripted;
     this.controller.update(dt);
     // Inside the fence, while there is one.
     this.arena.clamp(this.character.position, settings.arena.margin);
@@ -2141,6 +2204,8 @@ export class App {
     // the cone loses its ring on the same frame it stops being a target.
     this._updateTargetRings(dt, position);
     this._updateMiasma(dt, position);
+    this._updateOniAura(dt);
+    this.execution?.update(dt);
     _chest.set(position.x, position.y + this.character.height * 0.6, position.z);
     this.souls.update(
       dt,
@@ -2202,6 +2267,7 @@ export class App {
     // climb is a camera move rather than a jump cut, and the body stays framed
     // at any altitude.
     this.rig.setAnchor(position.x, groundY + lift, position.z);
+    this.pointerLook?.update();
     this.rig.update(raw);
 
     this.contactShadows.setPosition(position.x, position.z, groundY);
@@ -2246,6 +2312,8 @@ export class App {
     this.trail.dispose();
     this.souls.dispose();
     this.upgradeMenu.dispose();
+    this.execution?.dispose();
+    this.pointerLook?.dispose();
     window.removeEventListener('keyup', this._onKeyUp);
     this.playerHud.dispose();
     this.weaponFire?.dispose();

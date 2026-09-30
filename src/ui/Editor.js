@@ -1444,6 +1444,26 @@ export class Editor {
     souls.add({ reset: () => this.hooks.onResetProgress?.() }, 'reset').name('Reset upgrades');
     souls.close();
 
+    const ex = settings.execution;
+    const exec = folder.addFolder('Execution (処刑) / Hien (飛燕)');
+    exec.add(ex, 'enabled').name('execution');
+    exec.add(ex, 'afterParry').name('after a parry');
+    R(exec, ex, 'range', 1, 5, 0.1, 'reach (m)');
+    R(exec, ex, 'plungeAt', 0.2, 1.5, 0.01, 'blades go in at (s)');
+    R(exec, ex, 'duration', 0.5, 2.5, 0.01, 'length (s)');
+    R(exec, ex, 'spin', 0, 20, 0.1, 'ring spin');
+    R(exec, ex, 'hitStop', 0, 1, 0.01, 'freeze (s)');
+    exec.addColor(ex, 'color').name('blade colour');
+    const hi = settings.hien;
+    exec.add(hi, 'enabled').name('hien');
+    R(exec, hi, 'range', 2, 20, 0.5, 'hien range (m)');
+    R(exec, hi, 'speed', 5, 60, 1, 'hien speed (m/s)');
+    R(exec, hi, 'cooldown', 0, 5, 0.05, 'hien cooldown (s)');
+    R(exec, hi, 'staminaCost', 0, 60, 1, 'hien stamina');
+    exec.add(settings.camera, 'pointerLock').name('PC mouse look');
+    R(exec, settings.camera, 'sensitivity', 0.0005, 0.008, 0.0001, 'mouse sensitivity');
+    exec.close();
+
     const is = settings.issen;
     const issen = folder.addFolder('Issen (一閃)');
     issen.add(is, 'enabled').name('issen');

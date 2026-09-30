@@ -29,7 +29,11 @@ export const FX = Object.freeze({
   /** A soft blob drifting along `axis`, growing and fading: 妖気 (miasma). */
   PUFF: 4,
   /** A small, sharp star that blinks once: an enemy's eye as it winds up. */
-  GLINT: 5
+  GLINT: 5,
+  /** A crescent of edge thrown across the ground from `pos` along `axis`: 飛燕. */
+  CRESCENT: 6,
+  /** A column of light standing up out of the ground: the execution's pillar. */
+  PILLAR: 7
 });
 
 const VERTEX = /* glsl */ `
@@ -79,6 +83,25 @@ const VERTEX = /* glsl */ `
       vec3 side = normalize(cross(axis, normalize(cameraPosition - aPos)));
       float width = aAux * (1.0 - 0.75 * t);
       vec3 wp = aPos + axis * position.x * aSize * 0.5 + side * position.y * width;
+      mv = viewMatrix * vec4(wp, 1.0);
+    } else if (kind == 6) {
+      // Flying the whole of its travel in the first 85% of its life, then
+      // opening where it lands. The quad lies across the path, rolled by aAux.
+      float s = clamp(t / 0.85, 0.0, 1.0);
+      vec3 travel = aAxis;
+      vec3 f = normalize(vec3(travel.x, 0.0, travel.z) + vec3(0.0, 0.0, 1e-4));
+      vec3 r = normalize(cross(f, vec3(0.0, 1.0, 0.0)));
+      vec3 u = cross(r, f);
+      vec3 rr = r * cos(aAux) + u * sin(aAux);
+      float open = 1.0 + 0.6 * smoothstep(0.85, 1.0, t);
+      vec3 wp = aPos + travel * s + rr * position.x * aSize * open + f * position.y * aSize * 0.55;
+      mv = viewMatrix * vec4(wp, 1.0);
+    } else if (kind == 7) {
+      // Turned to the lens about the vertical only: smoke and light have an up.
+      vec3 toCam = cameraPosition - aPos;
+      vec3 side = normalize(vec3(toCam.z, 0.0, -toCam.x) + vec3(1e-4, 0.0, 0.0));
+      float rise = smoothstep(0.0, 0.18, t);
+      vec3 wp = aPos + side * position.x * aSize * (1.0 - 0.5 * t) + vec3(0.0, (position.y * 0.5 + 0.5) * aAux * rise, 0.0);
       mv = viewMatrix * vec4(wp, 1.0);
     } else if (kind == 2 || kind == 3) {
       // Flat on the ground; a ring grows, an omen holds its size.
@@ -152,6 +175,25 @@ const FRAGMENT = /* glsl */ `
       float flash = smoothstep(0.86, 0.94, vT) * (1.0 - smoothstep(0.94, 1.0, vT)) * 0.9;
       a = rim + fill + marks + flash * (1.0 - r * 0.4);
       a *= smoothstep(0.0, 0.08, vT);
+    } else if (kind == 6) {
+      // Crescent: a band of a circle bowed forward, thinning to its tips.
+      float d = abs(length(p - vec2(0.0, -1.1)) - 1.45);
+      float tip = 1.0 - p.x * p.x;
+      float w = 0.16 * tip + 0.01;
+      float band = smoothstep(w, 0.0, d) * tip;
+      float core = smoothstep(w * 0.35, 0.0, d) * tip;
+      float fade = 1.0 - smoothstep(0.85, 1.0, vT);
+      a = (band * 1.1 + core) * fade;
+      c = mix(c, vec3(1.0), core);
+    } else if (kind == 7) {
+      // Pillar: bright spine, soft sides, burning away from the top down.
+      float y = p.y * 0.5 + 0.5;
+      float across = exp(-p.x * p.x * 7.0);
+      float spine = exp(-p.x * p.x * 60.0);
+      float top = 1.0 - smoothstep(0.55 - 0.45 * vT, 1.0, y);
+      float streak = 0.75 + 0.25 * sin(p.y * 18.0 - uTime * 14.0 + vSeed * 10.0);
+      a = (across * 0.7 + spine) * top * streak * (1.0 - vT);
+      c = mix(c, vec3(1.0), spine * 0.7);
     } else {
       // Puff: soft, with a darker heart so a cloud of them reads as smoke.
       // Round and soft to the very edge, so a crowd of them never shows a quad.
@@ -270,6 +312,16 @@ export class QuadFx {
   /** A warning `radius` wide that fills for `time` seconds and lands. */
   omen(x, y, z, color, radius = 3, time = 1.2) {
     this._write(x, y + 0.05, z, 0, 0, 0, color, time, radius, FX.OMEN, 0);
+  }
+
+  /** 飛燕: a crescent `radius` wide flying from (x, y, z) to (tx, ty, tz) in `time`. */
+  crescent(x, y, z, tx, ty, tz, color, radius = 1.3, time = 0.4, roll = 0.35) {
+    this._write(x, y, z, tx - x, ty - y, tz - z, color, time / 0.85, radius, FX.CRESCENT, roll);
+  }
+
+  /** A column `height` tall and `width` wide standing up out of (x, y, z). */
+  pillar(x, y, z, color, width = 0.9, height = 5, life = 0.8) {
+    this._write(x, y, z, 0, 0, 0, color, life, width, FX.PILLAR, height);
   }
 
   puff(x, y, z, vx, vy, vz, color, size = 0.4, life = 1.4) {

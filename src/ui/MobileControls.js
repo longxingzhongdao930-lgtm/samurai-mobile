@@ -242,6 +242,13 @@ export class MobileControls {
     this.element.appendChild(bar);
   }
 
+  /** The attack button glows red while a press would be an execution (処刑). */
+  setExecute(on) {
+    if (on === this._execute) return;
+    this._execute = on;
+    this.element.querySelector('[data-id="combo"]')?.classList.toggle('is-execute', on);
+  }
+
   /** A button for a move: its icon over its name, pressing its key. */
   _button(ability, className) {
     const button = this._keyButton(ability.code, className, ability.label);

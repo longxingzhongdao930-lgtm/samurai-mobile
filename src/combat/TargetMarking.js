@@ -278,6 +278,12 @@ export class TargetMarking {
 
   /** Canvas pixels → NDC, against the element's own box rather than the window. */
   _trackPointer(event) {
+    // A captured mouse (`core/PointerLook.js`) aims with the middle of the screen.
+    if (document.pointerLockElement === this.domElement) {
+      this._pointer.x = 0;
+      this._pointer.y = 0;
+      return;
+    }
     const rect = this.domElement.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
     this._pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;

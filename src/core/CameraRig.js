@@ -1,10 +1,11 @@
-import { PerspectiveCamera, Vector3, MOUSE, TOUCH } from 'three';
+import { MathUtils, PerspectiveCamera, Spherical, Vector3, MOUSE, TOUCH } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { settings } from '../config/settings.js';
 import { clamp, damp } from '../utils/math.js';
 import { LAYER } from './Layers.js';
 
 const _dir = new Vector3();
+const _spherical = new Spherical();
 const _desiredTarget = new Vector3();
 const _follow = new Vector3(); // how far the target moved this frame
 
@@ -78,6 +79,11 @@ export class CameraRig {
     /** Lock-on: the point to keep in frame, and when the player last dragged. */
     this._lock = null;
     this._manualAt = -Infinity;
+    /** Mouse-look deltas since the last frame (`look`), and who owns the orbit. */
+    this._lookYaw = 0;
+    this._lookPitch = 0;
+    this.pointerLocked = false;
+    this.parked = false;
     this._onManual = (event) => {
       if (event.buttons || event.pointerType === 'touch') this._manualAt = performance.now();
     };
@@ -166,7 +172,7 @@ export class CameraRig {
   _onWheel(event) {
     // The character screen parks this rig and takes the pointer; a wheel meant
     // for its own camera must not also dolly the one nobody is looking through.
-    if (!this.controls.enabled) return;
+    if (this.parked) return;
     event.preventDefault();
 
     const cam = settings.camera;
@@ -321,6 +327,7 @@ export class CameraRig {
       this.camera.position.set(target.x + x, this.camera.position.y, target.z + z);
     }
 
+    this._applyLook(cam);
     this.controls.update();
 
     // Enforce the orbit distance (the wheel and any code writing the setting
@@ -343,6 +350,47 @@ export class CameraRig {
       return;
     }
     this.camera.position.add(offset);
+  }
+
+  /**
+   * Turn the view by (yaw, pitch) radians — the captured mouse
+   * (`core/PointerLook.js`). Buffered and spent once, in `update`, on the
+   * same orbit the drag turns, so the two never disagree.
+   */
+  look(yaw, pitch) {
+    this._lookYaw += yaw;
+    this._lookPitch += pitch;
+    if (yaw || pitch) this._manualAt = performance.now();
+  }
+
+  /** The mouse is captured: the orbit drag stands down while it lasts. */
+  setPointerLocked(on) {
+    this.pointerLocked = on;
+    this._syncControls();
+  }
+
+  /** Another screen has the camera (the studio): no drag, no wheel. */
+  setParked(on) {
+    this.parked = on;
+    this._syncControls();
+  }
+
+  _syncControls() {
+    this.controls.enabled = !this.parked && !this.pointerLocked;
+  }
+
+  _applyLook(cam) {
+    if (this._lookYaw === 0 && this._lookPitch === 0) return;
+    _dir.copy(this.camera.position).sub(this.controls.target);
+    _spherical.setFromVector3(_dir);
+    // Right turns the heading down (headings are atan2(x, z)), as the drag does.
+    _spherical.theta -= this._lookYaw;
+    _spherical.phi = MathUtils.clamp(_spherical.phi + this._lookPitch, cam.minPolar, cam.maxPolar);
+    _spherical.makeSafe();
+    _dir.setFromSpherical(_spherical);
+    this.camera.position.copy(this.controls.target).add(_dir);
+    this._lookYaw = 0;
+    this._lookPitch = 0;
   }
 
   resize(width, height) {

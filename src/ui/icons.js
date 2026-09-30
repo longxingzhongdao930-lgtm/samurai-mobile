@@ -150,6 +150,13 @@ export const ABILITY_ICONS = {
       `<path d="M12.6 20.4c-3.4-1.2-5.2-3.4-5.2-6.6V9.2l5.2-2 5.2 2v4.6c0 3.2-1.8 5.4-5.2 6.6z" opacity="0.6"/>`
   ),
 
+  // 飛燕: a crescent of edge leaving the blade and flying.
+  hien: stroke(
+    `<path d="M3 20 9.5 13.5" stroke-width="2"/>` +
+      `<path d="M11 4.5c5.2 1.2 8.6 5.4 8.6 10.6-2.2-3.6-5.6-5.6-9.6-5.4" stroke-width="1.7"/>` +
+      `<path d="M8.6 8.6c2.6.6 4.4 2.4 5 5" opacity="0.55"/>`
+  ),
+
   // The whirlwind: a ring of cuts round a point, open where the blade is.
   musou: stroke(
     `<path d="M12 3.2a8.8 8.8 0 1 1-8.1 5.4" stroke-width="1.9"/>` +

@@ -119,6 +119,14 @@ export const ABILITIES = [
     attack: true
   },
   {
+    id: 'hien',
+    category: 'ability',
+    label: 'Hien',
+    hotkey: 'B',
+    code: 'KeyB',
+    note: '飛燕 — throws a crescent of edge at the body in front, up to twelve metres off. Costs stamina.'
+  },
+  {
     id: 'shadows',
     category: 'ability',
     label: 'Shadows',

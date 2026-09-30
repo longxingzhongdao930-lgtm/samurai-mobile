@@ -47,6 +47,12 @@ export class CombatAudio {
     this.noise = null;
     this.voices = 0;
     this._lastSwing = -1;
+    this._stepSide = 0;
+    /** The effects bus and the music bus, under the master. */
+    this.sfxBus = null;
+    this.musicBus = null;
+    /** Called once the graph exists — the music starts there. */
+    this.onUnlock = null;
 
     this._unlock = () => this.unlock();
     window.addEventListener('pointerdown', this._unlock, true);
@@ -84,6 +90,13 @@ export class CombatAudio {
       this.master = context.createGain();
       this.master.gain.value = 0;
       this.master.connect(compressor);
+      this.sfxBus = context.createGain();
+      this.sfxBus.connect(this.master);
+      // The music skips the compressor: it is mixed quiet, and a finisher
+      // squashing the drums under it would pump.
+      this.musicBus = context.createGain();
+      this.musicBus.gain.value = 0;
+      this.musicBus.connect(context.destination);
 
       // One second of white noise, shared by every voice.
       const length = context.sampleRate;
@@ -95,6 +108,21 @@ export class CombatAudio {
     if (this.context.state === 'suspended') this.context.resume().catch(() => {});
     window.removeEventListener('pointerdown', this._unlock, true);
     window.removeEventListener('keydown', this._unlock, true);
+    this.syncLevels();
+    const ready = this.onUnlock;
+    this.onUnlock = null;
+    ready?.(this.context);
+  }
+
+  /** Push `settings.audio` into the buses (the settings screen calls this). */
+  syncLevels() {
+    if (!this.master) return;
+    const config = settings.audio;
+    const t = this.context.currentTime;
+    this.master.gain.setTargetAtTime(config.enabled ? Math.max(0, config.volume) : 0, t, 0.03);
+    this.sfxBus.gain.setTargetAtTime(Math.max(0, config.sfx), t, 0.03);
+    // The music bus has no compressor behind it, so the master is applied here too.
+    this.musicBus.gain.setTargetAtTime(config.enabled ? Math.max(0, config.volume * config.music) : 0, t, 0.05);
   }
 
   /** Whether a call can make a sound right now. */
@@ -102,8 +130,7 @@ export class CombatAudio {
     const context = this.context;
     if (!context || context.state !== 'running' || !this.master) return false;
     const config = settings.audio;
-    this.master.gain.value = config.enabled ? Math.max(0, config.volume) : 0;
-    return config.enabled && config.volume > 0 && this.voices < MAX_VOICES;
+    return config.enabled && config.volume > 0 && config.sfx > 0 && this.voices < MAX_VOICES;
   }
 
   /* ------------------------------------------------------------------ */
@@ -276,6 +303,199 @@ export class CombatAudio {
     }
   }
 
+  /**
+   * A parry: the clang, bright, with a rising "kiin" over it — the steel
+   * singing off the turned blade — and a low push under it that says the
+   * other body was thrown back.
+   */
+  parry(point, strength = 1) {
+    this.clang(point, { bright: true, strength: 1.2 * strength });
+    if (!this._ready) return;
+    const context = this.context;
+    const now = context.currentTime;
+    const out = this._voice(point, 0.45 * strength, now + 0.9);
+    const sing = context.createOscillator();
+    sing.type = 'triangle';
+    sing.frequency.setValueAtTime(2300, now);
+    sing.frequency.exponentialRampToValueAtTime(3400, now + 0.35);
+    const singGain = context.createGain();
+    envelope(singGain.gain, now, 0.004, 0.05, 0.8, 0.12);
+    sing.connect(singGain).connect(out);
+    sing.start(now);
+    sing.stop(now + 0.85);
+    const push = context.createOscillator();
+    push.type = 'sine';
+    push.frequency.setValueAtTime(140, now);
+    push.frequency.exponentialRampToValueAtTime(60, now + 0.25);
+    const pushGain = context.createGain();
+    envelope(pushGain.gain, now, 0.004, 0.02, 0.3, 0.5);
+    push.connect(pushGain).connect(out);
+    push.start(now);
+    push.stop(now + 0.35);
+  }
+
+  /**
+   * An execution landing: the cut, a taiko-deep boom under it and a long
+   * tail of ringing steel. The one blow in the game that should sound final.
+   */
+  execution(point) {
+    this.impact(point, { cut: true, strength: 1.4 });
+    if (!this._ready) return;
+    const context = this.context;
+    const now = context.currentTime;
+    const out = this._voice(point, 0.9, now + 1.6);
+    const boom = context.createOscillator();
+    boom.type = 'sine';
+    boom.frequency.setValueAtTime(90, now);
+    boom.frequency.exponentialRampToValueAtTime(36, now + 0.6);
+    const boomGain = context.createGain();
+    envelope(boomGain.gain, now, 0.003, 0.05, 0.9, 0.9);
+    boom.connect(boomGain).connect(out);
+    boom.start(now);
+    boom.stop(now + 1);
+    for (const [f, level] of [
+      [1320, 0.07],
+      [1987, 0.05],
+      [3560, 0.025]
+    ]) {
+      const partial = context.createOscillator();
+      partial.type = 'sine';
+      partial.frequency.value = f * (0.98 + Math.random() * 0.04);
+      const g = context.createGain();
+      envelope(g.gain, now + 0.02, 0.003, 0.02, 1.4, level);
+      partial.connect(g).connect(out);
+      partial.start(now);
+      partial.stop(now + 1.5);
+    }
+  }
+
+  /**
+   * A blow stopped by a shield: wood first (a dull, damped knock), then the
+   * iron rim — lower and shorter than a sword's guard, so a shield sounds
+   * like a door and not like a blade.
+   */
+  shield(point, strength = 1) {
+    if (!this._ready) return;
+    const context = this.context;
+    const now = context.currentTime;
+    const s = Math.max(0.3, Math.min(1.5, strength));
+    const out = this._voice(point, 0.6 * s, now + 0.5);
+    const knock = this._noise(now, 0.12);
+    const band = context.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = 380 * (0.9 + Math.random() * 0.2);
+    band.Q.value = 3;
+    const knockGain = context.createGain();
+    envelope(knockGain.gain, now, 0.002, 0.01, 0.12, 1.4 * s);
+    knock.connect(band).connect(knockGain).connect(out);
+    const body = context.createOscillator();
+    body.type = 'triangle';
+    body.frequency.setValueAtTime(210, now);
+    body.frequency.exponentialRampToValueAtTime(150, now + 0.1);
+    const bodyGain = context.createGain();
+    envelope(bodyGain.gain, now, 0.002, 0.01, 0.16, 0.5 * s);
+    body.connect(bodyGain).connect(out);
+    body.start(now);
+    body.stop(now + 0.2);
+    const rim = context.createOscillator();
+    rim.type = 'sine';
+    rim.frequency.value = 640 * (0.96 + Math.random() * 0.08);
+    const rimGain = context.createGain();
+    envelope(rimGain.gain, now, 0.001, 0.005, 0.28, 0.08 * s);
+    rim.connect(rimGain).connect(out);
+    rim.start(now);
+    rim.stop(now + 0.32);
+  }
+
+  /**
+   * The boss's roar: three detuned saws through a moving vowel filter over a
+   * rumble of low noise — a throat, not a synth. `strength` stretches it.
+   */
+  roar(point, strength = 1) {
+    if (!this._ready) return;
+    const context = this.context;
+    const now = context.currentTime;
+    const length = 1.1 + 0.5 * strength;
+    const out = this._voice(point, 0.8 * strength, now + length + 0.2);
+    const vowel = context.createBiquadFilter();
+    vowel.type = 'bandpass';
+    vowel.Q.value = 2.2;
+    vowel.frequency.setValueAtTime(380, now);
+    vowel.frequency.linearRampToValueAtTime(820, now + length * 0.35);
+    vowel.frequency.linearRampToValueAtTime(300, now + length);
+    const vowelGain = context.createGain();
+    envelope(vowelGain.gain, now, 0.12, length * 0.55, length, 0.9);
+    vowel.connect(vowelGain).connect(out);
+    for (const detune of [-14, 0, 11]) {
+      const saw = context.createOscillator();
+      saw.type = 'sawtooth';
+      saw.frequency.setValueAtTime(92, now);
+      saw.frequency.linearRampToValueAtTime(118, now + length * 0.3);
+      saw.frequency.linearRampToValueAtTime(70, now + length);
+      saw.detune.value = detune;
+      saw.connect(vowel);
+      saw.start(now);
+      saw.stop(now + length + 0.05);
+    }
+    const rumble = this._noise(now, Math.min(0.95, length));
+    const low = context.createBiquadFilter();
+    low.type = 'lowpass';
+    low.frequency.value = 260;
+    const rumbleGain = context.createGain();
+    envelope(rumbleGain.gain, now, 0.08, length * 0.5, length, 1.1);
+    rumble.connect(low).connect(rumbleGain).connect(out);
+  }
+
+  /**
+   * A footfall. `weight` 0 is a light step, 1 a run, 2+ something huge (the
+   * brute, the boss): heavier is lower, longer and louder. Left and right
+   * alternate a little in pitch so a walk is not a metronome.
+   */
+  footstep(point, weight = 0.5) {
+    if (!this._ready || this.voices > MAX_VOICES - 4) return;
+    const context = this.context;
+    const now = context.currentTime;
+    this._stepSide ^= 1;
+    const heavy = Math.min(3, Math.max(0, weight));
+    const length = 0.07 + heavy * 0.05;
+    const out = this._voice(point, settings.audio.stepLevel * (0.35 + heavy * 0.25), now + length + 0.1);
+    const scuff = this._noise(now, length);
+    const low = context.createBiquadFilter();
+    low.type = 'lowpass';
+    low.frequency.value = (heavy > 1.5 ? 260 : 900 - heavy * 200) * (this._stepSide ? 1.08 : 0.94);
+    const g = context.createGain();
+    envelope(g.gain, now, 0.004, 0.01, length, 0.9);
+    scuff.connect(low).connect(g).connect(out);
+    if (heavy > 1.2) {
+      const thud = context.createOscillator();
+      thud.type = 'sine';
+      thud.frequency.setValueAtTime(80, now);
+      thud.frequency.exponentialRampToValueAtTime(38, now + 0.2);
+      const tg = context.createGain();
+      envelope(tg.gain, now, 0.003, 0.02, 0.25, 0.8);
+      thud.connect(tg).connect(out);
+      thud.start(now);
+      thud.stop(now + 0.3);
+    }
+  }
+
+  /** A menu press: a short wooden tick. Not placed in the world. */
+  ui(accept = true) {
+    if (!this._ready) return;
+    const context = this.context;
+    const now = context.currentTime;
+    const out = this._voice(null, 0.25, now + 0.15);
+    const tick = context.createOscillator();
+    tick.type = 'triangle';
+    tick.frequency.setValueAtTime(accept ? 1050 : 700, now);
+    tick.frequency.exponentialRampToValueAtTime(accept ? 1400 : 520, now + 0.06);
+    const g = context.createGain();
+    envelope(g.gain, now, 0.002, 0.005, 0.1, 0.35);
+    tick.connect(g).connect(out);
+    tick.start(now);
+    tick.stop(now + 0.12);
+  }
+
   /* ------------------------------------------------------------------ */
   /* plumbing                                                            */
   /* ------------------------------------------------------------------ */
@@ -301,8 +521,8 @@ export class CombatAudio {
     }
     gain.gain.value = level;
 
-    if (pan) gain.connect(pan).connect(this.master);
-    else gain.connect(this.master);
+    if (pan) gain.connect(pan).connect(this.sfxBus);
+    else gain.connect(this.sfxBus);
 
     this.voices++;
     const release = Math.max(0, (end - context.currentTime) * 1000);

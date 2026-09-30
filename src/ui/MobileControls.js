@@ -21,7 +21,7 @@ import { isDevMode } from '../utils/device.js';
  *
  * The camera is left alone. A drag on the open canvas already orbits it (three's
  * OrbitControls speaks touch), a pinch zooms it (`CameraRig`), and a tap on a
- * body marks it (`TargetMarking`) — so the right side of the screen is the
+ * body is taken by the lock-on (`combat/LockOn.js`) — so the right side of the screen is the
  * stage, and only the buttons themselves take the pointer.
  */
 
@@ -32,7 +32,6 @@ import { isDevMode } from '../utils/device.js';
  */
 const PRIMARY = 'combo';
 /** The button that turns into the loose while the body is in the air. */
-const LEAP = 'leap';
 const TOP_BAR = new Set(['customize']);
 
 /** The window's own keys — not moves, so not in `config/abilities.js`. */
@@ -80,7 +79,6 @@ export class MobileControls {
     this.buttons = new Map();
     /** Last state written per id, so an unchanged frame touches no DOM. */
     this._state = new Map();
-    this._airborne = null;
     /** Keys a button is holding down right now, so a lost pointer can let go. */
     this._held = new Set();
 
@@ -317,22 +315,10 @@ export class MobileControls {
    * buttons light and dim on exactly the frames the plates do.
    *
    * @param {Record<string, 'ready'|'active'|'off'>} state
-   * @param {boolean} airborne in the air the leap button is the loose, and
-   *   says so — the key underneath it is the same Space either way
    */
-  update(state, airborne = false) {
-    if (airborne !== this._airborne) {
-      this._airborne = airborne;
-      const leap = this.buttons.get(LEAP);
-      if (leap) {
-        leap._name.textContent = airborne ? 'Loose' : 'Leap';
-        leap.setAttribute('aria-label', airborne ? 'Loose the blades' : 'Leap');
-      }
-    }
-
+  update(state) {
     for (const [id, button] of this.buttons) {
-      let next = state[id] ?? 'off';
-      if (id === LEAP && airborne) next = 'ready';
+      const next = state[id] ?? 'off';
       if (this._state.get(id) === next) continue;
       this._state.set(id, next);
       button.classList.toggle('is-active', next === 'active');

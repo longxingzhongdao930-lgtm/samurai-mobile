@@ -14,7 +14,6 @@ import { LAYER } from '../core/Layers.js';
 import { MaterialLibrary } from '../loaders/MaterialLibrary.js';
 import { disposeObject } from '../utils/dispose.js';
 import { Attack } from './Attack.js';
-import { Flight } from './Flight.js';
 import { Jump } from './Jump.js';
 import { Locomotion } from './Locomotion.js';
 
@@ -35,18 +34,9 @@ const ANIMATION_URLS = {
   run: './animations/Run.fbx',
   bigJump: './animations/BigJump.fbx',
   hop: './animations/Jump.fbx',
-  // Not a player state: the summoned shadows hold this on their mark before
-  // they go hunting (see `vfx/ShadowCharacter.js`). It is retargeted here
-  // because this is where the rig and the retargeter are — the shadows are
-  // clones of this skeleton, so a clip lifted onto it plays on them as well.
+  // Not a move of its own: the guard's low stance (`combat/PlayerDefense.js`)
+  // and the PvP opponent's (`net/RemoteAvatar.js`).
   crouch: './animations/Crouch.fbx',
-  // The hover. Not a move but a *mode*: `X` puts the body in it and it loops
-  // there until `X` takes it out again — see `animation/Flight.js`.
-  float: './animations/fight animations/floating.fbx',
-  // The touchdown out of it: a one-shot that catches the fall and stands back
-  // up. It belongs to the same mode, and `Flight` times it against the descent
-  // so the impact frame lands on the frame the feet do.
-  land: './animations/fight animations/Landing.fbx',
   // The attacks. Unlike the others these exports carry a mesh as well as the
   // motion — only `animations[0]` is read off each, and the body it arrived with
   // is dropped on the floor of `_retarget`.
@@ -138,8 +128,6 @@ export class CharacterController {
     this.jump = null;
     /** The in-place hop — what space does at any pace short of a run. */
     this.hop = null;
-    /** The hover. A mode rather than a move — see `animation/Flight.js`. */
-    this.flight = null;
     /** The kick, and the warp that puts the foot on a target. Built with them. */
     this.attack = null;
     /** The slash — the same machine, a longer reach. Built with it. */
@@ -297,10 +285,6 @@ export class CharacterController {
     this.musou = settings.musou.steps.map(stepMove).filter((move) => move.available);
     this.moves = [...this.attacks, ...this.combo, ...this.musou];
 
-    // The hover. It masks the gait exactly as the jumps do, and for longer:
-    // there is no walk cycle worth leaving under a body that is six metres up.
-    this.flight = new Flight(this.mixer, this.clips.get('float'), this, this.clips.get('land'));
-
     this.locomotion = new Locomotion(
       this.mixer,
       {
@@ -308,7 +292,7 @@ export class CharacterController {
         walk: this.clips.get('walk'),
         run: this.clips.get('run')
       },
-      [this.jump, this.hop, this.flight, ...this.moves]
+      [this.jump, this.hop, ...this.moves]
     );
 
     this.setFacing(character.facing);
@@ -767,8 +751,6 @@ export class CharacterController {
     this.jump = null;
     this.hop?.cancel();
     this.hop = null;
-    this.flight?.cancel();
-    this.flight = null;
     for (const move of this.moves) move.cancel();
     this.attacks = [];
     this.combo = [];

@@ -68,6 +68,12 @@ export class LockOn {
     return this.target;
   }
 
+  /** Lock this body outright (the boss, when its fight begins). */
+  lock(target) {
+    if (target?.alive) this.target = target;
+    return this.target;
+  }
+
   release() {
     this.target = null;
     this.marker.hidden = true;
@@ -112,7 +118,9 @@ export class LockOn {
       const d = Math.hypot(dx, dz);
       if (d > config.range) continue;
       const along = d > 1e-3 ? (dx * fx + dz * fz) / d : 1;
-      out.push({ e, score: d * (1.6 - 0.6 * along) });
+      // The boss first: a retainer at its feet should not steal the lock.
+      const priority = e.kind === 'boss' ? 0.5 : 1;
+      out.push({ e, score: d * (1.6 - 0.6 * along) * priority });
     }
     out.sort((a, b) => a.score - b.score);
     return out.map((o) => o.e);
@@ -125,7 +133,7 @@ export class LockOn {
       return;
     }
     _p.copy(t.position);
-    _p.y += (settings.enemies.height ?? 1.8) * 1.12;
+    _p.y += (settings.enemies.height ?? 1.8) * (t.size ?? 1) * 1.12;
     _p.project(this.camera);
     if (_p.z > 1) {
       this.marker.hidden = true;

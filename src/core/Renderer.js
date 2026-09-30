@@ -27,6 +27,14 @@ export class Renderer {
       alpha: false
     });
 
+    /** 'auto' | 'high' | 'standard' | 'light' — the settings screen's 画質. */
+    this.quality = 'auto';
+    /** The auto mode's own resolution scale, 0.6 … 1, moved by frame time. */
+    this.autoScale = 1;
+    this._frameMs = 0;
+    this._frames = 0;
+    this._fastFor = 0;
+
     this.gl.setPixelRatio(this.targetPixelRatio());
     this.gl.setSize(window.innerWidth, window.innerHeight, false);
 
@@ -51,12 +59,67 @@ export class Renderer {
   }
 
   /**
-   * Cap the pixel ratio: 4K + heavy transparency is not worth the fill rate.
-   * A phone is capped harder — a 3x screen held at arm's length cannot show the
-   * difference, and its GPU pays for every one of those pixels in heat.
+   * The pixel ratio for the quality in force.
+   *
+   * A desktop caps the device ratio (4K + heavy transparency is not worth the
+   * fill rate). A phone works to a *pixel budget* instead — a 3x screen held at
+   * arm's length cannot show the difference, and its GPU pays for every pixel
+   * in heat — so a big tablet and a small phone land on the same cost.
+   * 'auto' starts from 標準 on a phone and 高 on a desktop and is then scaled
+   * by the frame rate (`measure`).
    */
   targetPixelRatio() {
-    return Math.min(window.devicePixelRatio || 1, prefersTouchLayout() ? 1.25 : 1.75);
+    const dpr = window.devicePixelRatio || 1;
+    const touch = prefersTouchLayout();
+    const mode = this.quality === 'auto' ? (touch ? 'standard' : 'high') : this.quality;
+    let ratio;
+    if (touch) {
+      const budget = { high: 1.4e6, standard: 0.95e6, light: 0.55e6 }[mode] ?? 0.95e6;
+      const fit = Math.sqrt(budget / Math.max(1, window.innerWidth * window.innerHeight));
+      ratio = Math.max(0.6, Math.min(dpr, 2, fit));
+    } else {
+      ratio = Math.min(dpr, { high: 1.75, standard: 1.25, light: 1 }[mode] ?? 1.75);
+    }
+    if (this.quality === 'auto') ratio *= this.autoScale;
+    return Math.max(0.5, ratio);
+  }
+
+  /** Change 画質; takes effect at once. */
+  setQuality(mode) {
+    this.quality = mode;
+    this.autoScale = 1;
+    this.handleResize();
+  }
+
+  /**
+   * Auto quality: average the real frame time over ~1.5 s windows. Slower than
+   * ~45 fps steps the resolution down; comfortably over 60 for several windows
+   * in a row steps it back up. Each step is a resize, so they are rare.
+   *
+   * @param {number} raw seconds this frame took
+   */
+  measure(raw) {
+    if (this.quality !== 'auto' || document.hidden || raw > 0.25) return;
+    this._frameMs += raw * 1000;
+    this._frames++;
+    if (this._frameMs < 1500) return;
+    const avg = this._frameMs / this._frames;
+    this._frameMs = 0;
+    this._frames = 0;
+    const min = prefersTouchLayout() ? 0.6 : 0.7;
+    if (avg > 22 && this.autoScale > min) {
+      this.autoScale = Math.max(min, this.autoScale * 0.85);
+      this._fastFor = 0;
+      this.handleResize();
+    } else if (avg < 14.5 && this.autoScale < 1) {
+      if (++this._fastFor >= 4) {
+        this._fastFor = 0;
+        this.autoScale = Math.min(1, this.autoScale + 0.1);
+        this.handleResize();
+      }
+    } else {
+      this._fastFor = 0;
+    }
   }
 
   get domElement() {

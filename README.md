@@ -1,61 +1,96 @@
-# Samurai — a third-person Three.js template
+# 侍 SAMURAI — a third-person sword action game in Three.js
 
-A complete third-person action stage in the browser: a rigged samurai on an
-endless procedural night landscape, with locomotion, motion-warped melee,
-summons, flight, ragdoll deaths, a burning katana and an equipment studio to
-dress the body in.
-
-No engine, no physics library, no asset pipeline. Three.js, Vite, and one file
-of settings that everything reads every frame.
+A short, complete samurai action game that runs in the browser, on a PC or a
+phone: a title screen, a tutorial, one chapter (一ノ章) from the first gate to
+the boss 鬼武将 羅刹, a free-battle field, and 1-on-1 PvP duels. Everything —
+the score and the sound effects included — is made in code; there is no audio
+file in the project.
 
 ![The stage](docs/media/hero.jpg)
 
 ```bash
 npm install
-npm run dev      # http://127.0.0.1:5173
-npm run build
+npm run dev -- --host   # http://localhost:5173 (and your LAN address for a phone)
+npm run build           # production build in dist/
+npm run lint            # ESLint
+npm test                # PvP server unit tests
+npm run test:e2e        # browser regression (needs `npm run dev` and Playwright's Chromium)
 ```
+
+`?dev=1` shows the editor (`G`) and the frame readout (`F`).
+
+## Playing
+
+**題 (title)** → **出陣** chooses a mode:
+
+- **一ノ章 — 鬼武将 羅刹.** 修練 (a short lesson: move, three cuts, a parry, an
+  execution, 縮地 — skippable, offered until done once) → 門 → 広場戦 (six
+  bodies: swordsmen, a shield, a ninja, an archer, a brute) → 門開放 → 鏡 (the
+  save point: it heals and records the checkpoint) → 羅刹 (three phases, every
+  big move warned) → 討伐. The clear screen shows the time and the souls taken,
+  and the best time of a run from the first gate. 続きから starts at the mirror.
+- **自由戦闘.** The open night field: bodies keep coming. Try the arts, gather souls.
+- **対戦 PvP.** Room codes, best of rounds, over `npm run server` (see `server/`).
+
+Souls buy upgrades (**強化**, `U`). **設定** has the volumes (master, effects,
+music), 画質 (自動 / 高 / 標準 / 軽量), look sensitivity and セーブ削除.
+
+### The save
+
+Everything kept between visits — souls, upgrade levels, the chapter's clear,
+best time and checkpoint, whether the lesson is done, and the settings — is one
+record in **IndexedDB** ([core/SaveStore.js](src/core/SaveStore.js)). The game
+reads it synchronously from memory and writes it back shortly after each change
+and when the page is hidden. Where IndexedDB is unavailable it falls back to
+localStorage, and the localStorage keys earlier versions wrote are carried over
+on the first run.
+
+### Sound and music
+
+[audio/CombatAudio.js](src/audio/CombatAudio.js) synthesises every effect —
+swings, cuts, guards, the **parry**'s ring, the **execution**'s boom, a
+**shield**'s wooden knock, the boss's **roar**, **footsteps** (the brute's and
+the boss's heavy ones too) and the menu tick — on an effects bus.
+[audio/Music.js](src/audio/Music.js) plays the score on a music bus: taiko,
+koto, shakuhachi and a drone in the in-sen scale; *title*, *field* (its drums
+follow how many bodies are close), *boss* (faster and denser each phase) and
+*clear*. Nothing plays until the first press (browser rule).
 
 ## Controls
 
-| | |
-| --- | --- |
-| `WASD` / arrows | Move. `Shift` runs. |
-| `Space` | Leap — a running long jump, or an in-place hop at any lesser pace. In the air it looses the blades. |
-| `J` | Attack — the normal string. Keep pressing as each blow lands: five steps, the last runs through them. |
-| `E` · `R` · `T` | Kick · Slash Hit · Slide Cut. The three techniques. |
-| `Q` | Musou — when its gauge is full. The world slows, three blows of its own, a shockwave. |
-| `V` | Shadows — mark two bodies, and a shadow of you goes for each. |
-| `C` | Judgement — mark one body, and a fist comes down through a seal over its head. |
-| `X` | Flight — leave the ground, mark bodies to forge a blade for each, `Space` looses them. |
-| `Tab` | The equipment studio. |
-| drag · wheel | Orbit · zoom. |
-| `G` · `F` · `P` | Editor · frame stats · pause. |
+| | PC | Phone |
+| --- | --- | --- |
+| Move | `WASD` (`Shift` runs) | left stick |
+| Look | click to capture the mouse (`Esc` releases) · drag | drag the open screen · pinch zooms |
+| Attack — five-step string | left click / `J` | 攻 |
+| Guard (parry just before a blow lands) | hold right click / `K` | Guard |
+| Execution (after a parry or a broken stance) | attack while 「処刑」 shows | 攻 when it glows red |
+| 一閃 | attack the instant an enemy's eyes flash | same |
+| Kick · Slash Hit · Slide Cut | `E` · `R` · `T` | their buttons |
+| Leap | `Space` | Leap |
+| 飛燕 / 居合 | `B` (hold for 居合) | 飛燕 (hold for 居合) |
+| 影走り · 雷切 · 縮地 | `V` · `C` · `X` | their buttons |
+| 無双 (gauge full) | `Q` | 無双 |
+| Lock-on | `L` (hold to release) | Lock |
+| Absorb souls · upgrades | hold `Z` · `U` | 吸魂 · 強化 |
+| Equipment studio | `Tab` | Character |
 
-The moves are also drawn along the bottom of the screen, one panel per kind,
-and every one of them is a line in [src/config/abilities.js](src/config/abilities.js) —
-rebinding a key, renaming a move or adding one is an edit to that file and
-nothing else. `core/Input.js` builds its key map from it, `ui/ActionHUD.js`
-draws the panels from it, and `core/App.js` resolves a state per `id` each
-frame.
-
-### On a phone
-
+The moves are drawn along the bottom of the screen (on a phone, under the
+thumbs); every one of them is a line in [src/config/abilities.js](src/config/abilities.js).
 A touch screen gets its own layout ([src/ui/MobileControls.js](src/ui/MobileControls.js)),
-detected by `(pointer: coarse)` — `?mobile=1` forces it on a desktop, `?mobile=0`
-forces it off.
+detected by `(pointer: coarse)` — `?mobile=1` forces it on a desktop. Every
+button *is* its key, so nothing in the game has a mobile branch.
 
-| | |
-| --- | --- |
-| Left thumb | A floating stick: it comes to wherever the thumb lands. A half push walks slowly; pushed to the rim, the body runs. |
-| Right thumb | **Attack** is the big button. Leap and the three techniques sit on an arc around it (in the air Leap becomes **Loose**), the abilities and the **Musou** — with its gauge round it — on a wider arc behind. |
-| Open stage | Drag to orbit · pinch to zoom · tap a body to mark it. |
-| Top bar | Character · Pause · Editor. |
+### Performance
 
-Every button *is* its key — a press dispatches the same `keydown`/`keyup` pair
-the keyboard would — so nothing in the game has a mobile branch, and the
-buttons are drawn from the same `config/abilities.js` list as the desktop row.
-The pixel ratio is capped at 1.25 on touch devices.
+画質 sets the pixel ratio (a desktop caps the device ratio; a phone works to a
+pixel budget, so a tablet and a small phone cost the same), the sun's shadow
+map size and how often it redraws, and how many bodies the open field keeps up.
+**自動** starts from 標準 on a phone and 高 on a desktop and then steps the
+resolution down when frames run slower than ~45 fps, and back up when there is
+headroom. A phone also gets thinner defaults across the board
+([config/mobile.js](src/config/mobile.js)): smaller shadow map, fewer leaves,
+fog puffs, bodies, miasma and soul particles, a shorter sword trail.
 
 ---
 
@@ -377,97 +412,30 @@ combination that stays legible against a blue night at twenty metres.
 
 ---
 
-## The three abilities
+## 秘剣 — the sword arts
 
-All three are **aimed by marking a body first**, and the aim
-([TargetMarking](src/combat/TargetMarking.js)) is the same machine each time on
-its own block of settings. It is screen space, not world space, and that is the
-whole of it: a body is a candidate when it is near the point on screen the player
-is aiming at, and the nearest wins. The tolerance is a fraction of the screen's
-*height*, so this is a look rather than a pixel hunt.
+[combat/Arts.js](src/combat/Arts.js), each on its own block of `settings.arts`:
 
-The aim point is the cursor, and it starts at the centre of the screen — with an
-orbit camera those are the same gesture, so nothing has to be explained.
+- **雷切 (C)** — a lightning cut: a straight dash through everything on the line,
+  then the strike chains to the nearest bodies around it.
+- **影走り (V)** — run through the bodies in front, leaving afterimages; each
+  one passed is cut.
+- **縮地 (X)** — a flash step: in an instant, the body is in front of the target.
+- **居合 (hold B)** — hold to draw, release to step in with one great cut and
+  a 飛燕 wave behind it. A tap of `B` is plain **飛燕**, the crescent thrown.
 
-### Shadows — `V`
+With them: **処刑** (executions on a parried or broken body), **一閃** (the
+counter on an enemy's flash), **無双** (`Q`), and the **妖気** — the violet
+miasma the bodies bleed and wind up in.
 
-![Shadows](docs/media/shadows.jpg)
+## 鬼武将 羅刹 — the boss
 
-Two clones of the rig — body, armour, weapon, everything hanging off a bone — with
-every material replaced by one black surface. Same silhouette, same frames: two
-more of *you*, standing where you are not.
-
-Each runs one errand and it is over. It is **born standing inside the character
-in its exact pose** (every cloned node's local transform copied off the node it
-was cloned from, so a turn or a gait blend lands on the shadow the same frame it
-lands on the body) and slides out to a mark beside it; it **crouches** there for
-a beat — the point of the whole summon is that two things step out of you, settle,
-take their mark, and *only then* move; it **hunts** one body each, never the same
-one twice; and it **strikes** with one of the player's own attacks, thrown with
-that move's numbers, so a shadow's slide cut takes a body apart exactly as yours
-does.
-
-Deliberately not the same *beat*, though: no hit-stop, and half the shake.
-Hit-stop is the player's own blow sold back to them, and freezing the world for a
-cut thrown thirty metres away by something that is not you reads as a stutter.
-
-### Judgement — `C`
-
-| The seal opens | The fist comes through |
-| --- | --- |
-| ![Seal](docs/media/judgement-seal.jpg) | ![Fist](docs/media/judgement-fist.jpg) |
-
-Six beats: the seal **writes itself** into the air over the mark, one full turn
-anticlockwise from the top; it **charges**, held, tightening and brightening
-while nothing else happens — the beat that makes the blow inevitable rather than
-sudden, and without it the whole move reads as a projectile; the fist **falls**,
-accelerating on `t²`, which is what a dropped thing actually does; it **lands**,
-and everything happens on that one frame — the body is felled, the world nearly
-stops, the lens is kicked, the ground opens and throws up what it is made of; it
-**dwells**, sitting on the result, because the cheapest way to make a blow feel
-heavy is to leave the thing that landed exactly where it stopped for half a
-second; and it **withdraws** back up through the seal, which folds.
-
-The trick the whole thing hangs on: a fist falling out of a circle is a prop
-unless the circle is a **hole**. So the fist's material discards every fragment
-above the seal's plane and burns a line where it crosses, and the forearm is
-stretched in the vertex shader so it always reaches that plane however high the
-seal was hung. What is on screen is never a floating arm — it is an arm coming
-through something, at any height, at any point in the drop, with no keyframes
-anywhere.
-
-### Flight — `X`
-
-| Marking from the air | The volley |
-| --- | --- |
-| ![Halo](docs/media/flight-halo.jpg) | ![Loose](docs/media/flight-loose.jpg) |
-
-The one ability that is a **mode** rather than a move, and the one that excludes
-the others. Taking off does three things at once, and they have to start together
-or it reads as three events: the body leaves the ground, the aim comes up so the
-very next click is a mark, and everything belonging to the ground is put away.
-
-While you are up there, every body you click forges a blade — the character's own
-katana, cloned out of whatever is actually equipped at that moment, wearing its
-own material and maps. It is the same sword the samurai is holding: same steel,
-same temper line, same wrap on the grip, lit by the same moon. What the summon
-adds is a fresnel rim and the threshold that writes it into the air in the first
-place. An object you recognise, with something happening to it, reads as *the
-sword doing something*; a replacement material reads as a prop that happens to be
-sword-shaped.
-
-Each blade **forges** (a threshold sweeping up the model with a ragged, noisy
-front — drawn rather than switched on), **holds** station in the turning halo and
-charges, **winds** back away from its mark on the loose, **strikes** through the
-body it was forged for, and **plants** itself in the ground behind the kill,
-ringing like a struck tuning fork before it burns back down the way it was
-written. They leave one at a time.
-
-The aim here **re-arms itself on every click**, because in this mode marking is
-what the player is *doing* rather than a mode they are in. `Space` looses;
-landing looses whatever is still hanging rather than dropping it, because the
-player marked those bodies and throwing the volley away on the way down would be
-taking it back.
+[combat/Boss.js](src/combat/Boss.js) is a state machine on top of an enemy of
+kind `boss`. Its entrance is a beat of its own: the lock-on takes it, the lens
+pulls back to frame its size, its name comes up and it roars before it moves.
+Phases by health (66 % / 33 %) — each a roar, a shockwave, a red flash and a
+faster body — add 地割り (a warned slam), then 雷雨 (three warned strikes) and
+百矢 (a fan of arrows) and two retainers. The music follows the phase.
 
 ---
 
@@ -657,7 +625,7 @@ something downstream reads what it wrote:
 1. **Terrain** — any slider moved this frame lands here, before anything reads a height.
 2. **Air, sky, moon** — one look, re-read together; the moon hangs itself on the light direction the sky has just resolved.
 3. **Controller** — movement first: it sets the heading and the speed the blend animates to. It only ever touches XZ, which is why the body can be dropped onto the ground without the controller knowing the ground exists.
-4. **Ground height + character** — the one place in the project that owns the body's height. Flight's hover is metres above *the ground*, so flying over a hill climbs it.
+4. **Ground height + character** — the one place in the project that owns the body's height.
 5. **Enemies → target rings → marks** — a body felled this frame loses its ring and its mark on the same frame.
 6. **Equipment → weapon fire → shadows → judgement → blades** — each hangs off the final pose of the thing before it.
 7. **Floor → ground fog → leaves** — the mist and the litter stand on the height-field bake the floor just refreshed.

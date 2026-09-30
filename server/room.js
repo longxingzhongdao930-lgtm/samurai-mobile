@@ -658,6 +658,7 @@ function last(list) {
 
 function stripT(s) {
   if (!s) return null;
+  // eslint-disable-next-line no-unused-vars
   const { t, guardSince, ...rest } = s;
   return rest;
 }

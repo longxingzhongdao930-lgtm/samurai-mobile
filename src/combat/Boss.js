@@ -21,7 +21,12 @@ import { SOUL } from './Souls.js';
  *
  * Each phase change is a roar: a shockwave shoves the player off, the stance
  * refills, and the speed and wind-ups change. Felled, it bursts into souls.
+ *
+ * The entrance is its own beat (`INTRO` seconds): the lens locks onto it and
+ * pulls back to take in its size, the name comes up, it roars once, and only
+ * then does it move — the player is never struck while being introduced.
  */
+const INTRO = 2.2;
 export class Boss {
   /**
    * @param {import('../core/App.js').App} app
@@ -52,6 +57,13 @@ export class Boss {
     document.body.appendChild(this.hud);
     this.fill = this.hud.querySelector('.boss-hud__fill');
     this.stance = this.hud.querySelector('.boss-hud__stance i');
+
+    // The entrance.
+    this.intro = INTRO;
+    this._roared = false;
+    this.hud.classList.add('is-intro');
+    app.lockOn.lock(enemy);
+    app.music?.setPhase(1);
   }
 
   get fraction() {
@@ -68,6 +80,23 @@ export class Boss {
 
     if (!e.alive) {
       this._defeat();
+      return;
+    }
+
+    // The entrance: held, locked, one roar, then the fight.
+    if (this.intro > 0) {
+      this.intro -= dt;
+      e._ai.state = 'recover';
+      e._ai.wait = Math.max(e._ai.wait, 0.3);
+      if (!this._roared && this.intro < INTRO - 0.5) {
+        this._roared = true;
+        const p = e.position;
+        app.audio.roar({ x: p.x, y: p.y + 2, z: p.z }, 1.5);
+        app.rig.shake(0.35);
+        app.fx.ring(p.x, p.y, p.z, getColor(settings.vfx.omen.color), 5, 0.7);
+        if (!app.lockOn.active) app.lockOn.lock(e);
+      }
+      if (this.intro <= 0) this.hud.classList.remove('is-intro');
       return;
     }
 
@@ -120,7 +149,19 @@ export class Boss {
     app.fx.ring(p.x, p.y, p.z, red, 6, 0.6);
     app.fx.pillar(p.x, p.y, p.z, red, 1.6, 7, 0.9);
     app.rig.shake(0.4);
-    app.audio.impact({ x: p.x, y: p.y + 2, z: p.z }, { cut: false, strength: 1.5 });
+    app.audio.roar({ x: p.x, y: p.y + 2, z: p.z }, 1.3);
+    // The world catches its breath with it, and the edges of the screen go red.
+    app._hitStop = Math.max(app._hitStop, 0.35);
+    app._hitStopScale = 0.25;
+    app._hitRelease = 0;
+    const flash = app._hurtFlash;
+    if (flash) {
+      flash.classList.remove('is-on');
+      void flash.offsetWidth;
+      flash.classList.add('is-on');
+    }
+    app.music?.setPhase(phase);
+    this.hud.dataset.phase = String(phase);
     const c = app.character.position;
     const dx = c.x - p.x;
     const dz = c.z - p.z;
@@ -248,6 +289,7 @@ export class Boss {
     // The retainers go with it.
     for (const add of this.adds) if (add.alive) app.enemies.kill(add, 0, 1, settings.kick);
     this.hud.classList.add('is-gone');
+    app.lockOn.release();
     this.hooks.onDefeated?.();
   }
 

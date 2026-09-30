@@ -57,14 +57,14 @@ export class PlayerHud {
     this.veil.hidden = true;
     const title = document.createElement('p');
     title.className = 'down__title';
-    title.textContent = 'Defeated';
+    title.textContent = '討死';
     const kanji = document.createElement('p');
     kanji.className = 'down__kanji';
     kanji.textContent = '敗';
     this.retry = document.createElement('button');
     this.retry.type = 'button';
     this.retry.className = 'down__retry';
-    this.retry.textContent = touch ? 'Retry' : 'Retry  ·  Enter';
+    this.retry.textContent = touch ? '再起' : '再起  ·  Enter';
     this.retry.addEventListener('click', () => onRetry());
     // Its own pointer handling, so a tap on it never reaches the canvas.
     this.retry.addEventListener('pointerdown', (event) => event.stopPropagation());

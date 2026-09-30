@@ -305,6 +305,15 @@ export class Environment {
     return out.normalize();
   }
 
+  /** Resize the sun's shadow map (画質); the old map is freed and rebuilt at the new size. */
+  setShadowMapSize(size) {
+    const shadow = this.sun.shadow;
+    if (shadow.mapSize.x === size) return;
+    shadow.mapSize.set(size, size);
+    shadow.map?.dispose();
+    shadow.map = null;
+  }
+
   update() {
     const env = settings.environment;
 

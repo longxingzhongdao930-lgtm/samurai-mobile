@@ -199,6 +199,16 @@ export class CameraRig {
     this._lock = point;
   }
 
+  /**
+   * Frame something big: extra metres of orbit distance and of target height,
+   * eased in and out (the boss, and the brute when it is the lock). 0, 0 is
+   * the normal framing.
+   */
+  setFraming(distance, height) {
+    this._frameDistanceGoal = distance;
+    this._frameHeightGoal = height;
+  }
+
   /** Point the rig should orbit around (character position). */
   setAnchor(x, y, z) {
     this.anchor.set(x, y, z);
@@ -273,7 +283,11 @@ export class CameraRig {
     // Real time, like the shake: the knock lands while the world is frozen.
     this._punchT += dt;
     const punch = this._punchEnvelope();
-    const fov = cam.fov - this._punchFov * punch;
+    // A tall (portrait) screen gets a wider vertical view, so a big body and
+    // the ground at the player's feet both still fit.
+    const aspect = this.camera.aspect;
+    const baseFov = aspect > 0 && aspect < 1 ? Math.min(84, cam.fov * Math.pow(1 / aspect, 0.55)) : cam.fov;
+    const fov = baseFov - this._punchFov * punch;
     if (this.camera.fov !== fov) {
       this.camera.fov = fov;
       this.camera.updateProjectionMatrix();
@@ -281,8 +295,10 @@ export class CameraRig {
     this.controls.minPolarAngle = cam.minPolar;
     this.controls.maxPolarAngle = cam.maxPolar;
 
+    this._frameDistance = damp(this._frameDistance ?? 0, this._frameDistanceGoal ?? 0, 0.02, dt);
+    this._frameHeight = damp(this._frameHeight ?? 0, this._frameHeightGoal ?? 0, 0.02, dt);
     _desiredTarget.copy(this.anchor);
-    _desiredTarget.y += cam.targetHeight;
+    _desiredTarget.y += cam.targetHeight + this._frameHeight;
 
     const target = this.controls.target;
     _follow.set(
@@ -336,7 +352,7 @@ export class CameraRig {
     _dir.copy(this.camera.position).sub(this.controls.target);
     const len = _dir.length() || 1;
     _dir.multiplyScalar(1 / len);
-    this.camera.position.copy(this.controls.target).addScaledVector(_dir, this.distance);
+    this.camera.position.copy(this.controls.target).addScaledVector(_dir, this.distance + this._frameDistance);
 
     // The punch rides on the shake's offset, so it is taken back off the lens
     // at the top of the next frame by the same line and never walks the orbit.

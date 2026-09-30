@@ -17,8 +17,9 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { settings } from '../config/settings.js';
 import { Boss } from '../combat/Boss.js';
 import { Tutorial } from './Tutorial.js';
+import { save } from '../core/SaveStore.js';
 
-const SAVE_KEY = 'samurai.stage1';
+const SAVE_KEY = 'stage1';
 
 /**
  * 一ノ章 — one short stage, start to finish:
@@ -101,7 +102,7 @@ export class Stage {
     this.clearScreen.hidden = true;
     this.clearScreen.innerHTML =
       '<p class="stage-clear__kanji">討伐</p><p class="stage-clear__title">一ノ章 · 完</p><p class="stage-clear__stats"></p>' +
-      '<div class="stage-clear__row"><button type="button" data-act="again">もう一度</button><button type="button" data-act="leave">戻る</button></div>';
+      '<div class="stage-clear__row"><button type="button" data-act="again">もう一度</button><button type="button" data-act="leave">タイトルへ</button></div>';
     this.clearScreen.addEventListener('pointerdown', (e) => e.stopPropagation());
     this.clearScreen.addEventListener('click', (e) => {
       const act = e.target?.dataset?.act;
@@ -220,19 +221,11 @@ export class Stage {
   /* ---- the save: cleared, best time, checkpoint, lesson done ---- */
 
   get record() {
-    try {
-      return { cleared: false, best: null, checkpoint: 'start', tutorialDone: false, ...JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') };
-    } catch {
-      return { cleared: false, best: null, checkpoint: 'start', tutorialDone: false };
-    }
+    return { cleared: false, best: null, checkpoint: 'start', tutorialDone: false, ...save.get(SAVE_KEY) };
   }
 
   _save(patch) {
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({ ...this.record, ...patch }));
-    } catch {
-      // Private mode: the record lasts the session.
-    }
+    save.set(SAVE_KEY, { ...this.record, ...patch });
   }
 
   /**
@@ -449,12 +442,15 @@ export class Stage {
     const record = this.record;
     // Cleared: the record, and the next run starts from the gate again.
     const best = !this._fullRun ? record.best : record.best == null ? secs : Math.min(record.best, secs);
+    const fresh = this._fullRun && best === secs && record.best !== secs;
     this._save({ cleared: true, best, checkpoint: 'start' });
+    const clock = (n) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
     // A moment for the souls to be taken in, then the screen.
     setTimeout(() => {
       if (!this.active || this.step !== 'clear') return;
+      const tail = fresh ? ' · 新記録' : best != null ? ` · 最速 ${clock(best)}` : ' · 鏡から再開（記録外）';
       this.clearScreen.querySelector('.stage-clear__stats').textContent =
-        `時間 ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} · 魂 +${Math.max(0, app.progress.souls - this.soulsAtStart, souls)}`;
+        `時間 ${clock(secs)} · 魂 +${Math.max(0, app.progress.souls - this.soulsAtStart, souls)}${tail}`;
       this.clearScreen.hidden = false;
     }, 2500);
   }
@@ -469,7 +465,6 @@ export class Stage {
     const lane = (z0, z1) => areas.push({ box: true, x0: -LANE + margin, x1: LANE - margin, z0, z1 });
     const circle = (c) => areas.push({ x: c.x, z: c.z, r: c.r - margin });
     const g1 = this.barriers.g1.open;
-    const g2 = this.barriers.g2.open;
     const g3 = this.barriers.g3.open;
     switch (this.step) {
       case 'tutorial':

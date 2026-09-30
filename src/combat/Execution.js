@@ -123,7 +123,6 @@ export class Execution {
     const cfg = settings.hien;
     if (!cfg.enabled || this.active || app.pvp?.active || app.playerDown) return false;
     if (app.elapsed < this._hienReadyAt) return false;
-    if (app.character.flight?.active) return false;
     return !!app.character.slashHit?.canStart();
   }
 
@@ -133,7 +132,7 @@ export class Execution {
     const cfg = settings.hien;
     if (!this.hienReady) return false;
     if (!app.defense.spend(cfg.staminaCost)) {
-      app.toast.show('Too winded', 700);
+      app.toast.show('息が切れた', 700);
       return false;
     }
     this._hienReadyAt = app.elapsed + cfg.cooldown;
@@ -203,7 +202,7 @@ export class Execution {
     app.rig.shake(0.28);
     app.rig.punch(dirX, dirZ, 0.12, settings.combat.fovKick * 2.5, 0.015);
     app.audio.clang({ x: p.x, y, z: p.z }, { bright: true, strength: 1.5 });
-    app.audio.impact({ x: p.x, y, z: p.z }, { cut: true, strength: 1.5 });
+    app.audio.execution({ x: p.x, y, z: p.z });
 
     // 空裂: the crack runs the way the cut goes across the screen.
     if (cfg.skyCrack) {
@@ -335,8 +334,7 @@ export class Execution {
       const s = 1.5 + Math.random() * 2.5;
       app.miasma.puff(e.x, cy, e.z, Math.sin(a) * s, 0.5 + Math.random(), Math.cos(a) * s, violet, 0.55, 0.8);
     }
-    app.audio.clang({ x: e.x, y: cy, z: e.z }, { bright: true, strength: 1.5 });
-    app.audio.impact({ x: e.x, y: cy, z: e.z }, { cut: true, strength: 1.4 });
+    app.audio.execution({ x: e.x, y: cy, z: e.z });
 
     // The kill itself: parted, with the execution's own share of souls.
     app.counters && app.counters.execution++;

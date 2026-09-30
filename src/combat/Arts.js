@@ -78,7 +78,7 @@ export class Arts {
     if (!cfg.enabled || !this._free()) return false;
     if (app.elapsed < this.readyAt[id]) return false;
     if (!app.defense.spend(cfg.stamina)) {
-      app.toast.show('Too winded', 700);
+      app.toast.show('息が切れた', 700);
       return false;
     }
     this.readyAt[id] = app.elapsed + cfg.cooldown;
@@ -136,7 +136,7 @@ export class Arts {
     const cfg = settings.arts.kagebashiri;
     const targets = this._chain(cfg.count, cfg.range);
     if (!targets.length) {
-      app.toast.show('No one to run through', 700);
+      app.toast.show('斬り抜ける相手がいない', 700);
       return false;
     }
     if (!this._spend('kagebashiri')) return false;
@@ -244,7 +244,7 @@ export class Arts {
       return;
     }
     if (!app.defense.spend(cfg.stamina)) {
-      app.toast.show('Too winded', 700);
+      app.toast.show('息が切れた', 700);
       this._hienDownAt = null;
       return;
     }

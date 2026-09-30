@@ -1,12 +1,11 @@
 import { settings } from '../config/settings.js';
-
-const KEY = 'samurai.progress';
+import { save } from '../core/SaveStore.js';
 
 /**
  * What the player has earned: red souls in hand and the level of each upgrade.
  *
- * Kept in this browser's localStorage (per player, per device) and written on
- * every change. Nothing here touches a duel: PvP health and damage are the
+ * Kept in the save (`core/SaveStore.js`, IndexedDB — per player, per device)
+ * and written on every change. Nothing here touches a duel: PvP health and damage are the
  * server's, so an upgraded blade is exactly as sharp as a fresh one there.
  */
 export class Progress {
@@ -58,9 +57,8 @@ export class Progress {
 
   _load() {
     try {
-      const raw = localStorage.getItem(KEY);
-      if (!raw) return;
-      const data = JSON.parse(raw);
+      const data = save.get('progress', null);
+      if (!data) return;
       if (Number.isFinite(data.souls)) this.souls = Math.max(0, Math.floor(data.souls));
       for (const id of Object.keys(this.levels)) {
         const lv = data.levels?.[id];
@@ -73,10 +71,6 @@ export class Progress {
   }
 
   _save() {
-    try {
-      localStorage.setItem(KEY, JSON.stringify({ souls: this.souls, levels: this.levels }));
-    } catch {
-      // Private mode: progress lasts the session.
-    }
+    save.set('progress', { souls: this.souls, levels: this.levels });
   }
 }

@@ -187,7 +187,7 @@ export class PvpMode {
         break;
 
       case 'peerMusou':
-        app.toast.show('Opponent — Musou!', 1000);
+        app.toast.show('相手の無双！', 1000);
         break;
 
       case 'damage':

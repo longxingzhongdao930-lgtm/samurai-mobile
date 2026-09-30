@@ -2,6 +2,7 @@ import { App } from './core/App.js';
 import { LoadingScreen } from './ui/LoadingScreen.js';
 import { settings } from './config/settings.js';
 import { isDevMode } from './utils/device.js';
+import { save } from './core/SaveStore.js';
 
 /**
  * Entry point.
@@ -17,6 +18,8 @@ document.documentElement.classList.toggle('dev', isDevMode());
 
 async function boot() {
   try {
+    // The save first: the app reads souls, upgrades and settings as it is built.
+    await save.open();
     const app = new App(canvas);
     await app.load();
 
@@ -24,6 +27,7 @@ async function boot() {
     // out of `settings`, so writing to it from there re-lights the stage live.
     window.app = app;
     window.settings = settings;
+    window.save = save;
   } catch (error) {
     console.error('[boot] failed to start', error);
     new LoadingScreen().fail(

@@ -1413,6 +1413,17 @@ export class Editor {
     m.steps.forEach((key, i) => this._buildAttack(musou, settings[key], `Blow ${i + 1}`));
     musou.close();
 
+    const is = settings.issen;
+    const issen = folder.addFolder('Issen (一閃)');
+    issen.add(is, 'enabled').name('issen');
+    R(issen, is, 'window', 0.05, 0.6, 0.01, 'window (s)');
+    R(issen, is, 'reach', 1, 6, 0.1, 'reach (m)');
+    R(issen, is, 'arc', 30, 360, 5, 'arc (°)');
+    R(issen, is, 'chainTime', 0.5, 10, 0.1, 'chain time (s)');
+    R(issen, is, 'gaugeBonus', 0, 50, 1, 'Musou bonus');
+    R(issen, is, 'hitStop', 0, 1, 0.01, 'freeze (s)');
+    issen.close();
+
     const ar = settings.arena;
     const arena = folder.addFolder('Arena (1v1)');
     arena.add(ar, 'enabled').name('practice in arena');

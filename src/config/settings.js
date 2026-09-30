@@ -1112,6 +1112,24 @@ export const settings = {
   },
 
   /**
+   * 一閃 (Issen). A swing begun no more than `window` seconds before an
+   * enemy's blow lands — with that enemy in reach and in front — cuts it down
+   * in one stroke and turns the blow aside. Chained within `chainTime` of each
+   * other they pay `gaugeBonus` more Musou each; the world slows for `hitStop`.
+   */
+  issen: {
+    enabled: true,
+    window: 0.28,
+    reach: 3.4,
+    arc: 140,
+    chainTime: 4,
+    gaugeBonus: 12,
+    hitStop: 0.32,
+    hitStopScale: 0.05,
+    shake: 0.3
+  },
+
+  /**
    * Enemy posture — how much a body can take before its stance gives way.
    * Every blow it survives costs `hitDamage` (or a move's own
    * `postureDamage`), a parry `parryDamage`. At zero the stance breaks: it

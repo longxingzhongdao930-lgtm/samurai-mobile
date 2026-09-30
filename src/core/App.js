@@ -180,6 +180,11 @@ export class App {
     this.controller = new ThirdPersonController(this.character, this.input, this.rig);
     // The guard (and later the parry and stamina) — see `combat/PlayerDefense.js`.
     this.defense = new PlayerDefense(this.character);
+    /** 一閃 book-keeping: when the current swing began, and the chain so far. */
+    this._swingStartedAt = -Infinity;
+    this._wasSwinging = false;
+    this._issenAt = -Infinity;
+    this._issenChain = 0;
     /** When `L` went down (real ms) — a short press cycles, a long one releases. */
     this._lockDownAt = 0;
 
@@ -919,6 +924,7 @@ export class App {
    * blow.
    */
   _onPlayerHit(enemy, x, z) {
+    if (this._tryIssen(enemy, x, z)) return;
     // The guard gets the first say: `x, z` is the blow's direction, so the
     // attacker is the other way.
     const outcome = this.defense.defend(-x, -z, this.elapsed);
@@ -931,6 +937,49 @@ export class App {
       this.toast.show('Guard broken', 900);
     }
     this._takeHit(enemy, x, z, outcome.damageScale);
+  }
+
+  /**
+   * 一閃: the blow arrives while a swing of the player's own began no more than
+   * `issen.window` seconds ago, at a body in front and in reach. The enemy falls
+   * to one stroke and the blow never lands.
+   */
+  _tryIssen(enemy, x, z) {
+    const cfg = settings.issen;
+    if (!cfg.enabled || this.playerDown || !enemy?.alive) return false;
+    if (this.elapsed - this._swingStartedAt > cfg.window) return false;
+    if (!(this.character.moves ?? []).some((move) => move.locked)) return false;
+    const p = this.character.position;
+    const dx = enemy.position.x - p.x;
+    const dz = enemy.position.z - p.z;
+    const d = Math.hypot(dx, dz);
+    if (d > cfg.reach) return false;
+    const f = this.character.facing;
+    const along = d > 1e-3 ? (dx * Math.sin(f) + dz * Math.cos(f)) / d : 1;
+    if (along < Math.cos((cfg.arc * Math.PI) / 360)) return false;
+
+    // Chain.
+    this._issenChain = this.elapsed - this._issenAt <= cfg.chainTime ? this._issenChain + 1 : 1;
+    this._issenAt = this.elapsed;
+
+    const ux = -x;
+    const uz = -z;
+    const force = { ...settings.kick, damage: 1e6, slices: true, ...{ hitStop: cfg.hitStop, hitStopScale: cfg.hitStopScale, shake: cfg.shake } };
+    const result = this.enemies.hit(enemy, ux, uz, force);
+    this._impact(enemy, ux, uz, force, result ?? 'finisher', true);
+    this._hitStop = Math.max(this._hitStop, cfg.hitStop);
+    this._hitStopScale = cfg.hitStopScale;
+    this._hitRelease = 0;
+    this.musouGauge = Math.min(settings.musou.max, this.musouGauge + cfg.gaugeBonus * this._issenChain);
+    this.audio.clang({ x: enemy.position.x, y: p.y + 1, z: enemy.position.z }, { bright: true, strength: 1.4 });
+    this.rig.punch(ux, uz, 0.1, settings.combat.fovKick * 2, 0);
+    const flash = this._parryFlash;
+    flash.classList.remove('is-on');
+    void flash.offsetWidth;
+    flash.classList.add('is-on');
+    this.toast.show(this._issenChain > 1 ? `一閃 ×${this._issenChain}` : '一閃', 1100);
+    this._invuln = Math.max(this._invuln, 0.3);
+    return true;
   }
 
   /**
@@ -1811,7 +1860,13 @@ export class App {
         !c.jump?.locked &&
         !c.hop?.locked &&
         !(c.moves ?? []).some((move) => move.locked);
-      this.defense.update(dt, this.elapsed, this.input.guardHeld, free);
+      {
+      // The moment a swing begins — the start of 一閃's window.
+      const swinging = (c.moves ?? []).some((move) => move.locked);
+      if (swinging && !this._wasSwinging) this._swingStartedAt = this.elapsed;
+      this._wasSwinging = swinging;
+    }
+    this.defense.update(dt, this.elapsed, this.input.guardHeld, free);
       this.controller.guarding = this.defense.guarding;
       this.playerHud.setStamina(this.defense.stamina, settings.defense.staminaMax);
       const locked = settings.lockOn.enabled && !this.playerDown ? this.lockOn.update() : this.lockOn.release();

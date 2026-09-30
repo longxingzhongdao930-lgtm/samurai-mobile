@@ -245,7 +245,10 @@ export class ThirdPersonController {
     // the movement below rather than returning — it covers no ground of its own,
     // so the stick has to keep carrying the body or a walking jump would stop
     // dead in the air.
-    if (jumpPressed) {
+    // The leap is the evasion, and it costs stamina: with too little left the
+    // press is spent and nothing happens (`spendLeap`, set by the app).
+    const canLeap = jump?.canStart(this.speed, running) || hop?.canStart();
+    if (jumpPressed && canLeap && this.spendLeap?.() !== false) {
       if (jump?.canStart(this.speed, running)) {
         // A hop still fading would fight the arc for the pose; released rather
         // than cancelled so it hands over across its own blend instead of

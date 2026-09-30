@@ -1884,3 +1884,34 @@ body.player-down .mc-actions .mc-btn {
 .parry-flash {
   background: radial-gradient(ellipse at center, transparent 50%, rgba(235, 244, 255, 0.6) 100%);
 }
+
+/* Stamina: a thin gold line under the health bar. */
+.hp {
+  flex-wrap: wrap;
+}
+
+.hp__stamina {
+  position: absolute;
+  left: 1.85rem;
+  top: calc(100% + 3px);
+  width: 11rem;
+  height: 3px;
+  overflow: hidden;
+  background: rgba(6, 8, 11, 0.6);
+}
+
+html.touch-ui .hp__stamina {
+  width: 8.5rem;
+}
+
+.hp__stamina i {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  background: var(--gold);
+  transition: transform 0.12s linear;
+}
+
+.hp.is-winded .hp__stamina i {
+  background: var(--blood-lit);
+}

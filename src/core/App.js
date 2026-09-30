@@ -703,6 +703,10 @@ export class App {
     if (!result) return;
     if (countering) this.defense.counter = 0;
     this._impact(enemy, x, z, config, countering && result === 'kill' ? 'finisher' : result, true);
+    if (result === 'stagger' && enemy.postureBroken && !enemy._breakAnnounced) {
+      enemy._breakAnnounced = true;
+      this._postureBroke(enemy);
+    }
 
     // The cleave: a sweep does not stop at the body it was aimed at. Everyone
     // else standing inside its reach and its arc is met by the same blade, on
@@ -819,6 +823,10 @@ export class App {
       const countering = this.defense.counter > 0;
       const result = this.enemies.hit(enemy, bx, bz, this._counterForce(config));
       if (countering && result) this.defense.counter = 0;
+      if (result === 'stagger' && enemy.postureBroken && !enemy._breakAnnounced) {
+        enemy._breakAnnounced = true;
+        this._postureBroke(enemy);
+      }
       if (!result) continue;
       this._impact(enemy, bx, bz, config, result, landed === 0, victims.length, landed >= 3);
       landed++;
@@ -850,6 +858,12 @@ export class App {
     const outcome = this.defense.defend(-x, -z, this.elapsed);
     if (outcome.result === 'parry') return this._onParried(enemy, x, z);
     if (outcome.result === 'block') return this._onBlocked(enemy, x, z, outcome);
+    if (outcome.result === 'break') {
+      // Out of stamina: the guard is knocked open — a low clang, then the blow.
+      const p = this.character.position;
+      this.audio.clang({ x: p.x, y: p.y + 1, z: p.z }, { strength: 0.6 });
+      this.toast.show('Guard broken', 900);
+    }
     this._takeHit(enemy, x, z, outcome.damageScale);
   }
 
@@ -897,6 +911,7 @@ export class App {
     // to be punished.
     enemy.shove?.(-x, -z, 3.5, 0.6);
     if (enemy.alive) enemy.staggerTime = Math.max(enemy.staggerTime, d.parryStagger);
+    if (enemy.takePosture?.(settings.posture.parryDamage)) this._postureBroke(enemy);
     this.meleeSparks.burst(px, y, pz, -x, 0.3, -z, settings.combat.sparks, 1.5);
     this.musouShock.burst(px, pz, settings.musou.shock, 0.25);
     this.audio.clang({ x: px, y, z: pz }, { bright: true, strength: 1.2 });
@@ -911,6 +926,15 @@ export class App {
     void flash.offsetWidth;
     flash.classList.add('is-on');
     this.toast.show('Parry — counter!', 900);
+  }
+
+  /** A stance just gave way: announce it on the body and on the screen. */
+  _postureBroke(enemy) {
+    const p = enemy.position;
+    const y = p.y + settings.enemies.height * 0.7;
+    this.meleeSparks.burst(p.x, y, p.z, 0, 1, 0, settings.combat.sparks, 1.2);
+    this.audio.clang({ x: p.x, y, z: p.z }, { strength: 1.3 });
+    this.toast.show('Stance broken — finish it', 1100);
   }
 
   /**
@@ -1381,6 +1405,11 @@ export class App {
     });
     this.enemies.onPlayerHit = (enemy, x, z) => this._onPlayerHit(enemy, x, z);
     this.defense.bind();
+    this.controller.spendLeap = () => {
+      const ok = this.defense.spend(settings.defense.leapCost);
+      if (!ok) this.toast.show('Too winded to leap', 700);
+      return ok;
+    };
     // Not in the air, and not while the Musou is running — it is the player's
     // moment, and a blow landing in the middle of it would take it back.
     this.enemies.canHitPlayer = () =>
@@ -1557,6 +1586,7 @@ export class App {
         !(c.moves ?? []).some((move) => move.locked);
       this.defense.update(dt, this.elapsed, this.input.pressed.has('KeyK'), free);
       this.controller.guarding = this.defense.guarding;
+      this.playerHud.setStamina(this.defense.stamina, settings.defense.staminaMax);
     }
     this._invuln = Math.max(0, this._invuln - raw);
     if (this.playerDown) this._updateDown(dt);

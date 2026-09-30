@@ -38,6 +38,14 @@ export class PlayerHud {
     this.value.className = 'hp__value';
     this.bar.append(label, track, this.value);
 
+    // Stamina: a thin gold line under the health.
+    const staminaTrack = document.createElement('span');
+    staminaTrack.className = 'hp__stamina';
+    this.staminaFill = document.createElement('i');
+    staminaTrack.appendChild(this.staminaFill);
+    track.after(staminaTrack);
+    this._stamina = -1;
+
     this.veil = document.createElement('div');
     this.veil.className = 'down';
     this.veil.hidden = true;
@@ -81,6 +89,15 @@ export class PlayerHud {
       void this.bar.offsetWidth;
       this.bar.classList.add('is-hit');
     }
+  }
+
+  /** @param {number} value @param {number} max */
+  setStamina(value, max) {
+    const fraction = max > 0 ? Math.round((value / max) * 100) / 100 : 0;
+    if (fraction === this._stamina) return;
+    this._stamina = fraction;
+    this.staminaFill.style.transform = `scaleX(${fraction})`;
+    this.bar.classList.toggle('is-winded', fraction < 0.25);
   }
 
   /** Show the veil; the button comes up after `delay` seconds. */

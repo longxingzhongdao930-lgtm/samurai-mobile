@@ -569,10 +569,17 @@ export class EnemyManager {
         ? force
         : { ...force, impulse: force.impulse * boost, lift: force.lift * boost };
 
-    const result = enemy.wound(x, z, blow, force.damage ?? settings.enemies.health);
+    // A broken stance: whatever lands next fells it.
+    const broken = enemy.postureBroken;
+    const damage = broken ? enemy.health : force.damage ?? settings.enemies.health;
+    const result = enemy.wound(x, z, blow, damage);
+    if (result === 'stagger') {
+      enemy.takePosture(force.postureDamage ?? settings.posture.hitDamage);
+      return result;
+    }
     if (result !== 'kill') return result;
     this.kills++;
-    return reeling ? 'finisher' : 'kill';
+    return reeling || broken ? 'finisher' : 'kill';
   }
 
   /**

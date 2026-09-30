@@ -282,6 +282,11 @@ export class Enemy {
     this._flinch = { angle: 0, velocity: 0, x: 0, z: 1 };
     /** 1 on the frame of a hit, falling to 0 over `combat.flashTime`. */
     this._flash = 0;
+    /** Posture left (`settings.posture`), and seconds since it was last hit. */
+    this.posture = settings.posture.max;
+    this._postureIdle = 0;
+    /** Stance broken: reeling, and the next blow fells it. */
+    this.postureBroken = false;
 
     this.root = new Group();
     this.root.name = 'Enemy';
@@ -382,6 +387,22 @@ export class Enemy {
 
   get alive() {
     return this.state === 'alive';
+  }
+
+  /**
+   * Take posture damage. Returns true on the blow that breaks the stance:
+   * it reels for `posture.breakTime` and stays broken until that is over.
+   */
+  takePosture(amount) {
+    const config = settings.posture;
+    if (!config.enabled || this.state !== 'alive' || this.postureBroken) return false;
+    this._postureIdle = 0;
+    this.posture = Math.max(0, this.posture - Math.max(0, amount));
+    if (this.posture > 0) return false;
+    this.postureBroken = true;
+    this.staggerTime = Math.max(this.staggerTime, config.breakTime);
+    this._flash = 1;
+    return true;
   }
 
   /** Still reeling from a blow it survived. */
@@ -490,6 +511,20 @@ export class Enemy {
 
   _live(dt, player) {
     const config = settings.enemies;
+
+    // Posture: back to full once a broken stance has been waited out, and
+    // recovering on its own after a quiet spell.
+    const posture = settings.posture;
+    if (this.postureBroken && this.staggerTime <= 0) {
+      this.postureBroken = false;
+      this.posture = posture.max;
+      this._breakAnnounced = false;
+    } else if (!this.postureBroken) {
+      this._postureIdle += dt;
+      if (this._postureIdle >= posture.regenDelay) {
+        this.posture = Math.min(posture.max, this.posture + posture.regenRate * dt);
+      }
+    }
     const thinking = settings.enemyAI.enabled && this.director && player;
 
     if (thinking) this._blend(dt);

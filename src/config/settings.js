@@ -1072,18 +1072,43 @@ export const settings = {
      * the player's next blow does `counterDamage` more.
      */
     parryWindow: 0.18,
-    parryRefund: 0,
+    parryRefund: 10,
     parryStagger: 1.4,
     counterWindow: 1.2,
     counterDamage: 1,
-    /** Stamina: off until turned on. */
-    staminaEnabled: false,
+    /**
+     * Stamina — what makes the guard finite. A block costs `guardCost`, a
+     * leap (the evasion) `leapCost`; a parry gives `parryRefund` back. It
+     * comes back at `regenRate` per second once `regenDelay` has passed since
+     * it was last spent, and never while the guard is held. A block with too
+     * little left breaks the guard: `breakDamage` of the blow lands and the
+     * guard cannot go up again for `breakTime` seconds.
+     */
+    staminaEnabled: true,
     staminaMax: 100,
     regenRate: 28,
     regenDelay: 0.7,
-    guardCost: 0,
+    guardCost: 15,
+    leapCost: 20,
     breakDamage: 0.5,
     breakTime: 0.9
+  },
+
+  /**
+   * Enemy posture — how much a body can take before its stance gives way.
+   * Every blow it survives costs `hitDamage` (or a move's own
+   * `postureDamage`), a parry `parryDamage`. At zero the stance breaks: it
+   * reels for `breakTime` and the next blow fells it outright. It recovers at
+   * `regenRate` per second once `regenDelay` has passed without a blow.
+   */
+  posture: {
+    enabled: true,
+    max: 100,
+    hitDamage: 22,
+    parryDamage: 60,
+    regenRate: 10,
+    regenDelay: 1.5,
+    breakTime: 2.2
   },
 
   /* ------------------------------------------------------------------ */

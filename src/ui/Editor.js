@@ -1413,6 +1413,14 @@ export class Editor {
     m.steps.forEach((key, i) => this._buildAttack(musou, settings[key], `Blow ${i + 1}`));
     musou.close();
 
+    const ar = settings.arena;
+    const arena = folder.addFolder('Arena (1v1)');
+    arena.add(ar, 'enabled').name('practice in arena');
+    R(arena, ar, 'spawnDistance', 1, 9, 0.1, 'start marks (m)');
+    R(arena, ar, 'cameraMax', 3, 12, 0.1, 'camera max (m)');
+    R(arena, ar, 'margin', 0, 2, 0.05, 'fence margin (m)');
+    arena.close();
+
     const e = settings.enemies;
     const enemies = folder.addFolder('Enemies');
     enemies.add(e, 'enabled').name('enemies enabled');

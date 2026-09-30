@@ -59,6 +59,9 @@ export const MOBILE_OVERRIDES = {
    */
   enemies: { count: 10 },
 
+  /** A thinner grove round the arena: 110 → 64 stems, still one draw call. */
+  arena: { bamboo: 64 },
+
   /** Soft transparent quads are pure fill. 190 → 120 puffs. */
   groundFog: { count: 120 },
 

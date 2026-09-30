@@ -12,6 +12,7 @@ import { Sky } from '../world/Sky.js';
 import { Moon } from '../world/Moon.js';
 import { Ground } from '../world/Ground.js';
 import { Terrain } from '../world/Terrain.js';
+import { Arena } from '../world/Arena.js';
 import { GroundFog } from '../world/GroundFog.js';
 import { Leaves } from '../world/Leaves.js';
 import { ContactShadows } from '../world/ContactShadows.js';
@@ -150,6 +151,14 @@ export class App {
       this.leaves.group,
       this.contactShadows.group
     );
+
+    // The 1v1 ground (`world/Arena.js`): put away until a duel — or the
+    // practice switch (`settings.arena.enabled`, `?arena=1`) — puts it up.
+    this.arena = new Arena({ atmosphere: this.atmosphere, environment: this.environment });
+    this.scene.add(this.arena.group);
+    /** Held up by a duel whatever the practice switch says (`net/PvpMode.js`). */
+    this.arenaHeld = false;
+    if (new URLSearchParams(location.search).has('arena')) settings.arena.enabled = true;
 
     /* ---- character ---- */
     this.character = new CharacterController(this.environment);
@@ -1057,6 +1066,27 @@ export class App {
     return this.enemies.enemies;
   }
 
+  /** Put the arena up (the player to the first mark) or take it down. */
+  _setArena(on) {
+    if (!on) {
+      this.arena.leave();
+      return;
+    }
+    this.arena.enter();
+    const spawn = this.arena.spawns[0];
+    this._teleport(spawn.x, spawn.z, spawn.facing);
+    // The crowd was standing round wherever the player was.
+    if (!this.arenaHeld) this.enemies.respawnAll();
+  }
+
+  /** Stand the body on a mark, facing `facing` — the arena, a new round. */
+  _teleport(x, z, facing) {
+    const c = this.character;
+    c.position.set(x, this.terrain.heightAt(x, z), z);
+    c.setFacing(facing);
+    settings.character.facing = facing;
+  }
+
   /** Blows and bodies fill the gauge — but not the Musou's own. */
   _feedMusou(lethal) {
     const config = settings.musou;
@@ -1586,6 +1616,11 @@ export class App {
       return;
     }
 
+    // The arena goes up or comes down on the frame its switch flips. Before the
+    // terrain, because putting it up flattens the ground.
+    const wantArena = settings.arena.enabled || this.arenaHeld;
+    if (wantArena !== this.arena.active) this._setArena(wantArena);
+
     // Any terrain slider moved this frame lands here, before anything reads a
     // height — so the floor and the body both see the same landscape.
     this.terrain.update();
@@ -1627,6 +1662,8 @@ export class App {
     this._invuln = Math.max(0, this._invuln - raw);
     if (this.playerDown) this._updateDown(dt);
     this.controller.update(dt);
+    // Inside the fence, while there is one.
+    this.arena.clamp(this.character.position, settings.arena.margin);
     // Stand the character on the surface. The jump's arc lives inside the model
     // (it is the clip's own hips translation), so this stays the body's *ground*
     // height throughout and a leap over a valley still lands on the far side.
@@ -1655,6 +1692,11 @@ export class App {
       !!this.character.flight?.active ||
       !!this.character.musou?.some((move) => move.locked);
     this.enemies.update(dt, position);
+    if (this.arena.active) {
+      for (const enemy of this.enemies.enemies) {
+        if (enemy.alive) this.arena.clamp(enemy.position, settings.enemies.bodyRadius);
+      }
+    }
     // After them, so a body that has just been felled or has just walked out of
     // the cone loses its ring on the same frame it stops being a target.
     this._updateTargetRings(dt, position);

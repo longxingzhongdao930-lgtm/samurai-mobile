@@ -1326,6 +1326,24 @@ export const settings = {
    * vertex, so `octaves` now only prices the bake — which runs when a control
    * below moves, and about every sixty metres of walking.
    */
+  /**
+   * The 1v1 arena (`world/Arena.js`): a shrine courtyard in a bamboo grove,
+   * `radius` metres of stone inside a fence nobody leaves. A duel puts it up;
+   * `enabled` (or `?arena=1` in the address) puts it up for practice against
+   * the crowd. `radius` and `bamboo` are read when it is built.
+   */
+  arena: {
+    enabled: false,
+    radius: 10,
+    bamboo: 110,
+    /** Where the two fighters start: this far either side of the centre. */
+    spawnDistance: 4.5,
+    /** The camera is held this close while it is up, so it stays in the grove. */
+    cameraMax: 6.5,
+    /** Metres of body kept off the fence. */
+    margin: 0.5
+  },
+
   terrain: {
     enabled: true,
     /**

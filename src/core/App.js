@@ -48,7 +48,7 @@ import { Stats } from '../ui/Stats.js';
 import { ActionHUD } from '../ui/ActionHUD.js';
 import { TargetHotkeys } from '../ui/TargetHotkeys.js';
 import { MobileControls } from '../ui/MobileControls.js';
-import { prefersTouchLayout } from '../utils/device.js';
+import { prefersTouchLayout, isDevMode } from '../utils/device.js';
 
 import { settings } from '../config/settings.js';
 
@@ -67,6 +67,8 @@ const _fallAxis = new Vector3();
  * key is a button with the move's name on it and a click is a tap.
  */
 const TOUCH = prefersTouchLayout();
+/** `?dev=1`: the editor, the frame readout and the key hints for both. */
+const DEV = isDevMode();
 const CLICK = TOUCH ? 'tap' : 'click';
 const SPACE = TOUCH ? 'Loose' : 'Space';
 const FLIGHT_KEY = TOUCH ? 'Flight' : 'X';
@@ -391,9 +393,10 @@ export class App {
       camera: this.camera
     });
     this.playerHud.setHp(this.playerHp, settings.combat.player.maxHp);
-    // On a phone the readout and the editor start put away: both would sit over
-    // the buttons. The Editor button in the top bar brings the editor back.
-    this.stats = new Stats({ visible: !TOUCH });
+    // Developer mode only (`?dev=1`). On a phone the readout and the editor
+    // start put away even then: both would sit over the buttons. The Editor
+    // button in the top bar brings the editor back.
+    this.stats = DEV ? new Stats({ visible: !TOUCH }) : null;
     // The moves and their keys, along the bottom — one panel per category. Fed a
     // state per ability every frame from `_syncAbilities`; it decides nothing.
     this.actionHUD = new ActionHUD();
@@ -404,7 +407,7 @@ export class App {
     // ring says which body, these say with which key. Fed from
     // `_updateTargetRings` — it resolves nothing of its own either.
     this.targetHotkeys = new TargetHotkeys({ camera: this.camera, domElement: this.canvas });
-    this.editor = new Editor({
+    this.editor = !DEV ? null : new Editor({
       onToast: (message) => this.toast.show(message),
       // The fire is built later, with the loadout; the editor asks for it when
       // a control needs it rather than holding a reference that starts null.
@@ -418,7 +421,7 @@ export class App {
         this.musouGauge = settings.musou.max;
       }
     });
-    if (TOUCH) this.editor.toggle();
+    if (TOUCH) this.editor?.toggle();
 
     /**
      * The equipment studio. Built in `load()`, because it needs the rig's
@@ -480,13 +483,13 @@ export class App {
       switch (event.code) {
         case 'KeyP':
           this.paused = !this.paused;
-          this.toast.show(this.paused ? 'Paused — the editor still applies' : 'Resumed');
+          this.toast.show(this.paused ? (DEV ? 'Paused — the editor still applies' : 'Paused') : 'Resumed');
           break;
         case 'KeyG':
-          this.editor.toggle();
+          this.editor?.toggle();
           break;
         case 'KeyF':
-          this.stats.toggle();
+          this.stats?.toggle();
           break;
         case 'Tab':
           // The browser would move focus into the editor's fields otherwise,
@@ -1706,7 +1709,7 @@ export class App {
 
   start() {
     this.time.reset();
-    this.stats.reset();
+    this.stats?.reset();
     const loop = () => {
       this._raf = requestAnimationFrame(loop);
       this.frame();
@@ -1725,7 +1728,7 @@ export class App {
     // The counters still standing are the ones the *previous* frame ran up, and
     // they are about to be cleared — so the readout is fed here, where a frame
     // ends for certain, rather than at each of the several places one can end.
-    this.stats.sample(gl.info.render);
+    this.stats?.sample(gl.info.render);
     gl.info.reset();
 
     const raw = this.time.tick();
@@ -1959,9 +1962,9 @@ export class App {
     this.contactShadows.dispose();
     this.post.dispose();
     this.environment.dispose();
-    this.editor.dispose();
+    this.editor?.dispose();
     this.toast.dispose();
-    this.stats.dispose();
+    this.stats?.dispose();
     this.actionHUD.dispose();
     this.rig.dispose();
     this.renderer.dispose();

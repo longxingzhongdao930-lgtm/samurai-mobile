@@ -22,3 +22,17 @@ export function prefersTouchLayout() {
 
   return (cached = window.matchMedia?.('(pointer: coarse)').matches === true);
 }
+
+/**
+ * Developer mode: the stage editor (`G`), the frame readout (`F`) and the
+ * other tuning aids are only built with `?dev=1` in the address. A player never
+ * sees them, and a phone never pays to build a panel of several hundred
+ * sliders it will not show.
+ */
+let devCached = null;
+
+export function isDevMode() {
+  if (devCached !== null) return devCached;
+  if (typeof window === 'undefined') return (devCached = false);
+  return (devCached = new URLSearchParams(window.location.search).get('dev') === '1');
+}

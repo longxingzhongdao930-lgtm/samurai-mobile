@@ -1,6 +1,7 @@
 import { App } from './core/App.js';
 import { LoadingScreen } from './ui/LoadingScreen.js';
 import { settings } from './config/settings.js';
+import { isDevMode } from './utils/device.js';
 
 /**
  * Entry point.
@@ -9,6 +10,10 @@ import { settings } from './config/settings.js';
  * to the page and reports fatal boot errors somewhere the user can see them.
  */
 const canvas = document.getElementById('viewport');
+
+// Developer mode (`?dev=1`) is a class on the page, so the stylesheet can show
+// the hints for the tools that only exist then.
+document.documentElement.classList.toggle('dev', isDevMode());
 
 async function boot() {
   try {

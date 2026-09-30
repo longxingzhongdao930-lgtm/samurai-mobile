@@ -1,5 +1,6 @@
 import { ABILITIES } from '../config/abilities.js';
 import { createIcon } from './icons.js';
+import { isDevMode } from '../utils/device.js';
 
 /**
  * The touch layout: a stick under the left thumb, the moves under the right.
@@ -37,7 +38,8 @@ const TOP_BAR = new Set(['customize']);
 /** The window's own keys — not moves, so not in `config/abilities.js`. */
 const UTILITIES = [
   { id: 'pause', label: 'Pause', code: 'KeyP', glyph: '‖' },
-  { id: 'editor', label: 'Editor', code: 'KeyG', glyph: '⚙' },
+  // The editor exists in developer mode only (`?dev=1`).
+  ...(isDevMode() ? [{ id: 'editor', label: 'Editor', code: 'KeyG', glyph: '⚙' }] : []),
   // Tap: lock / next. Hold: let go (decided by the app on release).
   { id: 'lock', label: 'Lock', code: 'KeyL', glyph: '◎' }
 ];

@@ -2206,3 +2206,8 @@ html.touch-ui .pvp-hud {
   text-shadow: 0 0.15rem 0.8rem rgba(0, 0, 0, 0.85);
   white-space: nowrap;
 }
+
+/* The editor and frame-readout hints: developer mode (`?dev=1`) only. */
+html:not(.dev) .hint__dev {
+  display: none;
+}

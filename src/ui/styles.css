@@ -1941,3 +1941,268 @@ html.touch-ui .hp__stamina {
   border-color: var(--blood-lit);
   color: var(--washi);
 }
+
+/* ------------------------------------------------------------------ */
+/* PvP — the room panel, the match HUD and the banner (`ui/PvpMenu.js`) */
+
+.pvp-open {
+  position: fixed;
+  top: 2.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  /* Over the editor, which can reach the middle of a narrow window. */
+  z-index: 1150;
+  min-height: 2.2rem;
+  padding: 0 0.9rem;
+  border: 1px solid rgba(217, 178, 106, 0.5);
+  border-radius: 0.5rem;
+  background: rgba(6, 8, 11, 0.7);
+  color: var(--gold);
+  font: 600 0.72rem/1 inherit;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+html.touch-ui .pvp-open {
+  top: calc(env(safe-area-inset-top, 0px) + 0.6rem);
+  left: auto;
+  right: calc(env(safe-area-inset-right, 0px) + 0.7rem);
+  transform: none;
+  min-height: 44px;
+}
+
+.pvp-open[hidden],
+.pvp-panel[hidden],
+.pvp-hud[hidden],
+.pvp-banner[hidden],
+.pvp-panel [hidden] {
+  display: none !important;
+}
+
+.pvp-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1200;
+  width: min(21rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 1.5rem);
+  overflow-y: auto;
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid rgba(217, 178, 106, 0.45);
+  border-radius: 0.8rem;
+  background: rgba(10, 9, 8, 0.94);
+  color: var(--washi);
+  font-size: 0.85rem;
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.6);
+}
+
+.pvp-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pvp-panel__title {
+  color: var(--gold);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.pvp-panel__status,
+.pvp-panel__stats {
+  margin: 0.3rem 0;
+  opacity: 0.8;
+  font-size: 0.75rem;
+}
+
+.pvp-panel__lobby,
+.pvp-panel__room {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.pvp-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.pvp-input {
+  min-height: 44px;
+  padding: 0 0.7rem;
+  border: 1px solid rgba(217, 178, 106, 0.35);
+  border-radius: 0.45rem;
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--washi);
+  font: inherit;
+  font-size: 16px; /* no zoom-on-focus on iOS */
+}
+
+.pvp-input--code {
+  flex: 1;
+  min-width: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  text-align: center;
+}
+
+.pvp-btn {
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 1px solid rgba(217, 178, 106, 0.6);
+  border-radius: 0.45rem;
+  background: linear-gradient(#2a1d14, #17120f);
+  color: var(--gold);
+  font: 600 0.85rem/1 inherit;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.pvp-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pvp-btn--ghost {
+  background: transparent;
+  border-color: rgba(217, 178, 106, 0.25);
+  color: var(--washi);
+}
+
+.pvp-panel__head .pvp-btn {
+  min-height: 36px;
+  min-width: 44px;
+  font-size: 1.1rem;
+}
+
+.pvp-code {
+  margin: 0;
+  color: var(--gold);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-align: center;
+}
+
+.pvp-seats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.pvp-seat {
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.4rem;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.pvp-seat.is-empty {
+  opacity: 0.55;
+  font-style: italic;
+}
+
+.pvp-seat.is-ready {
+  box-shadow: inset 3px 0 0 var(--gold);
+}
+
+.pvp-result {
+  margin: 0;
+  color: var(--blood-lit);
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.pvp-result:empty,
+.pvp-panel__error:empty {
+  display: none;
+}
+
+.pvp-panel__error {
+  margin: 0.5rem 0 0;
+  color: var(--blood-lit);
+  font-size: 0.8rem;
+}
+
+.pvp-hud {
+  position: fixed;
+  top: 2.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 18;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  pointer-events: none;
+  color: var(--washi);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-shadow: 0 1px 2px #000;
+}
+
+html.touch-ui .pvp-hud {
+  top: calc(env(safe-area-inset-top, 0px) + 0.7rem);
+  left: auto;
+  right: calc(env(safe-area-inset-right, 0px) + 0.7rem);
+  transform: none;
+}
+
+.pvp-hud__score {
+  color: var(--gold);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.pvp-hud__opp {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pvp-hud__name {
+  max-width: 6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pvp-hud__track {
+  position: relative;
+  width: 8rem;
+  height: 6px;
+  overflow: hidden;
+  background: rgba(6, 8, 11, 0.7);
+  border: 1px solid rgba(217, 178, 106, 0.3);
+}
+
+.pvp-hud__fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  background: var(--blood);
+  transition: transform 0.15s linear;
+}
+
+.pvp-hud__net {
+  opacity: 0.6;
+  font-size: 0.55rem;
+}
+
+.pvp-banner {
+  position: fixed;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 25;
+  pointer-events: none;
+  color: var(--washi);
+  font-size: clamp(1.6rem, 7vw, 3.2rem);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-shadow: 0 0.15rem 0.8rem rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+}

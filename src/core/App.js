@@ -33,6 +33,7 @@ import { ComboCounter } from '../ui/ComboCounter.js';
 import { PlayerHud } from '../ui/PlayerHud.js';
 import { PlayerDefense } from '../combat/PlayerDefense.js';
 import { LockOn } from '../combat/LockOn.js';
+import { PvpMode } from '../net/PvpMode.js';
 import { CombatAudio } from '../audio/CombatAudio.js';
 import { ShadowCharacter } from '../vfx/ShadowCharacter.js';
 import { Judgement } from '../vfx/Judgement.js';
@@ -54,6 +55,10 @@ import { settings } from '../config/settings.js';
 const HDR_URL = './hdri/spruit_sunrise.hdr';
 
 /** The axis the body falls over about when it goes down — see `_updateDown`. */
+/** Keys a duel ignores: Judgement, Shadows, Flight, the studio, pause. */
+const PVP_BLOCKED = new Set(['KeyV', 'KeyC', 'KeyX', 'Tab', 'KeyP']);
+/** Nobody to shove: a PvP blow's feedback is played without a PvE attacker. */
+const PVP_NOBODY = { alive: false, staggerTime: 0, position: { x: 0, y: 0, z: 0 } };
 const _fallAxis = new Vector3();
 
 /**
@@ -460,6 +465,13 @@ export class App {
         if (!['KeyP', 'KeyG', 'KeyF'].includes(event.code)) return;
       }
 
+      // A duel is swords only: no summons, no fist from the sky, no flight, no
+      // studio — and no pause, because the other side's clock does not stop.
+      if (this.pvp?.active && PVP_BLOCKED.has(event.code)) {
+        event.preventDefault();
+        return;
+      }
+
       switch (event.code) {
         case 'KeyP':
           this.paused = !this.paused;
@@ -734,6 +746,12 @@ export class App {
    * @param {object} config the striking move's settings block
    */
   _onStrike(enemy, x, z, config) {
+    // The opponent is not ours to wound: the server judges the claim and
+    // answers with the damage (`_pvpLandedHit`).
+    if (enemy?.isOpponent) {
+      this.pvp.claim(this._configKey(config));
+      return;
+    }
     const countering = this.defense.counter > 0;
     const result = this.enemies.hit(enemy, x, z, this._counterForce(config));
     if (!result) return;
@@ -824,6 +842,10 @@ export class App {
    * all flying down one line.
    */
   _onArea(move) {
+    if (this.pvp?.active) {
+      this.pvp.areaHit(move);
+      return;
+    }
     const config = move.config;
     const origin = this.character.position;
     const yaw = this.character.facing;
@@ -1063,7 +1085,132 @@ export class App {
 
   /** What the lock can take: the standing crowd (PvP hands it the opponent instead). */
   lockCandidates() {
+    if (this.pvp?.active) return this.pvp.opponent.alive ? [this.pvp.opponent] : [];
     return this.enemies.enemies;
+  }
+
+  /** A move's settings block back to its key — what a hit claim names. */
+  _configKey(config) {
+    if (!this._configKeys) {
+      this._configKeys = new Map(Object.entries(settings).map(([key, value]) => [value, key]));
+    }
+    return this._configKeys.get(config) ?? 'kick';
+  }
+
+  /* ---- the duel (`net/PvpMode.js` calls these) ---- */
+
+  /** Into a room: the arena up, the crowd away, the body on its feet. */
+  _pvpEnter() {
+    this.arenaHeld = true;
+    this.lockOn.release();
+    if (this.character.flight?.active) this._toggleFlight();
+    this._pvpRevive();
+  }
+
+  /** Out of it: the practice world back exactly as it was. */
+  _pvpExit() {
+    this.arenaHeld = false;
+    this.lockOn.release();
+    this._pvpRevive();
+    const hp = settings.combat.player;
+    this.playerHp = hp.maxHp;
+    this.playerHud.setHp(this.playerHp, hp.maxHp);
+    this.defense.reset();
+    this.musouGauge = 0;
+  }
+
+  _pvpPlace(x, z, facing) {
+    this._teleport(x, z, facing);
+  }
+
+  /** A new round: on the mark, on the feet, fresh stamina, empty gauge. */
+  _pvpRoundReset(x, z, facing) {
+    this._pvpRevive();
+    for (const move of this.character.moves ?? []) move.release();
+    this._teleport(x, z, facing);
+    this.defense.reset();
+    this.musouGauge = 0;
+    this._invuln = 0;
+    this.lockOn.release();
+  }
+
+  _pvpRevive() {
+    this.controller.frozen = false;
+    if (!this.playerDown) return;
+    this.playerDown = false;
+    this.playerHud.hideDown();
+    this.character.tilt.quaternion.identity();
+    this.character.tilt.position.set(0, 0, 0);
+  }
+
+  /** Lost the round: over backward, as in PvE — but no Retry, the server decides. */
+  _pvpFall() {
+    if (this.playerDown) return;
+    this.playerDown = true;
+    this._downT = 0;
+    this.controller.frozen = true;
+    this.character.jump?.cancel();
+    this.character.hop?.cancel();
+    for (const move of this.character.moves ?? []) move.release();
+  }
+
+  /**
+   * The server says the opponent's blow reached me, and what my guard made of
+   * it. Health is already the server's (`PvpMode#_syncHp`); this is the feel,
+   * the same as a PvE blow, and the guard's local book-keeping.
+   */
+  _pvpTakeHit(result, x, z) {
+    const d = settings.defense;
+    if (result === 'parry') {
+      this.defense.stamina = Math.min(d.staminaMax, this.defense.stamina + (d.parryRefund ?? 0));
+      this.defense.counter = d.counterWindow;
+      this._onParried(PVP_NOBODY, x, z);
+      return;
+    }
+    if (result === 'block') {
+      this.defense.spend(d.guardCost);
+      this._onBlocked(PVP_NOBODY, x, z, { damageScale: 0 });
+      return;
+    }
+    if (result === 'break') {
+      this.defense.stamina = 0;
+      this.defense.broken = d.breakTime;
+      this.defense.guarding = false;
+      this.toast.show('Guard broken', 900);
+    }
+    // `_takeHit` without the arithmetic: the number is the server's.
+    const ai = settings.enemyAI;
+    this.rig.shake(ai.hitShake);
+    this.rig.punch(-x, -z, ai.hitShake * 0.6, 0, ai.hitShake * settings.combat.roll);
+    this._hitStop = Math.max(this._hitStop, ai.hitStop);
+    this._hitStopScale = ai.hitStopScale;
+    this._hitRelease = 0;
+    this.controller.knock(x, z, ai.knockback);
+    const p = this.character.position;
+    this.audio.impact({ x: p.x, y: p.y + 1, z: p.z }, { cut: false, strength: 0.7 });
+    const flash = this._hurtFlash;
+    flash.classList.remove('is-on');
+    void flash.offsetWidth;
+    flash.classList.add('is-on');
+  }
+
+  /** The server confirmed my blow on the opponent: sell it like a PvE hit. */
+  _pvpLandedHit(opponent, result, x, z, move, counter) {
+    const config = settings[move] ?? settings.kick;
+    if (result === 'hit' || result === 'break') {
+      this._impact(opponent, x, z, config, counter ? 'kill' : 'stagger', true);
+      if (counter) this.toast.show('Counter!', 700);
+      return;
+    }
+    // Blocked or parried: steel on steel at the opponent's guard.
+    const p = opponent.position;
+    const y = p.y + this.character.height * 0.6;
+    this.meleeSparks.burst(p.x - x * 0.4, y, p.z - z * 0.4, -x, 0.2, -z, settings.combat.sparks, 0.8);
+    this.audio.clang({ x: p.x, y, z: p.z }, { bright: result === 'parry', strength: result === 'parry' ? 1.2 : 0.8 });
+    this._hitStop = Math.max(this._hitStop, result === 'parry' ? 0.09 : 0.04);
+    this._hitStopScale = 0.2;
+    this._hitRelease = 0;
+    if (result === 'parry') this.toast.show('Parried!', 800);
   }
 
   /** Put the arena up (the player to the first mark) or take it down. */
@@ -1125,6 +1272,7 @@ export class App {
       { cut: true, strength: 1.2 }
     );
     this.toast.show('Musou — 旋風陣');
+    this.pvp?.musou();
   }
 
   /** The whoosh, a beat before contact — hit or miss. */
@@ -1467,6 +1615,10 @@ export class App {
     });
     this.enemies.onPlayerHit = (enemy, x, z) => this._onPlayerHit(enemy, x, z);
     this.defense.bind();
+    // The duel: its button, its room panel, the opponent's body. After the
+    // character has loaded, because the opponent is a clone of it.
+    this.pvp = new PvpMode(this);
+
     this.controller.spendLeap = () => {
       const ok = this.defense.spend(settings.defense.leapCost);
       if (!ok) this.toast.show('Too winded to leap', 700);
@@ -1661,6 +1813,9 @@ export class App {
     }
     this._invuln = Math.max(0, this._invuln - raw);
     if (this.playerDown) this._updateDown(dt);
+    // In a duel the server says when anyone may move: not before the count,
+    // not after the round, and not for a beat after a blow was parried.
+    if (this.pvp?.active) this.controller.frozen = this.playerDown || this.pvp.frozen || this.pvp.stunned;
     this.controller.update(dt);
     // Inside the fence, while there is one.
     this.arena.clamp(this.character.position, settings.arena.margin);
@@ -1692,6 +1847,8 @@ export class App {
       !!this.character.flight?.active ||
       !!this.character.musou?.some((move) => move.locked);
     this.enemies.update(dt, position);
+    this.pvp?.update(dt);
+    if (this.pvp?.active) this.arena.clamp(this.pvp.opponent.position, settings.arena.margin);
     if (this.arena.active) {
       for (const enemy of this.enemies.enemies) {
         if (enemy.alive) this.arena.clamp(enemy.position, settings.enemies.bodyRadius);
@@ -1782,6 +1939,7 @@ export class App {
     this._hurtFlash.remove();
     this._parryFlash.remove();
     this.lockOn.dispose();
+    this.pvp?.dispose();
     window.removeEventListener('keyup', this._onKeyUp);
     this.playerHud.dispose();
     this.weaponFire?.dispose();

@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "node server/index.js",
+    "test:server": "node server/test.mjs"
   },
   "dependencies": {
     "lil-gui": "^0.21.0",

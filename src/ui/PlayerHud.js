@@ -46,6 +46,12 @@ export class PlayerHud {
     track.after(staminaTrack);
     this._stamina = -1;
 
+    // Red souls in hand: what the upgrades cost.
+    this.souls = document.createElement('span');
+    this.souls.className = 'hp__souls';
+    this.bar.append(this.souls);
+    this._souls = -1;
+
     this.veil = document.createElement('div');
     this.veil.className = 'down';
     this.veil.hidden = true;
@@ -89,6 +95,13 @@ export class PlayerHud {
       void this.bar.offsetWidth;
       this.bar.classList.add('is-hit');
     }
+  }
+
+  /** @param {number} n red souls in hand */
+  setSouls(n) {
+    if (n === this._souls) return;
+    this._souls = n;
+    this.souls.textContent = `魂 ${n}`;
   }
 
   /** @param {number} value @param {number} max */

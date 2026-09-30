@@ -1413,6 +1413,37 @@ export class Editor {
     m.steps.forEach((key, i) => this._buildAttack(musou, settings[key], `Blow ${i + 1}`));
     musou.close();
 
+    const vx = settings.vfx;
+    const fxf = folder.addFolder('VFX (trail / miasma / tells)');
+    fxf.add(vx.trail, 'enabled').name('sword trail');
+    R(fxf, vx.trail, 'life', 0.04, 0.5, 0.01, 'trail life (s)');
+    R(fxf, vx.trail, 'reach', 0.5, 1.5, 0.01, 'trail reach');
+    R(fxf, vx.trail, 'intensity', 0, 5, 0.05, 'trail glow');
+    fxf.addColor(vx.trail, 'edge').name('trail colour');
+    fxf.add(vx.miasma, 'enabled').name('miasma');
+    R(fxf, vx.miasma, 'rate', 0, 12, 0.1, 'miasma /s');
+    R(fxf, vx.miasma, 'intensity', 0, 4, 0.05, 'miasma glow');
+    fxf.addColor(vx.miasma, 'color').name('miasma colour');
+    fxf.add(vx.glint, 'enabled').name('attack glint');
+    fxf.add(vx.omen, 'allEnemies').name('omen on every enemy');
+    R(fxf, vx, 'flashIntensity', 0, 6, 0.05, 'flash glow');
+    fxf.add({ omen: () => this.hooks.onBossOmen?.() }, 'omen').name('Test boss omen');
+    fxf.close();
+
+    const so = settings.souls;
+    const souls = folder.addFolder('Souls (魂) / upgrades');
+    souls.add(so, 'enabled').name('souls');
+    R(souls, so, 'redPerKill', 0, 10, 1, 'red per kill');
+    R(souls, so, 'yellowChance', 0, 1, 0.01, 'yellow chance');
+    R(souls, so, 'yellowHeal', 0, 50, 1, 'yellow heal');
+    R(souls, so, 'blueChance', 0, 1, 0.01, 'blue chance');
+    R(souls, so, 'blueGauge', 0, 50, 1, 'blue Musou');
+    R(souls, so, 'autoRadius', 0, 6, 0.1, 'auto absorb (m)');
+    R(souls, so, 'pullRadius', 0, 20, 0.5, 'held absorb (m)');
+    souls.add({ add: () => this.hooks.onAddSouls?.(100) }, 'add').name('+100 red souls');
+    souls.add({ reset: () => this.hooks.onResetProgress?.() }, 'reset').name('Reset upgrades');
+    souls.close();
+
     const is = settings.issen;
     const issen = folder.addFolder('Issen (一閃)');
     issen.add(is, 'enabled').name('issen');

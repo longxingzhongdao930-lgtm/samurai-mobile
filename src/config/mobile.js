@@ -59,6 +59,17 @@ export const MOBILE_OVERRIDES = {
    */
   enemies: { count: 10 },
 
+  /**
+   * Lighter light: a shorter, coarser sword trail, half the miasma pool and a
+   * thinner stream of it, fewer flash quads and souls. Same look at arm's length.
+   */
+  vfx: {
+    flashCapacity: 64,
+    trail: { samples: 10, subdivisions: 2 },
+    miasma: { capacity: 128, rate: 2, windupRate: 6 }
+  },
+  souls: { capacity: 64 },
+
   /** A thinner grove round the arena: 110 → 64 stems, still one draw call. */
   arena: { bamboo: 64 },
 

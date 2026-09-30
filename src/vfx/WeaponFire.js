@@ -295,6 +295,36 @@ export class WeaponFire {
     else this.box.sync(settings.fire.box);
   }
 
+  /**
+   * The blade as a segment in world space: both ends of the fire box's long
+   * axis, which the box is fitted along (`vfx/SwordTrail.js` hangs off it).
+   * @returns {boolean} false while there is no weapon to measure
+   */
+  bladeSegment(outA, outB) {
+    if (!this._model) return false;
+    const object = this.box.object;
+    object.updateWorldMatrix(true, false);
+    const s = this.box.size;
+    const x = s.x * object.scale.x;
+    const y = s.y * object.scale.y;
+    const z = s.z * object.scale.z;
+    outA.set(0, 0, 0);
+    outB.set(0, 0, 0);
+    if (x >= y && x >= z) {
+      outA.x = -s.x / 2;
+      outB.x = s.x / 2;
+    } else if (y >= z) {
+      outA.y = -s.y / 2;
+      outB.y = s.y / 2;
+    } else {
+      outA.z = -s.z / 2;
+      outB.z = s.z / 2;
+    }
+    object.localToWorld(outA);
+    object.localToWorld(outB);
+    return true;
+  }
+
   /** Settings ↔ box, and the triangle selection that depends on it. */
   _syncBox() {
     if (!this._model) return;

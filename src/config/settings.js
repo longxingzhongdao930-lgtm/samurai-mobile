@@ -1117,6 +1117,87 @@ export const settings = {
    * in one stroke and turns the blow aside. Chained within `chainTime` of each
    * other they pay `gaugeBonus` more Musou each; the world slows for `hitStop`.
    */
+  /**
+   * Light for the fight (`vfx/QuadFx.js`, `vfx/SwordTrail.js`): the katana's
+   * afterimage, the parry's flash, the 居合 cut, the enemies' 妖気 and the
+   * tells before a blow. Each is one draw call; counts are thinned on a phone.
+   */
+  vfx: {
+    /** Pooled quads for the flashes, cuts, rings and warnings. */
+    flashCapacity: 96,
+    flashIntensity: 2.4,
+    trail: {
+      enabled: true,
+      /** History kept, and curve points drawn between two of them. */
+      samples: 14,
+      subdivisions: 3,
+      /** Seconds a point of the trail lives. */
+      life: 0.16,
+      /** The trail runs this far along the blade (1 = the fire box's length). */
+      reach: 1.08,
+      core: '#f4fbff',
+      edge: '#6fb8ff',
+      intensity: 1.6,
+      opacity: 0.9
+    },
+    parry: { color: '#e8f6ff', size: 0.9 },
+    /** 居合: the line of light an Issen (and a finisher) leaves through the body. */
+    iai: { color: '#dff4ff', length: 4.2, width: 0.13, life: 0.5 },
+    /** 妖気: wisps rising off every enemy near the player; redder while it winds up. */
+    miasma: {
+      enabled: true,
+      capacity: 256,
+      /** Wisps per second per enemy, and while it winds up a blow. */
+      rate: 3.5,
+      windupRate: 10,
+      range: 22,
+      rise: 0.7,
+      size: 0.36,
+      life: 1.5,
+      color: '#8a4cff',
+      windupColor: '#ff2a3a',
+      intensity: 1.2
+    },
+    /** The glint in an enemy's eye as its blow comes in — the Issen cue. */
+    glint: { enabled: true, color: '#ff6a4a', size: 0.5 },
+    /** A boss's tell: a disc on the ground that fills and flashes. */
+    omen: { color: '#ff2a2a', allEnemies: false, radius: 2.4 }
+  },
+
+  /**
+   * 魂: what a felled body gives up (`combat/Souls.js`). Red souls buy the
+   * upgrades, yellow heal `yellowHeal`, blue add `blueGauge` Musou. Close ones
+   * are taken in by themselves; holding absorb (`Z`, 吸魂) pulls from `pullRadius`.
+   */
+  souls: {
+    enabled: true,
+    capacity: 96,
+    redPerKill: 3,
+    redValue: 1,
+    yellowChance: 0.25,
+    yellowHeal: 12,
+    blueChance: 0.35,
+    blueGauge: 8,
+    /** An Issen kill gives this many times the red, and a blue for certain. */
+    issenBonus: 2,
+    autoRadius: 3,
+    pullRadius: 9,
+    linger: 9,
+    size: 0.16
+  },
+
+  /**
+   * 強化: what red souls buy (`ui/UpgradeMenu.js`, kept in `combat/Progress.js`).
+   * `values[level - 1]` is what a level gives; `costs[level - 1]` buys the next.
+   */
+  upgrades: {
+    tracks: {
+      blade: { label: '刀 Blade', values: [1, 1.35, 1.7, 2.1], costs: [20, 50, 100] },
+      body: { label: '体 Body', values: [100, 125, 150, 180], costs: [15, 40, 80] },
+      spirit: { label: '魂 Spirit', values: [1, 1.25, 1.5, 1.8], costs: [15, 40, 80] }
+    }
+  },
+
   issen: {
     enabled: true,
     window: 0.28,

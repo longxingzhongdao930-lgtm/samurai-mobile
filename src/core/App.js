@@ -34,6 +34,12 @@ import { PlayerHud } from '../ui/PlayerHud.js';
 import { PlayerDefense } from '../combat/PlayerDefense.js';
 import { LockOn } from '../combat/LockOn.js';
 import { PvpMode } from '../net/PvpMode.js';
+import { QuadFx } from '../vfx/QuadFx.js';
+import { SwordTrail } from '../vfx/SwordTrail.js';
+import { Souls, SOUL, SOUL_COLORS } from '../combat/Souls.js';
+import { Progress } from '../combat/Progress.js';
+import { UpgradeMenu } from '../ui/UpgradeMenu.js';
+import { getColor } from '../utils/color.js';
 import { CombatAudio } from '../audio/CombatAudio.js';
 import { ShadowCharacter } from '../vfx/ShadowCharacter.js';
 import { Judgement } from '../vfx/Judgement.js';
@@ -56,7 +62,12 @@ const HDR_URL = './hdri/spruit_sunrise.hdr';
 
 /** The axis the body falls over about when it goes down — see `_updateDown`. */
 /** Keys a duel ignores: Judgement, Shadows, Flight, the studio, pause. */
-const PVP_BLOCKED = new Set(['KeyV', 'KeyC', 'KeyX', 'Tab', 'KeyP']);
+const PVP_BLOCKED = new Set(['KeyV', 'KeyC', 'KeyX', 'Tab', 'KeyP', 'KeyU']);
+const _bladeA = new Vector3();
+const _bladeB = new Vector3();
+const _chest = new Vector3();
+/** Chime pitch per soul: red, yellow, blue. */
+const SOUL_PITCH = [1, 1.26, 1.5];
 /** Nobody to shove: a PvP blow's feedback is played without a PvE attacker. */
 const PVP_NOBODY = { alive: false, staggerTime: 0, position: { x: 0, y: 0, z: 0 } };
 const _fallAxis = new Vector3();
@@ -255,6 +266,24 @@ export class App {
     // else.
     this.meleeSparks = new BladeImpact(384);
     this.scene.add(this.meleeSparks.mesh);
+
+    // The fight's own light (`vfx/QuadFx.js`, `vfx/SwordTrail.js`): flashes,
+    // 居合 cuts, rings and tells in one pool, the enemies' 妖気 in another, and
+    // the katana's afterimage. Three draw calls, sized down on a phone.
+    const vfx = settings.vfx;
+    this.fx = new QuadFx({ capacity: vfx.flashCapacity, intensity: vfx.flashIntensity, name: 'Flashes' });
+    this.miasma = new QuadFx({ capacity: vfx.miasma.capacity, intensity: vfx.miasma.intensity, name: 'Miasma' });
+    this.trail = new SwordTrail({ samples: vfx.trail.samples, subdivisions: vfx.trail.subdivisions });
+    this.scene.add(this.fx.mesh, this.miasma.mesh, this.trail.mesh);
+
+    // 魂: what the fallen give up, and what they buy (`combat/Souls.js`,
+    // `combat/Progress.js`, `ui/UpgradeMenu.js`).
+    this.souls = new Souls({ capacity: settings.souls.capacity });
+    this.scene.add(this.souls.mesh);
+    this.progress = new Progress();
+    this._issenKill = false;
+    this._chimeAt = 0;
+    this._upgradePaused = false;
     // And what it sounds like. Silent until the page is first touched.
     this.audio = new CombatAudio(this.camera);
 
@@ -397,6 +426,17 @@ export class App {
       facing: () => this.character.facing,
       camera: this.camera
     });
+    this.upgradeMenu = new UpgradeMenu({
+      progress: this.progress,
+      onClose: () => this._toggleUpgrade(false),
+      onBuy: (id) => {
+        this._applyUpgrades();
+        this.toast.show(`${settings.upgrades.tracks[id].label} Lv ${this.progress.level(id)}`, 900);
+        this.audio.chime(this.character.position, { pitch: 0.75, strength: 1 });
+      }
+    });
+    this._applyUpgrades();
+    this.playerHp = settings.combat.player.maxHp;
     this.playerHud.setHp(this.playerHp, settings.combat.player.maxHp);
     // Developer mode only (`?dev=1`). On a phone the readout and the editor
     // start put away even then: both would sit over the buttons. The Editor
@@ -424,6 +464,16 @@ export class App {
       onCastJudgement: () => this._castJudgement(),
       onFillMusou: () => {
         this.musouGauge = settings.musou.max;
+      },
+      onBossOmen: () => {
+        const p = this.character.position;
+        const f = this.character.facing;
+        this.bossOmen(p.x + Math.sin(f) * 4, p.z + Math.cos(f) * 4);
+      },
+      onAddSouls: (n) => this.progress.addSouls(n),
+      onResetProgress: () => {
+        this.progress.reset();
+        this._applyUpgrades();
       }
     });
     if (TOUCH) this.editor?.toggle();
@@ -564,7 +614,14 @@ export class App {
         case 'KeyL':
           if (!event.repeat) this._lockDownAt = performance.now();
           break;
+        case 'KeyU':
+          if (!event.repeat) this._toggleUpgrade();
+          break;
         case 'Escape':
+          if (this.upgradeMenu.visible) {
+            this._toggleUpgrade(false);
+            break;
+          }
           if (this.lockOn.active && !this.inCharacterScreen) {
             this.lockOn.release();
             break;
@@ -837,6 +894,7 @@ export class App {
     const pz = p.z - z * radius;
     const edge = config.slices === true;
     this.meleeSparks.burst(px, py, pz, x, 0.12, z, combat.sparks, (edge ? 1 : 0.55) * weight);
+    if (primary && result === 'finisher') this._iai(p, Math.atan2(x, z), 0.75);
     if (!quiet) this.audio.impact({ x: px, y: py, z: pz }, { cut: edge, strength: lethal ? weight : 0.6 });
   }
 
@@ -940,6 +998,145 @@ export class App {
   }
 
   /**
+   * 居合: a line of light through `at`, crossing the heading `facing`.
+   * `scale` 1 is the Issen's; a finisher's is shorter.
+   */
+  _iai(at, facing, scale = 1) {
+    const cfg = settings.vfx.iai;
+    const tilt = (Math.random() - 0.5) * 0.5;
+    const ax = Math.cos(facing);
+    const az = -Math.sin(facing);
+    const y = at.y + settings.enemies.height * 0.6;
+    this.fx.slash(at.x, y, at.z, ax, tilt, az, getColor(cfg.color), cfg.length * scale, cfg.width * scale, cfg.life);
+    this.fx.flare(at.x, y, at.z, getColor(cfg.color), 0.9 * scale, 0.25);
+  }
+
+  /** A body fell: its souls (not in a duel — there are no bodies there anyway). */
+  _onEnemyKilled(enemy) {
+    const cfg = settings.souls;
+    if (!cfg.enabled || this.pvp?.active) return;
+    const issen = this._issenKill;
+    const kinds = [];
+    const reds = Math.round(cfg.redPerKill * (issen ? cfg.issenBonus : 1));
+    for (let i = 0; i < reds; i++) kinds.push(SOUL.RED);
+    if (Math.random() < cfg.yellowChance) kinds.push(SOUL.YELLOW);
+    if (issen || Math.random() < cfg.blueChance) kinds.push(SOUL.BLUE);
+    const p = enemy.position;
+    this.souls.drop(p.x, p.y + settings.enemies.height * 0.55, p.z, kinds);
+  }
+
+  /** A soul reached the chest. */
+  _onSoul(kind) {
+    const cfg = settings.souls;
+    if (kind === SOUL.RED) {
+      this.progress.addSouls(cfg.redValue);
+    } else if (kind === SOUL.YELLOW) {
+      const max = settings.combat.player.maxHp;
+      this.playerHp = Math.min(max, this.playerHp + cfg.yellowHeal);
+      this.playerHud.setHp(this.playerHp, max);
+    } else {
+      this.musouGauge = Math.min(settings.musou.max, this.musouGauge + cfg.blueGauge);
+    }
+    const p = this.character.position;
+    const color = SOUL_COLORS[kind];
+    this.fx.flare(p.x, p.y + 1.1, p.z, color, 0.45, 0.22);
+    if (kind !== SOUL.RED || Math.random() < 0.35) this.fx.ring(p.x, p.y, p.z, color, 1.1, 0.35);
+    // One chime at a time: a stream of twenty souls is one run of notes, not a chord.
+    const now = performance.now();
+    if (now - this._chimeAt > 70) {
+      this._chimeAt = now;
+      this.audio.chime({ x: p.x, y: p.y + 1, z: p.z }, { pitch: SOUL_PITCH[kind] * (0.97 + Math.random() * 0.06), strength: 0.8 });
+    }
+  }
+
+  /** An enemy began a blow: its 妖気 turns red, and its eye glints as the Issen window opens. */
+  _onEnemyWindup(enemy) {
+    const lead = settings.enemyAI.telegraphTime - settings.issen.window + 0.05;
+    enemy._glintAt = this.elapsed + Math.max(0, lead);
+    const omen = settings.vfx.omen;
+    if (omen.allEnemies) {
+      this.fx.omen(enemy.position.x, enemy.position.y, enemy.position.z, getColor(omen.color), omen.radius, settings.enemyAI.telegraphTime);
+    }
+  }
+
+  /**
+   * A boss's tell (`settings.vfx.omen`): a disc of `radius` that fills for
+   * `time` seconds and flashes as the blow lands. Bosses call this; the
+   * editor can fire one in front of the player to look at it.
+   */
+  bossOmen(x, z, radius = 3.2, time = 1.2) {
+    const y = this.terrain.heightAt(x, z);
+    this.fx.omen(x, y, z, getColor(settings.vfx.omen.color), radius, time);
+    this.fx.glint(x, y + 2.2, z, getColor(settings.vfx.glint.color), 0.9, 0.45);
+  }
+
+  /** Enemies' 妖気, and the glints that were scheduled for this frame. */
+  _updateMiasma(dt, position) {
+    const cfg = settings.vfx.miasma;
+    const glint = settings.vfx.glint;
+    const range2 = cfg.range * cfg.range;
+    const height = settings.enemies.height;
+    for (const enemy of this.enemies.enemies) {
+      if (!enemy.alive) continue;
+      const p = enemy.position;
+      if (enemy._glintAt !== undefined && this.elapsed >= enemy._glintAt) {
+        enemy._glintAt = undefined;
+        if (glint.enabled && enemy.attacking) {
+          this.fx.glint(p.x, p.y + height * 0.92, p.z, getColor(glint.color), glint.size, 0.4);
+        }
+      }
+      if (!cfg.enabled) continue;
+      const dx = p.x - position.x;
+      const dz = p.z - position.z;
+      if (dx * dx + dz * dz > range2) continue;
+      const winding = enemy.attacking;
+      enemy._miasma = (enemy._miasma ?? Math.random()) + (winding ? cfg.windupRate : cfg.rate) * dt;
+      const color = getColor(winding ? cfg.windupColor : cfg.color);
+      while (enemy._miasma >= 1) {
+        enemy._miasma -= 1;
+        const a = Math.random() * Math.PI * 2;
+        const r = 0.15 + Math.random() * 0.25;
+        this.miasma.puff(
+          p.x + Math.sin(a) * r,
+          p.y + 0.2 + Math.random() * height * 0.8,
+          p.z + Math.cos(a) * r,
+          0,
+          cfg.rise * (0.7 + Math.random() * 0.6),
+          0,
+          color,
+          cfg.size * (0.7 + Math.random() * 0.6),
+          cfg.life * (0.8 + Math.random() * 0.4)
+        );
+      }
+    }
+  }
+
+  /** Open or close 強化; the world holds still while it is up. */
+  _toggleUpgrade(open = !this.upgradeMenu.visible) {
+    if (open === this.upgradeMenu.visible) return;
+    if (open) {
+      if (this.pvp?.active || this.playerDown || this.inCharacterScreen) return;
+      this._upgradePaused = this.paused;
+      this.paused = true;
+      this.upgradeMenu.open();
+    } else {
+      this.upgradeMenu.hide();
+      this.paused = this._upgradePaused;
+    }
+  }
+
+  /** The body upgrade is the health ceiling: raise it, and what is left with it. */
+  _applyUpgrades() {
+    const hp = settings.combat.player;
+    const max = this.progress.value('body');
+    if (max !== hp.maxHp) {
+      this.playerHp = Math.max(1, this.playerHp + (max - hp.maxHp));
+      hp.maxHp = max;
+      this.playerHud.setHp(this.playerHp, max);
+    }
+  }
+
+  /**
    * 一閃: the blow arrives while a swing of the player's own began no more than
    * `issen.window` seconds ago, at a body in front and in reach. The enemy falls
    * to one stroke and the blow never lands.
@@ -965,8 +1162,13 @@ export class App {
     const ux = -x;
     const uz = -z;
     const force = { ...settings.kick, damage: 1e6, slices: true, ...{ hitStop: cfg.hitStop, hitStopScale: cfg.hitStopScale, shake: cfg.shake } };
+    this._issenKill = true;
     const result = this.enemies.hit(enemy, ux, uz, force);
+    this._issenKill = false;
     this._impact(enemy, ux, uz, force, result ?? 'finisher', true);
+    // 居合: a line of light straight through the body, across the cut.
+    this._iai(enemy.position, f, 1.25);
+    this.meleeSparks.burst(enemy.position.x, p.y + 1.1, enemy.position.z, ux, 0.2, uz, settings.combat.sparks, 1.6);
     this._hitStop = Math.max(this._hitStop, cfg.hitStop);
     this._hitStopScale = cfg.hitStopScale;
     this._hitRelease = 0;
@@ -1028,6 +1230,9 @@ export class App {
     if (enemy.alive) enemy.staggerTime = Math.max(enemy.staggerTime, d.parryStagger);
     if (enemy.takePosture?.(settings.posture.parryDamage)) this._postureBroke(enemy);
     this.meleeSparks.burst(px, y, pz, -x, 0.3, -z, settings.combat.sparks, 1.5);
+    const parryColor = getColor(settings.vfx.parry.color);
+    this.fx.flare(px, y, pz, parryColor, settings.vfx.parry.size, 0.3);
+    this.fx.ring(p.x, p.y, p.z, parryColor, 1.9, 0.38);
     this.musouShock.burst(px, pz, settings.musou.shock, 0.25);
     this.audio.clang({ x: px, y, z: pz }, { bright: true, strength: 1.2 });
     this.rig.shake(0.12);
@@ -1057,8 +1262,15 @@ export class App {
    * `counterDamage` more, and the window is spent by the first one that lands.
    */
   _counterForce(config) {
-    if (!(this.defense.counter > 0)) return config;
-    return { ...config, damage: (config.damage ?? 1) + settings.defense.counterDamage };
+    // The blade's upgrade (never in a duel: the server's numbers are the numbers).
+    const blade = this.pvp?.active ? 1 : this.progress.value('blade');
+    const counter = this.defense.counter > 0 ? settings.defense.counterDamage : 0;
+    if (blade === 1 && !counter) return config;
+    return {
+      ...config,
+      damage: (config.damage ?? 1) * blade + counter,
+      postureDamage: (config.postureDamage ?? settings.posture.hitDamage) * blade
+    };
   }
 
   /** A blow that got through, scaled by what the guard took off it. */
@@ -1136,6 +1348,7 @@ export class App {
     this.character.tilt.position.set(0, 0, 0);
     this.musouGauge = 0;
     this.defense.reset();
+    this.souls.clear();
     this.enemies.respawnAll();
     this.toast.show('Again');
   }
@@ -1159,6 +1372,8 @@ export class App {
   /** Into a room: the arena up, the crowd away, the body on its feet. */
   _pvpEnter() {
     this.arenaHeld = true;
+    this.souls.clear();
+    this._toggleUpgrade(false);
     this.lockOn.release();
     if (this.character.flight?.active) this._toggleFlight();
     this._pvpRevive();
@@ -1295,7 +1510,8 @@ export class App {
   _feedMusou(lethal) {
     const config = settings.musou;
     if (this.character.musou?.some((move) => move.locked)) return;
-    this.musouGauge = Math.min(config.max, this.musouGauge + config.perHit + (lethal ? config.perKill : 0));
+    const spirit = this.pvp?.active ? 1 : this.progress.value('spirit');
+    this.musouGauge = Math.min(config.max, this.musouGauge + (config.perHit + (lethal ? config.perKill : 0)) * spirit);
   }
 
   /**
@@ -1671,6 +1887,8 @@ export class App {
       attacks: { kick: clips.get('kick'), slashHit: clips.get('slashHit') }
     });
     this.enemies.onPlayerHit = (enemy, x, z) => this._onPlayerHit(enemy, x, z);
+    this.enemies.onKill = (enemy) => this._onEnemyKilled(enemy);
+    this.enemies.onWindup = (enemy) => this._onEnemyWindup(enemy);
     this.defense.bind();
     // The duel: its button, its room panel, the opponent's body. After the
     // character has loaded, because the opponent is a clone of it.
@@ -1848,6 +2066,8 @@ export class App {
     // Before the controller: a blow lands inside it, and its sparks must be
     // stamped with this frame's clock.
     this.meleeSparks.sync(this.elapsed, settings.combat.sparks);
+    this.fx.sync(this.elapsed, settings.vfx.flashIntensity);
+    this.miasma.sync(this.elapsed, settings.vfx.miasma.intensity);
     this.musouDust.sync(this.elapsed, settings.judgement.dust);
     this.musouShock.update(dt, settings.musou.shock);
     this.comboCounter.update(raw);
@@ -1920,6 +2140,17 @@ export class App {
     // After them, so a body that has just been felled or has just walked out of
     // the cone loses its ring on the same frame it stops being a target.
     this._updateTargetRings(dt, position);
+    this._updateMiasma(dt, position);
+    _chest.set(position.x, position.y + this.character.height * 0.6, position.z);
+    this.souls.update(
+      dt,
+      _chest,
+      this.input.pressed.has('KeyZ'),
+      settings.souls,
+      (kind) => this._onSoul(kind),
+      !this.playerDown && !this.pvp?.active
+    );
+    this.playerHud.setSouls(this.progress.souls);
     // And who the shadows would be sent at. After the bodies for the same
     // reason: a marked body felled this frame drops its mark on this frame.
     this._updateMarks(dt, position);
@@ -1930,6 +2161,13 @@ export class App {
     // the editor may have just re-normalised.
     this.characterScreen?.equipment.update();
     this.weaponFire?.update(dt, this.scene);
+    {
+      // 残光: after the gear has its final pose for the frame.
+      const c = this.character;
+      const blade = this.weaponFire?.bladeSegment(_bladeA, _bladeB);
+      const swinging = (c.moves ?? []).some((move) => move.locked);
+      this.trail.update(dt, this.elapsed, swinging, blade ? _bladeA : null, blade ? _bladeB : null, settings.vfx.trail);
+    }
     // Last of the body's followers: the mounts have their final scale and the
     // skeleton its final pose, which is exactly what a shadow steps out of. On
     // the *simulation's* clock, not the real one — a summon that is out there
@@ -2003,6 +2241,11 @@ export class App {
     this._parryFlash.remove();
     this.lockOn.dispose();
     this.pvp?.dispose();
+    this.fx.dispose();
+    this.miasma.dispose();
+    this.trail.dispose();
+    this.souls.dispose();
+    this.upgradeMenu.dispose();
     window.removeEventListener('keyup', this._onKeyUp);
     this.playerHud.dispose();
     this.weaponFire?.dispose();

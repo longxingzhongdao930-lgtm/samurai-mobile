@@ -2211,3 +2211,107 @@ html.touch-ui .pvp-hud {
 html:not(.dev) .hint__dev {
   display: none;
 }
+
+/* Red souls in hand, beside the health. */
+.hp__souls {
+  margin-left: 0.6rem;
+  color: #ff7a5c;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+/* 強化 — the upgrade panel, in the PvP panel's lacquer. */
+.upg {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1200;
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 1.5rem);
+  overflow-y: auto;
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid rgba(217, 178, 106, 0.45);
+  border-radius: 0.8rem;
+  background: rgba(10, 9, 8, 0.94);
+  color: var(--washi);
+  font-size: 0.85rem;
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.6);
+}
+
+.upg[hidden] {
+  display: none !important;
+}
+
+.upg__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.upg__title {
+  color: var(--gold);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.upg__wallet {
+  margin: 0.4rem 0 0.6rem;
+  color: #ff7a5c;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.upg__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.upg__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.upg__name {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.upg__name span {
+  opacity: 0.75;
+  font-size: 0.75rem;
+}
+
+.upg__btn {
+  min-height: 44px;
+  min-width: 5.5rem;
+  padding: 0 0.8rem;
+  border: 1px solid rgba(217, 178, 106, 0.6);
+  border-radius: 0.45rem;
+  background: linear-gradient(#2a1d14, #17120f);
+  color: var(--gold);
+  font: 600 0.8rem/1 inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.upg__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.upg__btn--ghost {
+  min-width: 44px;
+  min-height: 36px;
+  background: transparent;
+  border-color: rgba(217, 178, 106, 0.25);
+  color: var(--washi);
+  font-size: 1.1rem;
+}

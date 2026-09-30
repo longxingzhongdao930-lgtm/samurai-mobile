@@ -541,6 +541,7 @@ export class EnemyManager {
     if (!enemy?.alive) return false;
     if (!enemy.die(x, z, force, force.slices === true)) return false;
     this.kills++;
+    this.onKill?.(enemy);
     return true;
   }
 
@@ -579,6 +580,7 @@ export class EnemyManager {
     }
     if (result !== 'kill') return result;
     this.kills++;
+    this.onKill?.(enemy);
     return reeling || broken ? 'finisher' : 'kill';
   }
 

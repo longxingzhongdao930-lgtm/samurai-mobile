@@ -715,6 +715,7 @@ export class Enemy {
     s.state = 'windup';
     s.t = 0;
     s.struck = false;
+    this.director?.onWindup?.(this);
   }
 
   /**

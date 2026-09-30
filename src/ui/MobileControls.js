@@ -41,7 +41,10 @@ const UTILITIES = [
   // The editor exists in developer mode only (`?dev=1`).
   ...(isDevMode() ? [{ id: 'editor', label: 'Editor', code: 'KeyG', glyph: '⚙' }] : []),
   // Tap: lock / next. Hold: let go (decided by the app on release).
-  { id: 'lock', label: 'Lock', code: 'KeyL', glyph: '◎' }
+  { id: 'lock', label: 'Lock', code: 'KeyL', glyph: '◎' },
+  // Hold: pull every soul in reach. Tap: the upgrades.
+  { id: 'absorb', label: '吸魂', code: 'KeyZ', glyph: '魂' },
+  { id: 'upgrade', label: '強化', code: 'KeyU', glyph: '強' }
 ];
 
 /**

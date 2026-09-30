@@ -248,6 +248,34 @@ export class CombatAudio {
     }
   }
 
+  /**
+   * A soul taken in: a short glassy chime that rises a little. `pitch` sets
+   * the colour of it (red, yellow and blue ring at different notes).
+   */
+  chime(point, { pitch = 1, strength = 1 } = {}) {
+    if (!this._ready) return;
+    const context = this.context;
+    const now = context.currentTime;
+    const s = Math.max(0.2, Math.min(1.2, strength));
+    const out = this._voice(point, 0.35 * s, now + 0.6);
+    const base = 880 * pitch;
+    for (const [ratio, level, ring] of [
+      [1, 0.14, 0.35],
+      [2.01, 0.07, 0.22],
+      [3.02, 0.03, 0.14]
+    ]) {
+      const partial = context.createOscillator();
+      partial.type = 'sine';
+      partial.frequency.setValueAtTime(base * ratio, now);
+      partial.frequency.exponentialRampToValueAtTime(base * ratio * 1.12, now + 0.12);
+      const gain = context.createGain();
+      envelope(gain.gain, now, 0.002, 0.01, ring, level * s);
+      partial.connect(gain).connect(out);
+      partial.start(now);
+      partial.stop(now + ring + 0.05);
+    }
+  }
+
   /* ------------------------------------------------------------------ */
   /* plumbing                                                            */
   /* ------------------------------------------------------------------ */

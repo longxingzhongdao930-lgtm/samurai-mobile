@@ -59,6 +59,8 @@ import { TargetHotkeys } from '../ui/TargetHotkeys.js';
 import { MobileControls } from '../ui/MobileControls.js';
 import { prefersTouchLayout, isDevMode } from '../utils/device.js';
 import { save } from './SaveStore.js';
+import { Haptics } from './Haptics.js';
+import { GamepadInput } from './GamepadInput.js';
 
 import { settings } from '../config/settings.js';
 
@@ -76,7 +78,17 @@ const SOUL_PITCH = [1, 1.26, 1.5];
 const PVP_NOBODY = { alive: false, staggerTime: 0, position: { x: 0, y: 0, z: 0 } };
 const _fallAxis = new Vector3();
 /** The settings screen's defaults — what a fresh save (or 「セーブ削除」) starts from. */
-const DEFAULT_PREFS = { volume: 0.8, sfx: 1, music: 0.55, quality: 'auto', sensitivity: 1 };
+const DEFAULT_PREFS = { volume: 0.8, sfx: 1, music: 0.55, quality: 'auto', sensitivity: 1, difficulty: 'normal', vibration: true };
+/**
+ * 難易度: what each one scales — the blow an enemy lands, how long a parry
+ * stays open, the gaps between swings and how many swing at once, the
+ * wind-up, and 羅刹's health. Never in a duel (the server's numbers rule there).
+ */
+const DIFFICULTY = {
+  easy: { damage: 0.6, parry: 1.6, cooldown: 1.35, attackers: -1, telegraph: 1.25, bossHp: 0.75 },
+  normal: { damage: 1, parry: 1, cooldown: 1, attackers: 0, telegraph: 1, bossHp: 1 },
+  hard: { damage: 1.5, parry: 0.75, cooldown: 0.75, attackers: 1, telegraph: 0.85, bossHp: 1.3 }
+};
 
 /**
  * The words the toasts use for a gesture and for the keys they name, so a line
@@ -286,7 +298,7 @@ export class App {
     this.scene.add(this.projectiles.mesh);
     this.progress = new Progress();
     /** What the player has done, counted — the lesson (`world/Tutorial.js`) reads it. */
-    this.counters = { hits: 0, parry: 0, execution: 0, shukuchi: 0 };
+    this.counters = { hits: 0, parry: 0, execution: 0, shukuchi: 0, issen: 0, damage: 0, downs: 0 };
     this._issenKill = false;
     this._chimeAt = 0;
     this._upgradePaused = false;
@@ -356,6 +368,15 @@ export class App {
     this._baseShadowMap = settings.environment.shadowMapSize;
     this._baseSensitivity = settings.camera.sensitivity;
     this.save = save;
+    this.haptics = new Haptics();
+    // A pad, if one is plugged in: its buttons are keys, its sticks the stick
+    // and the lens (`core/GamepadInput.js`).
+    this.gamepad = new GamepadInput({
+      input: this.input,
+      rig: this.rig,
+      sensitivity: () => this.prefs?.sensitivity ?? 1,
+      onConnect: () => this.toast.show('ゲームパッド接続 — Aで攻撃 · Startで一時停止', 1800)
+    });
     this._applyPrefs();
     this.playerHp = settings.combat.player.maxHp;
     this.playerHud.setHp(this.playerHp, settings.combat.player.maxHp);
@@ -458,7 +479,16 @@ export class App {
 
       // The title is up: it takes the clicks, the game takes no keys — only the
       // developer's two (editor, frame readout, `?dev=1`).
-      if (this.title?.visible && event.code !== 'KeyG' && event.code !== 'KeyF') return;
+      if (this.title?.visible) {
+        // The pause menu closes on the key that opened it, and on Escape.
+        if (this.title.mode === 'pause' && !event.repeat && (event.code === 'KeyP' || event.code === 'Escape')) {
+          event.preventDefault();
+          if (this.title.current === 'pause') this._closePause();
+          else this.title.view('pause');
+          return;
+        }
+        if (event.code !== 'KeyG' && event.code !== 'KeyF') return;
+      }
 
       // Down: Enter retries once it is offered; only the window's own keys
       // (pause, editor, stats) still do anything.
@@ -476,8 +506,7 @@ export class App {
 
       switch (event.code) {
         case 'KeyP':
-          this.paused = !this.paused;
-          this.toast.show(this.paused ? (DEV ? '一時停止 — エディタは有効' : '一時停止') : '再開');
+          if (!event.repeat) this._openPause();
           break;
         case 'KeyG':
           this.editor?.toggle();
@@ -522,6 +551,12 @@ export class App {
         case 'Escape':
           if (this.upgradeMenu.visible) {
             this._toggleUpgrade(false);
+            break;
+          }
+          // Escape with nothing else to close is the pause menu (a captured
+          // mouse is let go by the browser first, so this is the second press).
+          if (!this.lockOn.active && !this.inCharacterScreen && !event.repeat) {
+            this._openPause();
             break;
           }
           if (this.lockOn.active && !this.inCharacterScreen) {
@@ -1011,6 +1046,75 @@ export class App {
 
     settings.camera.sensitivity = this._baseSensitivity * prefs.sensitivity;
     this.rig.controls.rotateSpeed = 0.65 * prefs.sensitivity;
+    this.haptics.enabled = prefs.vibration !== false;
+    this._applyDifficulty();
+  }
+
+  /** 難易度 into the numbers it scales — or the plain ones, in a duel. */
+  _applyDifficulty() {
+    if (!this._baseDifficulty) {
+      const d = settings.defense;
+      const ai = settings.enemyAI;
+      this._baseDifficulty = {
+        damage: settings.combat.player.damage,
+        parryWindow: d.parryWindow,
+        cooldownMin: ai.cooldownMin,
+        cooldownMax: ai.cooldownMax,
+        maxAttackers: ai.maxAttackers,
+        telegraphTime: ai.telegraphTime
+      };
+    }
+    const base = this._baseDifficulty;
+    const id = this.pvp?.active ? 'normal' : this.prefs?.difficulty ?? 'normal';
+    const k = DIFFICULTY[id] ?? DIFFICULTY.normal;
+    this.difficulty = { id, ...k };
+    settings.combat.player.damage = base.damage * k.damage;
+    settings.defense.parryWindow = base.parryWindow * k.parry;
+    settings.enemyAI.cooldownMin = base.cooldownMin * k.cooldown;
+    settings.enemyAI.cooldownMax = base.cooldownMax * k.cooldown;
+    settings.enemyAI.maxAttackers = Math.max(1, base.maxAttackers + k.attackers);
+    settings.enemyAI.telegraphTime = base.telegraphTime * k.telegraph;
+  }
+
+  /* ---- 一時停止 — the pause menu (the title sheet in its pause mode) ---- */
+
+  _openPause() {
+    if (this.title?.visible || this.pvp?.active || this.playerDown || this.inCharacterScreen) return;
+    if (this.upgradeMenu.visible) this._toggleUpgrade(false);
+    const stage = this.stage;
+    let where = '自由戦闘';
+    let restart = null;
+    if (stage?.active) {
+      where = `一ノ章 · ${stage.objective.textContent.replace(/^目的 · /, '')}`;
+      restart = stage.checkpoint === 'save' ? '鏡から再開' : '門からやり直す';
+    }
+    where += ` · ${{ easy: '易', normal: '普', hard: '難' }[this.difficulty?.id] ?? '普'}`;
+    this.paused = true;
+    this.pointerLook?.release();
+    this.title.showPause({ where, restart });
+  }
+
+  _closePause() {
+    if (!this.title?.visible || this.title.mode !== 'pause') return;
+    this.title.hide();
+    this.paused = false;
+  }
+
+  /** 鏡から再開: the last checkpoint, whole again (the gate, if no mirror yet). */
+  _restartFromCheckpoint() {
+    this._closePause();
+    const stage = this.stage;
+    if (!stage?.active) return;
+    if (stage.checkpoint === 'save') {
+      this.souls.clear();
+      this.projectiles.clear();
+      this.execution?.reset();
+      this.arts?.reset();
+      stage.retry();
+      this.toast.show('鏡より再開', 1200);
+    } else {
+      stage.start({ tutorial: false });
+    }
   }
 
   /** 「セーブ削除」: souls, upgrades, the stage record and the settings. */
@@ -1107,6 +1211,8 @@ export class App {
     void flash.offsetWidth;
     flash.classList.add('is-on');
     this.toast.show(this._issenChain > 1 ? `一閃 ×${this._issenChain}` : '一閃', 1100);
+    this.counters.issen++;
+    this.haptics.pulse([25, 30, 25]);
     this._invuln = Math.max(this._invuln, 0.3);
     return true;
   }
@@ -1158,6 +1264,7 @@ export class App {
     // Reeling from the parry: open to an execution for as long as it reels.
     if (enemy.alive) enemy._parriedUntil = this.elapsed + d.parryStagger;
     this.counters.parry++;
+    this.haptics.pulse([30]);
     if (enemy.takePosture?.(settings.posture.parryDamage * (enemy.kindCfg?.parryPosture ?? 1))) this._postureBroke(enemy);
     this.meleeSparks.burst(px, y, pz, -x, 0.3, -z, settings.combat.sparks, 1.5);
     const parryColor = getColor(settings.vfx.parry.color);
@@ -1223,7 +1330,10 @@ export class App {
 
     // And now it costs something.
     const hp = settings.combat.player;
-    this.playerHp = Math.max(0, this.playerHp - hp.damage * scale * (kind?.damage ?? 1));
+    const lost = Math.min(this.playerHp, hp.damage * scale * (kind?.damage ?? 1));
+    this.playerHp -= lost;
+    this.counters.damage += lost;
+    this.haptics.pulse(this.playerHp <= 0 ? [80, 40, 120] : [55]);
     this._invuln = hp.invulnerable;
     this.playerHud.setHp(this.playerHp, hp.maxHp);
     if (this.playerHp <= 0) this._down(x, z);
@@ -1237,6 +1347,7 @@ export class App {
   _down() {
     if (this.playerDown) return;
     this.playerDown = true;
+    this.counters.downs++;
     this._downT = 0;
     this.controller.frozen = true;
     this.character.jump?.cancel();
@@ -1306,7 +1417,8 @@ export class App {
 
   /** Into a room: the arena up, the crowd away, the body on its feet. */
   _pvpEnter() {
-    this.stage?.leave();
+    this.stage?.leave(false);
+    this._applyDifficulty();
     this.arenaHeld = true;
     this.souls.clear();
     this.execution?.reset();
@@ -1319,6 +1431,9 @@ export class App {
   /** Out of it: the practice world back exactly as it was. */
   _pvpExit() {
     this.arenaHeld = false;
+    // The duel is over: back to the chosen 難易度 (`pvp.active` is still set
+    // while this runs, so the numbers are put back a beat later).
+    setTimeout(() => this._applyDifficulty(), 0);
     this.lockOn.release();
     this._pvpRevive();
     const hp = settings.combat.player;
@@ -1603,7 +1718,7 @@ export class App {
     const stage = this.stage;
     const boss = stage?.boss;
     let piece = 'field';
-    if (this.title?.visible) piece = 'title';
+    if (this.title?.atTitle) piece = 'title';
     else if (stage?.step === 'clear') piece = 'clear';
     else if (stage?.step === 'boss' && boss && !boss.defeated) piece = 'boss';
     music.play(piece);
@@ -1621,7 +1736,7 @@ export class App {
       }
     }
     music.intensity = Math.min(1, near / 3);
-    const duck = this.playerDown ? 0.35 : this.paused && !this.title?.visible ? 0.5 : 1;
+    const duck = this.playerDown ? 0.35 : this.paused && !this.title?.atTitle ? 0.5 : 1;
     if (duck !== this._musicDuck) {
       this._musicDuck = duck;
       music.duck(duck);
@@ -1799,7 +1914,14 @@ export class App {
       prefs: () => this.prefs,
       onPrefs: (patch) => this._applyPrefs(patch),
       onErase: () => this._eraseSave(),
-      onSound: () => this.audio.ui()
+      onSound: () => this.audio.ui(),
+      onResume: () => this._closePause(),
+      onRestart: () => this._restartFromCheckpoint(),
+      onQuit: () => {
+        this._closePause();
+        if (this.stage?.active) this.stage.leave();
+        else this._openTitle();
+      }
     });
     this.stage.onTitle = () => this._openTitle();
     const query = new URLSearchParams(location.search);
@@ -1907,6 +2029,7 @@ export class App {
     gl.info.reset();
 
     const raw = this.time.tick();
+    this.gamepad.update(raw);
     // The impact freeze, spent in *real* time so it lasts as long on any frame
     // rate, and applied as a scale so everything slows together (see `_hitStop`).
     let scale = settings.global.timeScale;
@@ -2140,6 +2263,7 @@ export class App {
     this.blood.dispose();
     this.meleeSparks.dispose();
     this.music.dispose();
+    this.gamepad.dispose();
     this.audio.dispose();
     this.musouShock.dispose();
     this.musouDust.dispose();

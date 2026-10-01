@@ -1,21 +1,27 @@
 import { prefersTouchLayout } from '../utils/device.js';
 
-/** The controls, as the sheet lists them: [what, PC, phone]. */
+/** The controls, as the sheet lists them: [what, PC, phone, gamepad]. */
 const CONTROLS = [
-  ['移動', 'WASD（Shiftで走る）', '左スティック'],
-  ['視点', 'クリックで取り込み → マウス（Escで解除）', '画面をドラッグ'],
-  ['攻撃（5段連撃）', '左クリック / J', '攻'],
-  ['ガード', '右クリック長押し / K', 'Guard 長押し'],
-  ['パリィ', '敵の攻撃の直前にガードを上げる', '同左'],
-  ['処刑', '「処刑」表示中に攻撃（パリィ直後・体勢崩れ）', '攻ボタンが赤く光ったら攻'],
-  ['一閃', '敵の目が光った瞬間に攻撃', '同左'],
-  ['蹴り（盾崩し）', 'E', 'Kick'],
-  ['跳躍', 'Space', 'Leap'],
-  ['飛燕 / 居合', 'B（長押しで居合）', '飛燕（長押しで居合）'],
-  ['影走り / 雷切 / 縮地', 'V / C / X', '各ボタン'],
-  ['無双', 'Q（ゲージ満タン）', '無双'],
-  ['ロックオン', 'L（長押しで解除）', 'Lock'],
-  ['魂を吸う / 強化', 'Z長押し / U', '吸魂 / 強化']
+  ['移動', 'WASD（Shiftで走る）', '左スティック', '左スティック'],
+  ['視点', 'クリックで取り込み → マウス（Escで解除）', '画面をドラッグ', '右スティック'],
+  ['攻撃（5段連撃）', '左クリック / J', '攻', 'A'],
+  ['ガード', '右クリック長押し / K', 'Guard 長押し', 'RB 長押し'],
+  ['パリィ', '敵の攻撃の直前にガードを上げる', '同左', '同左'],
+  ['処刑', '「処刑」表示中に攻撃（パリィ直後・体勢崩れ）', '攻ボタンが赤く光ったら攻', 'A'],
+  ['一閃', '敵の目が光った瞬間に攻撃', '同左', 'A'],
+  ['蹴り（盾崩し）', 'E', 'Kick', 'X'],
+  ['跳躍', 'Space', 'Leap', 'B'],
+  ['飛燕 / 居合', 'B（長押しで居合）', '飛燕（長押しで居合）', 'Y（長押しで居合）'],
+  ['影走り / 雷切 / 縮地', 'V / C / X', '各ボタン', '← / ↑ / R3'],
+  ['無双', 'Q（ゲージ満タン）', '無双', 'RT'],
+  ['ロックオン', 'L（長押しで解除）', 'Lock', 'LB（長押しで解除）'],
+  ['魂を吸う / 強化', 'Z長押し / U', '吸魂 / 強化', 'LT 長押し / Back']
+];
+
+const DIFFICULTIES = [
+  ['easy', '易'],
+  ['normal', '普'],
+  ['hard', '難']
 ];
 
 const QUALITIES = [
@@ -36,6 +42,10 @@ const time = (secs) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2,
  *   settings 音量 (全体 / 効果音 / BGM), 画質, 視点感度, セーブ削除
  *   controls the sheet, for the device in hand
  *
+ * The same sheet is the in-game pause menu (`showPause`): its own first card
+ * (再開 · 設定 · 操作説明 · 鏡から再開 · タイトルへ) over the same settings
+ * and controls panels, whose 戻る then leads back to it.
+ *
  * Plain DOM over the (paused) world; every button is at least 44px for a
  * thumb. It decides nothing — each choice calls a hook on the app.
  */
@@ -51,6 +61,9 @@ export class TitleScreen {
    * @param {(prefs: object) => void} hooks.onPrefs a setting changed
    * @param {() => void} hooks.onErase erase the save
    * @param {() => void} [hooks.onSound] a button was pressed
+   * @param {() => void} [hooks.onResume] pause: back to the game
+   * @param {() => void} [hooks.onRestart] pause: back to the mirror (or the gate)
+   * @param {() => void} [hooks.onQuit] pause: to the title
    */
   constructor(hooks) {
     this.hooks = hooks;
@@ -72,8 +85,20 @@ export class TitleScreen {
           <button type="button" data-act="controls">操作説明</button>
         </div>
       </div>
+      <div class="title__panel title__pause" data-view="pause" hidden>
+        <p class="title__panel-head">一時停止</p>
+        <p class="title__stage-record title__pause-where"></p>
+        <button type="button" data-act="resume-game" class="is-primary">再開</button>
+        <button type="button" data-act="settings">設定</button>
+        <button type="button" data-act="controls">操作説明</button>
+        <button type="button" data-act="restart">鏡から再開</button>
+        <button type="button" data-act="quit">タイトルへ</button>
+      </div>
       <div class="title__panel" data-view="select" hidden>
         <p class="title__panel-head">出陣</p>
+        <div class="title__field"><span>難易度</span><div class="title__seg" role="radiogroup">
+          ${DIFFICULTIES.map(([id, label]) => `<button type="button" role="radio" data-difficulty="${id}">${label}</button>`).join('')}
+        </div></div>
         <section class="title__stage">
           <p class="title__stage-name">一ノ章 <b>鬼武将 羅刹</b></p>
           <p class="title__stage-text">門を越え、広場の敵を斬り、鏡で記録し、羅刹を討て。</p>
@@ -96,17 +121,23 @@ export class TitleScreen {
         <label class="title__field"><span>全体音量</span><input type="range" min="0" max="1" step="0.05" data-pref="volume"></label>
         <label class="title__field"><span>効果音</span><input type="range" min="0" max="1" step="0.05" data-pref="sfx"></label>
         <label class="title__field"><span>BGM</span><input type="range" min="0" max="1" step="0.05" data-pref="music"></label>
+        <div class="title__field"><span>難易度</span><div class="title__seg" role="radiogroup">
+          ${DIFFICULTIES.map(([id, label]) => `<button type="button" role="radio" data-difficulty="${id}">${label}</button>`).join('')}
+        </div></div>
         <div class="title__field"><span>画質</span><div class="title__seg" role="radiogroup">
           ${QUALITIES.map(([id, label]) => `<button type="button" role="radio" data-quality="${id}">${label}</button>`).join('')}
         </div></div>
         <label class="title__field"><span>視点感度</span><input type="range" min="0.4" max="2" step="0.1" data-pref="sensitivity"></label>
+        <label class="title__field title__check"><span>振動</span><input type="checkbox" data-pref-bool="vibration"><i>パリィ・被弾・処刑で振動（対応端末）</i></label>
         <p class="title__hint">画質「自動」は動作の重さに合わせて解像度を調整します。</p>
         <button type="button" data-act="erase" class="title__danger">セーブ削除</button>
         <button type="button" data-act="back" class="title__back">戻る</button>
       </div>
       <div class="title__panel title__controls" data-view="controls" hidden>
         <p class="title__panel-head">操作説明 · ${touch ? 'スマホ' : 'PC'}</p>
-        <table>${CONTROLS.map(([what, pc, phone]) => `<tr><td>${what}</td><td>${touch ? phone : pc}</td></tr>`).join('')}</table>
+        <table>${touch ? '' : '<tr><th></th><th>キーボード / マウス</th><th>パッド</th></tr>'}${CONTROLS.map(
+          ([what, pc, phone, pad]) => `<tr><td>${what}</td><td>${touch ? phone : pc}</td>${touch ? '' : `<td>${pad}</td>`}</tr>`
+        ).join('')}</table>
         <button type="button" data-act="back" class="title__back">戻る</button>
       </div>`;
     this.views = [...this.root.querySelectorAll('[data-view]')];
@@ -114,16 +145,22 @@ export class TitleScreen {
     this.stageRecord = this.root.querySelector('.title__stage-record');
     this.resumeBtn = this.root.querySelector('[data-act="resume"]');
     this.eraseBtn = this.root.querySelector('[data-act="erase"]');
+    this.restartBtn = this.root.querySelector('[data-act="restart"]');
+    this.pauseWhere = this.root.querySelector('.title__pause-where');
+    /** 'title' or 'pause' — which first card the panels lead back to. */
+    this.mode = 'title';
 
     this.root.addEventListener('click', (e) => {
       const button = e.target.closest?.('button');
       if (!button) return;
       const act = button.dataset.act;
       const quality = button.dataset.quality;
-      if (act || quality) hooks.onSound?.();
-      if (quality) {
-        hooks.onPrefs({ quality });
+      const difficulty = button.dataset.difficulty;
+      if (act || quality || difficulty) hooks.onSound?.();
+      if (quality || difficulty) {
+        hooks.onPrefs(quality ? { quality } : { difficulty });
         this._syncPrefs();
+        this._fillRecord();
         return;
       }
       if (act === 'resume') hooks.onStage({ resume: true });
@@ -133,12 +170,22 @@ export class TitleScreen {
       else if (act === 'pvp') hooks.onPvp();
       else if (act === 'upgrade') hooks.onUpgrade();
       else if (act === 'select' || act === 'settings' || act === 'controls') this.view(act);
-      else if (act === 'back') this.view('main');
+      else if (act === 'back') this.view(this.mode === 'pause' ? 'pause' : 'main');
       else if (act === 'erase') this._erase();
+      else if (act === 'resume-game') hooks.onResume?.();
+      else if (act === 'restart') hooks.onRestart?.();
+      else if (act === 'quit') hooks.onQuit?.();
     });
     this.root.addEventListener('input', (e) => {
       const key = e.target?.dataset?.pref;
       if (key) hooks.onPrefs({ [key]: Number(e.target.value) });
+    });
+    this.root.addEventListener('change', (e) => {
+      const key = e.target?.dataset?.prefBool;
+      if (key) {
+        hooks.onPrefs({ [key]: !!e.target.checked });
+        hooks.onSound?.();
+      }
     });
     document.body.appendChild(this.root);
   }
@@ -153,10 +200,31 @@ export class TitleScreen {
   }
 
   show() {
+    this.mode = 'title';
     this._fillRecord();
     this.view('main');
     this.root.hidden = false;
     document.body.classList.add('title-open');
+  }
+
+  /**
+   * The pause menu.
+   * @param {{where: string, restart: string|null}} options what the line under
+   *   the head says, and the restart button's label (null hides it)
+   */
+  showPause({ where = '', restart = null } = {}) {
+    this.mode = 'pause';
+    this.pauseWhere.textContent = where;
+    this.restartBtn.hidden = !restart;
+    if (restart) this.restartBtn.textContent = restart;
+    this.view('pause');
+    this.root.hidden = false;
+    document.body.classList.add('title-open');
+  }
+
+  /** The title proper (not the pause menu) is up. */
+  get atTitle() {
+    return this.visible && this.mode === 'title';
   }
 
   hide() {
@@ -167,7 +235,7 @@ export class TitleScreen {
 
   view(name) {
     for (const v of this.views) v.hidden = v.dataset.view !== name;
-    if (name === 'settings') this._syncPrefs();
+    if (name === 'settings' || name === 'select') this._syncPrefs();
     this._armed = false;
     this.eraseBtn.textContent = 'セーブ削除';
   }
@@ -175,9 +243,13 @@ export class TitleScreen {
   _fillRecord() {
     const r = this.hooks.record?.() ?? {};
     const best = r.best != null ? ` · 最速 ${time(r.best)}` : '';
-    this.record.textContent = `一ノ章 — ${r.cleared ? '討伐済' : '未踏破'}${best}`;
+    const diff = this.hooks.prefs?.().difficulty ?? 'normal';
+    const rank = r.ranks?.[diff];
+    const label = DIFFICULTIES.find(([id]) => id === diff)?.[1] ?? '普';
+    const rankText = rank ? ` · 最高評価 ${rank}（${label}）` : '';
+    this.record.textContent = `一ノ章 — ${r.cleared ? '討伐済' : '未踏破'}${best}${rankText}`;
     this.stageRecord.textContent =
-      (r.cleared ? '討伐済' : '未踏破') + best + (r.checkpoint === 'save' ? ' · 鏡に記録あり' : '');
+      (r.cleared ? '討伐済' : '未踏破') + best + rankText + (r.checkpoint === 'save' ? ' · 鏡に記録あり' : '');
     this.resumeBtn.hidden = r.checkpoint !== 'save';
   }
 
@@ -189,6 +261,12 @@ export class TitleScreen {
     }
     for (const b of this.root.querySelectorAll('[data-quality]')) {
       b.setAttribute('aria-checked', String(b.dataset.quality === prefs.quality));
+    }
+    for (const b of this.root.querySelectorAll('[data-difficulty]')) {
+      b.setAttribute('aria-checked', String(b.dataset.difficulty === (prefs.difficulty ?? 'normal')));
+    }
+    for (const input of this.root.querySelectorAll('[data-pref-bool]')) {
+      input.checked = !!prefs[input.dataset.prefBool];
     }
   }
 

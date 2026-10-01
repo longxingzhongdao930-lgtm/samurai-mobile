@@ -338,6 +338,7 @@ export class Execution {
 
     // The kill itself: parted, with the execution's own share of souls.
     app.counters && app.counters.execution++;
+    app.haptics?.pulse([20, 40, 70]);
     app._executionKill = true;
     app.enemies.kill(enemy, dx / d, dz / d, { ...settings.slashHit, slices: true });
     app._executionKill = false;

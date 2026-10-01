@@ -18,6 +18,8 @@ import { settings } from '../config/settings.js';
 import { Boss } from '../combat/Boss.js';
 import { Tutorial } from './Tutorial.js';
 import { save } from '../core/SaveStore.js';
+import { rankFor, betterRank } from './rank.js';
+import { Dialogue } from '../ui/Dialogue.js';
 
 const SAVE_KEY = 'stage1';
 
@@ -101,7 +103,8 @@ export class Stage {
     this.clearScreen.className = 'stage-clear';
     this.clearScreen.hidden = true;
     this.clearScreen.innerHTML =
-      '<p class="stage-clear__kanji">討伐</p><p class="stage-clear__title">一ノ章 · 完</p><p class="stage-clear__stats"></p>' +
+      '<p class="stage-clear__kanji">討伐</p><p class="stage-clear__title">一ノ章 · 完</p>' +
+      '<p class="stage-clear__rank"></p><p class="stage-clear__stats"></p><p class="stage-clear__detail"></p>' +
       '<div class="stage-clear__row"><button type="button" data-act="again">もう一度</button><button type="button" data-act="leave">タイトルへ</button></div>';
     this.clearScreen.addEventListener('pointerdown', (e) => e.stopPropagation());
     this.clearScreen.addEventListener('click', (e) => {
@@ -120,6 +123,7 @@ export class Stage {
       else this.onTitle?.();
     });
     this.tutorial = new Tutorial(app, { onDone: () => this._tutorialDone() });
+    this.dialogue = new Dialogue();
     document.body.append(this.objective, this.clearScreen, this.button);
   }
 
@@ -248,6 +252,8 @@ export class Stage {
     const record = this.record;
     this.checkpoint = options.resume && record.checkpoint === 'save' ? 'save' : 'start';
     this.startedAt = app.elapsed;
+    // What the rank is counted from: the run's own parries, falls, hurt.
+    this._c0 = { ...app.counters };
     // Only a run from the gate counts toward the best time.
     this._fullRun = this.checkpoint === 'start';
     this.soulsAtStart = app.progress.souls;
@@ -255,6 +261,7 @@ export class Stage {
     app.enemies.clear();
     this._resetBoss();
     this.tutorial.cancel();
+    this.dialogue.clear();
     this._mirrorLit(this.checkpoint === 'save');
     if (this.checkpoint === 'save') {
       // 続きから: at the mirror, the plaza behind already won.
@@ -270,13 +277,34 @@ export class Stage {
       this.tutorial.begin();
     } else {
       this._go('approach');
+      this._departLines();
     }
     app.toast.show('一ノ章 — 出陣', 1400);
   }
 
   _tutorialDone() {
     this._save({ tutorialDone: true });
+    // The clock and the rank start at the gate, not in the lesson.
+    this.startedAt = this.app.elapsed;
+    this._c0 = { ...this.app.counters };
+    this._departLines();
     if (this.step === 'tutorial') this._go('approach');
+  }
+
+  /** 出陣: the night, and why the samurai is in it. */
+  _departLines() {
+    this.dialogue.say([
+      { text: '……鬼の気配が、門の向こうから漂ってくる。' },
+      { who: '侍', text: '鬼武将 羅刹——今宵、その首もらい受ける。' }
+    ]);
+  }
+
+  /** 羅刹, as it stands up to meet the player (its entrance, `combat/Boss.js`). */
+  _bossLines() {
+    this.dialogue.say([
+      { who: '鬼武将 羅刹', text: '人の子が、ひとりで来たか。', hold: 1.6 },
+      { who: '鬼武将 羅刹', text: 'その刀ごと、喰らってくれよう。', hold: 1.6 }
+    ]);
   }
 
   _mirrorLit(on) {
@@ -284,7 +312,8 @@ export class Stage {
     this.mirrorRing.material.color.set(on ? '#ffd28a' : '#4a8cff');
   }
 
-  leave() {
+  /** @param {boolean} [toTitle] open the title after (not when a duel takes over) */
+  leave(toTitle = true) {
     const app = this.app;
     if (!this.active) return;
     this.active = false;
@@ -294,6 +323,7 @@ export class Stage {
     this.clearScreen.hidden = true;
     this.button.textContent = '≡ タイトル';
     this.tutorial.cancel();
+    this.dialogue.clear();
     this._resetBoss();
     if (this._saved) {
       settings.terrain.amplitude = this._saved.amplitude;
@@ -301,7 +331,7 @@ export class Stage {
     }
     app.enemies.manual = false;
     app.enemies.respawnAll();
-    this.onTitle?.();
+    if (toTitle) this.onTitle?.();
   }
 
   /** Back on its feet after a fall: the last checkpoint, the fight there reset. */
@@ -367,6 +397,7 @@ export class Stage {
     if (!this.active) return;
     const app = this.app;
     const p = app.character.position;
+    this.dialogue.update(dt);
     const time = app.elapsed;
     for (const b of Object.values(this.barriers)) {
       const u = b.material.uniforms;
@@ -420,6 +451,7 @@ export class Stage {
           this._setBarrier(this.barriers.g3, false);
           const e = app.enemies.spawnAt(ARENA.x, ARENA.z + 5, 'boss', Math.PI);
           if (e) this.boss = new Boss(app, e, { onDefeated: () => this._win() });
+          this._bossLines();
           this._go('boss');
           app.toast.show('鬼武将 羅刹', 1600);
         }
@@ -446,7 +478,24 @@ export class Stage {
     // Cleared: the record, and the next run starts from the gate again.
     const best = !this._fullRun ? record.best : record.best == null ? secs : Math.min(record.best, secs);
     const fresh = this._fullRun && best === secs && record.best !== secs;
-    this._save({ cleared: true, best, checkpoint: 'start' });
+    // 評価: counted on this run, kept (best per 難易度) only for a run from the gate.
+    const c = app.counters;
+    const c0 = this._c0 ?? {};
+    const difficulty = app.difficulty?.id ?? 'normal';
+    const rank = rankFor({
+      secs,
+      damage: c.damage - (c0.damage ?? 0),
+      downs: c.downs - (c0.downs ?? 0),
+      parry: c.parry - (c0.parry ?? 0),
+      execution: c.execution - (c0.execution ?? 0),
+      issen: c.issen - (c0.issen ?? 0),
+      difficulty
+    });
+    this.lastRank = rank;
+    const ranks = { ...(record.ranks ?? {}) };
+    const freshRank = this._fullRun && betterRank(ranks[difficulty], rank.rank) === rank.rank && ranks[difficulty] !== rank.rank;
+    if (this._fullRun) ranks[difficulty] = betterRank(ranks[difficulty], rank.rank);
+    this._save({ cleared: true, best, checkpoint: 'start', ranks });
     const clock = (n) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
     // A moment for the souls to be taken in (they fly in by themselves after a
     // clear), then the screen: on the game's clock, so a pause or a slow frame
@@ -459,6 +508,13 @@ export class Stage {
       const tail = fresh ? ' · 新記録' : best != null ? ` · 最速 ${clock(best)}` : ' · 鏡から再開（記録外）';
       this.clearScreen.querySelector('.stage-clear__stats').textContent =
         `時間 ${clock(secs)} · 魂 +${Math.max(0, app.progress.souls - this.soulsAtStart, souls)}${tail}`;
+      const rankEl = this.clearScreen.querySelector('.stage-clear__rank');
+      rankEl.textContent = rank.rank;
+      rankEl.dataset.rank = rank.rank;
+      this.clearScreen.querySelector('.stage-clear__detail').textContent =
+        `評価 ${rank.score}点 — 時間 ${rank.time} · 被害 ${rank.harm} · 技 ${rank.skill}` +
+        (rank.bonus ? ` · 難易度 ${rank.bonus > 0 ? '+' : ''}${rank.bonus}` : '') +
+        (!this._fullRun ? '（鏡から再開のため記録外）' : freshRank ? ' · 最高評価更新' : '');
       this.clearScreen.hidden = false;
     };
   }

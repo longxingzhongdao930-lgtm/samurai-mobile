@@ -26,7 +26,7 @@ import { SOUL } from './Souls.js';
  * pulls back to take in its size, the name comes up, it roars once, and only
  * then does it move — the player is never struck while being introduced.
  */
-const INTRO = 2.2;
+const INTRO = 3.4;
 export class Boss {
   /**
    * @param {import('../core/App.js').App} app
@@ -57,6 +57,10 @@ export class Boss {
     document.body.appendChild(this.hud);
     this.fill = this.hud.querySelector('.boss-hud__fill');
     this.stance = this.hud.querySelector('.boss-hud__stance i');
+
+    // 難易度 scales its health (`App#_applyDifficulty`).
+    const hpScale = app.difficulty?.bossHp ?? 1;
+    enemy.maxHealth = enemy.health = Math.max(1, Math.round(enemy.maxHealth * hpScale));
 
     // The entrance.
     this.intro = INTRO;
@@ -92,6 +96,7 @@ export class Boss {
         this._roared = true;
         const p = e.position;
         app.audio.roar({ x: p.x, y: p.y + 2, z: p.z }, 1.5);
+        app.haptics?.pulse([120, 60, 160]);
         app.rig.shake(0.35);
         app.fx.ring(p.x, p.y, p.z, getColor(settings.vfx.omen.color), 5, 0.7);
         if (!app.lockOn.active) app.lockOn.lock(e);
@@ -150,6 +155,7 @@ export class Boss {
     app.fx.pillar(p.x, p.y, p.z, red, 1.6, 7, 0.9);
     app.rig.shake(0.4);
     app.audio.roar({ x: p.x, y: p.y + 2, z: p.z }, 1.3);
+    app.haptics?.pulse([100, 50, 140]);
     // The world catches its breath with it, and the edges of the screen go red.
     app._hitStop = Math.max(app._hitStop, 0.35);
     app._hitStopScale = 0.25;

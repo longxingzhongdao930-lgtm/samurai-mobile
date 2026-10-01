@@ -512,7 +512,7 @@ await run('souls', async () => {
 await run('vfx', async () => {
   const { ctx, page, errors } = await boot(PC, { passive: true, count: 2, hp: 100 });
   await page.evaluate(() => { app.editor?.toggle?.(); __place([{ d: 1.8 }, { d: 2.4, a: 0.5 }]); });
-  await page.waitForTimeout(1500);
+  await page.waitForFunction(() => app.miasma.mesh.geometry.instanceCount > 0, null, { timeout: 60000 }).catch(() => {});
   const miasma = await page.evaluate(() => app.miasma.mesh.geometry.instanceCount);
   // the trail lights during a swing
   await page.keyboard.press('KeyJ');

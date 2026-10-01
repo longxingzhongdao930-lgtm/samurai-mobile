@@ -1,6 +1,7 @@
 import { LoadingManager, TextureLoader } from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { extractEmbeddedMedia } from './fbxEmbeddedMedia.js';
 
@@ -48,6 +49,8 @@ export class AssetLoader {
 
     this.fbx = new FBXLoader(this.manager);
     this.gltf = new GLTFLoader(this.manager);
+    // The rig and the bodies ship meshopt-compressed (`tools/optimize-assets.mjs`).
+    this.gltf.setMeshoptDecoder(MeshoptDecoder);
     this.hdr = new HDRLoader(this.manager);
     this.texture = new TextureLoader(this.manager);
 
@@ -119,6 +122,43 @@ export class AssetLoader {
     } finally {
       this.manager.itemEnd(resolved);
     }
+  }
+
+  /**
+   * A model with its clips, whatever it was shipped as.
+   *
+   * The rig, the bodies and the motions ship as GLB converted from their FBX
+   * sources (`tools/optimize-assets.mjs`). A glTF loader rewrites node names
+   * (`mixamorig:Hips` → `mixamorigHips`) and wraps the export in a scene, so
+   * this hands back exactly what the FBX path would: the original root, every
+   * node under its original name (kept in `extras`), and its clips on
+   * `.animations` with their tracks addressed by those names.
+   *
+   * @returns {Promise<import('three').Object3D>}
+   */
+  async loadModel(url) {
+    if (/\.fbx$/i.test(url)) return this.loadFBX(url);
+    const gltf = await this.loadGLTF(url);
+    const scene = gltf.scene;
+    const root = scene.children.length === 1 ? scene.children[0] : scene;
+    root.removeFromParent();
+    const renamed = new Map();
+    root.traverse((o) => {
+      const name = o.userData?.name;
+      if (typeof name === 'string' && name !== o.name) {
+        renamed.set(o.name, name);
+        o.name = name;
+      }
+    });
+    for (const clip of gltf.animations) {
+      for (const track of clip.tracks) {
+        const dot = track.name.lastIndexOf('.');
+        const node = track.name.slice(0, dot);
+        if (renamed.has(node)) track.name = renamed.get(node) + track.name.slice(dot);
+      }
+    }
+    root.animations = gltf.animations;
+    return root;
   }
 
   /**

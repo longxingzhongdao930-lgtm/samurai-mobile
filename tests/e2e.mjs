@@ -618,7 +618,7 @@ await run('shukuchi', async () => {
 });
 await run('kagebashiri', async () => {
   const { ctx, page, errors } = await boot(PC, { passive: true, count: 3, hp: 100 });
-  await page.evaluate(() => { __place([{ d: 3 }, { d: 6, a: 0.8 }, { d: 8, a: -0.6 }]); app.defense.stamina = 100; });
+  await page.evaluate(() => { __place([{ d: 3 }, { d: 6, a: 0.8 }, { d: 8, a: -0.6 }]); for (const e of app.enemies.enemies) if (e.alive) e.setKind('grunt'); app.defense.stamina = 100; });
   await page.waitForTimeout(300);
   await countHits(page);
   await page.keyboard.press('KeyV');

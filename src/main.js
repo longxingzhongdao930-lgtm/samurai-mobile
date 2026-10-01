@@ -37,3 +37,11 @@ async function boot() {
 }
 
 boot();
+
+// PWA: the service worker (`build/pwa.js`) in a production build, where a
+// worker is allowed (https, or this machine).
+if (import.meta.env.PROD && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch((error) => console.warn('[pwa] not registered', error));
+  });
+}

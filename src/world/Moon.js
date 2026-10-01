@@ -20,11 +20,11 @@ import { LAYER } from '../core/Layers.js';
 
 /** The four maps of the surface material, plus the height field it is relieved by. */
 const TEXTURES = {
-  map: './textures/moon/Moon_002_basecolor.png',
-  normalMap: './textures/moon/Moon_002_normal.png',
-  roughnessMap: './textures/moon/Moon_002_roughness.png',
-  aoMap: './textures/moon/Moon_002_ambientOcclusion.png',
-  heightMap: './textures/moon/Moon_002_height.png'
+  map: './textures/moon/Moon_002_basecolor.jpg',
+  normalMap: './textures/moon/Moon_002_normal.jpg',
+  roughnessMap: './textures/moon/Moon_002_roughness.jpg',
+  aoMap: './textures/moon/Moon_002_ambientOcclusion.jpg',
+  heightMap: './textures/moon/Moon_002_height.jpg'
 };
 
 /** Reused per frame so placement allocates nothing. */

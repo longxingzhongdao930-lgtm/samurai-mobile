@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "test": "node server/test.mjs && node --test tests/rank.test.mjs",
     "test:e2e": "node tests/e2e.mjs",
-    "test:pvp": "node tests/pvp-e2e.mjs"
+    "test:pvp": "node tests/pvp-e2e.mjs",
+    "optimize:assets": "node tools/optimize-assets.mjs"
   },
   "dependencies": {
     "lil-gui": "^0.21.0",

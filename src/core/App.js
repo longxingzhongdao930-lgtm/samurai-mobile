@@ -51,7 +51,6 @@ import { Music } from '../audio/Music.js';
 import { TargetRings } from '../vfx/TargetRings.js';
 import { CharacterScreen } from '../screens/CharacterScreen.js';
 import { LoadingScreen } from '../ui/LoadingScreen.js';
-import { Editor } from '../ui/Editor.js';
 import { Toast } from '../ui/Toast.js';
 import { Stats } from '../ui/Stats.js';
 import { ActionHUD } from '../ui/ActionHUD.js';
@@ -64,7 +63,7 @@ import { GamepadInput } from './GamepadInput.js';
 
 import { settings } from '../config/settings.js';
 
-const HDR_URL = './hdri/spruit_sunrise.hdr';
+const HDR_URL = './hdri/spruit_sunrise_1k.hdr';
 
 /** The axis the body falls over about when it goes down — see `_updateDown`. */
 /** Keys a duel ignores: the arts, the studio, pause, upgrades. */
@@ -394,29 +393,35 @@ export class App {
     // ring says which body, these say with which key. Fed from
     // `_updateTargetRings` — it resolves nothing of its own either.
     this.targetHotkeys = new TargetHotkeys({ camera: this.camera, domElement: this.canvas });
-    this.editor = !DEV ? null : new Editor({
-      onToast: (message) => this.toast.show(message),
-      // The fire is built later, with the loadout; the editor asks for it when
-      // a control needs it rather than holding a reference that starts null.
-      getWeaponFire: () => this.weaponFire,
-      onRespawnEnemies: () => {
-        this.enemies.respawnAll();
-        this.toast.show('A fresh ring of them');
-      },
-      onFillMusou: () => {
-        this.musouGauge = settings.musou.max;
-      },
-      onBossOmen: () => {
-        const p = this.character.position;
-        const f = this.character.facing;
-        this.bossOmen(p.x + Math.sin(f) * 4, p.z + Math.cos(f) * 4);
-      },
-      onAddSouls: (n) => this.progress.addSouls(n),
-      onResetProgress: () => {
-        this.progress.reset();
-        this._applyUpgrades();
-      }
-    });
+    // The editor (`?dev=1` only) is its own chunk: a player never downloads it.
+    this.editor = null;
+    this._editorLoad = !DEV
+      ? null
+      : import('../ui/Editor.js').then(({ Editor }) => {
+          this.editor = new Editor({
+            onToast: (message) => this.toast.show(message),
+            // The fire is built later, with the loadout; the editor asks for it when
+            // a control needs it rather than holding a reference that starts null.
+            getWeaponFire: () => this.weaponFire,
+            onRespawnEnemies: () => {
+              this.enemies.respawnAll();
+              this.toast.show('A fresh ring of them');
+            },
+            onFillMusou: () => {
+              this.musouGauge = settings.musou.max;
+            },
+            onBossOmen: () => {
+              const p = this.character.position;
+              const f = this.character.facing;
+              this.bossOmen(p.x + Math.sin(f) * 4, p.z + Math.cos(f) * 4);
+            },
+            onAddSouls: (n) => this.progress.addSouls(n),
+            onResetProgress: () => {
+              this.progress.reset();
+              this._applyUpgrades();
+            }
+          });
+        });
     if (TOUCH) this.editor?.toggle();
     // PC: click to take the mouse, move to look (`core/PointerLook.js`). Never
     // while something wants a cursor: a panel, the studio, the editor, the veil.
@@ -1827,6 +1832,7 @@ export class App {
 
   /** Load assets, warm the shader cache, then start the loop. */
   async load() {
+    await this._editorLoad;
     const assets = new AssetLoader();
 
     this.loading.setProgress(0.05, 'Loading environment…');

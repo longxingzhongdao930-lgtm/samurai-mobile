@@ -2,10 +2,10 @@ import js from '@eslint/js';
 import globals from 'globals';
 
 export default [
-  { ignores: ['dist/**', 'node_modules/**', 'public/**'] },
+  { ignores: ['dist/**', 'node_modules/**', 'public/**', 'assets-src/**'] },
   js.configs.recommended,
   {
-    files: ['src/**/*.js', 'eslint.config.js', 'vite.config.js'],
+    files: ['src/**/*.js', 'tools/assets/**/*.js'],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'module',
@@ -17,7 +17,7 @@ export default [
     }
   },
   {
-    files: ['server/**/*.js', 'server/**/*.mjs', 'tests/**/*.mjs'],
+    files: ['server/**/*.js', 'server/**/*.mjs', 'tests/**/*.mjs', 'tools/*.mjs', 'build/**/*.js', 'eslint.config.js', 'vite.config.js'],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'module',
@@ -31,7 +31,7 @@ export default [
   {
     // The e2e callbacks run inside the page (`page.evaluate`), against the
     // globals the game exposes there (`app`, `settings`, the test's own hooks).
-    files: ['tests/**/*.mjs'],
+    files: ['tests/**/*.mjs', 'tools/*.mjs'],
     rules: { 'no-undef': 'off' }
   }
 ];

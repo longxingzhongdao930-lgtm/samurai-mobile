@@ -5,7 +5,7 @@ import { disposeObject } from '../utils/dispose.js';
 import { Enemy } from './Enemy.js';
 
 /** The body, with its idle baked in — one file, cloned per enemy. */
-const ENEMY_URL = './models/enemyidle.fbx';
+const ENEMY_URL = './models/enemy.glb';
 
 const _v = new Vector3();
 
@@ -101,7 +101,7 @@ export class EnemyManager {
    * @param {import('../loaders/AssetLoader.js').AssetLoader} assets
    */
   async load(assets) {
-    const fbx = await assets.loadFBX(ENEMY_URL);
+    const fbx = await assets.loadModel(ENEMY_URL);
     await assets.settled();
 
     this.clip = fbx.animations?.[0] ?? null;

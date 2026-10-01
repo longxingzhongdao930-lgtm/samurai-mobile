@@ -1,17 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>Character Equipment — Three.js character stage</title>
-    <link
-      rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23121820'/%3E%3Ccircle cx='16' cy='11' r='4' fill='%237fd4ff'/%3E%3Cpath d='M8 28c0-5 3.6-9 8-9s8 4 8 9z' fill='%237fd4ff'/%3E%3C/svg%3E"
-    />
-    <!-- No `<link rel="preload">` for the FBX: three's FileLoader fetches it
-         over a plain XHR, whose credentials mode matches neither the
-         crossorigin nor the bare form of an `as="fetch"` preload — Chrome
-         refuses the match and downloads the 1.4 MB file a second time. -->
+    <title>侍 SAMURAI — 一ノ章</title>
+    <meta name="description" content="鬼武将 羅刹を討つ、和風剣戟アクション。PC・スマホ対応。" />
+    <meta name="theme-color" content="#0b0808" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="侍" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" href="./icons/icon-192.png" />
+    <!-- No `<link rel="preload">` for the models: three's FileLoader fetches
+         them with a credentials mode an `as="fetch"` preload does not match,
+         so Chrome would download each twice. -->
     <link rel="stylesheet" href="./src/ui/styles.css" />
   </head>
   <body>
@@ -20,16 +24,16 @@
     <!-- Boot / loading veil -->
     <div id="loader" class="loader">
       <div class="loader__inner">
-        <h1 class="loader__title">Character Equipment</h1>
+        <h1 class="loader__title">侍</h1>
         <div class="loader__bar"><i id="loader-fill"></i></div>
-        <p class="loader__status" id="loader-status">Lighting the stage…</p>
+        <p class="loader__status" id="loader-status">読み込み中…</p>
       </div>
     </div>
 
     <!-- The window's keys. The character's own moves are the panels along the
          bottom centre, drawn from `src/config/abilities.js`. -->
     <p class="hint">
-      Click to look · left click attack · right click guard · B hien · Z absorb · U upgrade · wheel zoom · Tab character screen<span class="hint__dev"> · G editor · F stats</span> · P pause
+      クリックで視点 · 左クリック 攻撃 · 右クリック ガード · B 飛燕 · Z 吸魂 · U 強化 · ホイール ズーム · Tab 装備<span class="hint__dev"> · G エディタ · F 統計</span> · P 一時停止
     </p>
 
     <script type="module" src="./src/main.js"></script>

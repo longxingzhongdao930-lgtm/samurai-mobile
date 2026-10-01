@@ -18,7 +18,7 @@ import { Jump } from './Jump.js';
 import { Locomotion } from './Locomotion.js';
 
 /** The skinned body. Geometry and skin weights; its materials are replaced below. */
-const CHARACTER_URL = './models/tpose.fbx';
+const CHARACTER_URL = './models/samurai.glb';
 
 /**
  * Motion, exported as skeleton-only FBX files.
@@ -29,20 +29,20 @@ const CHARACTER_URL = './models/tpose.fbx';
  * `Locomotion`.
  */
 const ANIMATION_URLS = {
-  idle: './animations/Idle.fbx',
-  walk: './animations/Walk.fbx',
-  run: './animations/Run.fbx',
-  bigJump: './animations/BigJump.fbx',
-  hop: './animations/Jump.fbx',
+  idle: './animations/idle.glb',
+  walk: './animations/walk.glb',
+  run: './animations/run.glb',
+  bigJump: './animations/big-jump.glb',
+  hop: './animations/jump.glb',
   // Not a move of its own: the guard's low stance (`combat/PlayerDefense.js`)
   // and the PvP opponent's (`net/RemoteAvatar.js`).
-  crouch: './animations/Crouch.fbx',
+  crouch: './animations/crouch.glb',
   // The attacks. Unlike the others these exports carry a mesh as well as the
   // motion — only `animations[0]` is read off each, and the body it arrived with
   // is dropped on the floor of `_retarget`.
-  kick: './animations/fight animations/Kick.fbx',
-  slashHit: './animations/fight animations/Slash.fbx',
-  crouchSlash: './animations/fight animations/Crouchslash.fbx'
+  kick: './animations/kick.glb',
+  slashHit: './animations/slash.glb',
+  crouchSlash: './animations/crouch-slash.glb'
 };
 
 /**
@@ -64,7 +64,7 @@ const ROOT_MOTION_CLIPS = new Set(['bigJump']);
  * the rig by material name (see `loaders/MaterialLibrary.js`). Set it to null
  * to fall back to whatever the FBX itself carries.
  */
-const MATERIAL_LIBRARY_URL = './models/textures.glb';
+const MATERIAL_LIBRARY_URL = './models/materials.glb';
 
 /**
  * Rig material name → library material name, for exports that disagree.
@@ -87,7 +87,8 @@ const MATERIAL_ALIASES = {
  * already agree. See `MaterialLibrary#flipTextureV` for why this is not simply
  * `texture.flipY`.
  */
-const MATERIAL_LIBRARY_FLIP_V = /\.fbx$/i.test(CHARACTER_URL);
+// The rig's UVs are the FBX's (the GLB is a straight conversion of it).
+const MATERIAL_LIBRARY_FLIP_V = true;
 
 /**
  * Optional colour map for exports that ship no texture of their own. The body
@@ -200,7 +201,7 @@ export class CharacterController {
   async load(assets) {
     const names = Object.keys(ANIMATION_URLS);
     const [fbx, skin, library, ...motions] = await Promise.all([
-      assets.loadFBX(CHARACTER_URL),
+      assets.loadModel(CHARACTER_URL),
       CHARACTER_TEXTURE_URL ? assets.loadTexture(CHARACTER_TEXTURE_URL) : Promise.resolve(null),
       MATERIAL_LIBRARY_URL
         ? MaterialLibrary.load(assets, MATERIAL_LIBRARY_URL, {
@@ -208,7 +209,7 @@ export class CharacterController {
             flipV: MATERIAL_LIBRARY_FLIP_V
           })
         : Promise.resolve(null),
-      ...names.map((name) => assets.loadFBX(ANIMATION_URLS[name]))
+      ...names.map((name) => assets.loadModel(ANIMATION_URLS[name]))
     ]);
     // The FBX resolves before its textures do; material prep inspects them.
     await assets.settled();

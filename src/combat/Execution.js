@@ -109,6 +109,7 @@ export class Execution {
     app.fx.omen(e.x, e.y, e.z, violet, cfg.radius + 0.3, cfg.plungeAt);
     this.blades.setLook(cfg.color, cfg.core, cfg.intensity);
     app.audio.clang({ x: e.x, y: e.y + 1, z: e.z }, { bright: true, strength: 0.6 });
+    app.audio.draw({ x: e.x, y: e.y + 1, z: e.z }, 0.8);
     app.toast.show('処刑', 900);
     return true;
   }

@@ -77,8 +77,7 @@ export class Music {
     this._timer = 0;
     this._duck = 1;
     this._noise = null;
-    if (audio.context) this._start(audio.context);
-    else audio.onUnlock = (context) => this._start(context);
+    audio.whenReady((context) => this._start(context));
   }
 
   /** Which piece should play. Safe before unlock: it starts on the first gesture. */

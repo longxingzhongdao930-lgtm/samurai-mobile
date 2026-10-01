@@ -48,10 +48,12 @@ import { makeEnemyProp } from '../combat/EnemyProps.js';
 import { getColor } from '../utils/color.js';
 import { CombatAudio } from '../audio/CombatAudio.js';
 import { Music } from '../audio/Music.js';
+import { Ambience } from '../audio/Ambience.js';
 import { TargetRings } from '../vfx/TargetRings.js';
 import { CharacterScreen } from '../screens/CharacterScreen.js';
 import { LoadingScreen } from '../ui/LoadingScreen.js';
 import { Toast } from '../ui/Toast.js';
+import { Banner } from '../ui/Banner.js';
 import { Stats } from '../ui/Stats.js';
 import { ActionHUD } from '../ui/ActionHUD.js';
 import { TargetHotkeys } from '../ui/TargetHotkeys.js';
@@ -305,6 +307,8 @@ export class App {
     this.audio = new CombatAudio(this.camera);
     // The score, on the same context — `_syncMusic` picks the piece each frame.
     this.music = new Music(this.audio);
+    // And the night under it (`audio/Ambience.js`).
+    this.ambience = new Ambience(this.audio);
     /** Metres walked since the last footfall, the player's and each heavy body's. */
     this._stepAcc = 0;
     this._stepFrom = new Vector3();
@@ -326,6 +330,7 @@ export class App {
     /* ---- UI ---- */
     this.loading = new LoadingScreen();
     this.toast = new Toast();
+    this.banner = new Banner();
     // Hits in a row, and how many fell — the crowd fight's running score.
     this.comboCounter = new ComboCounter();
     // The red at the edges of the screen when an enemy's blow lands.
@@ -695,16 +700,20 @@ export class App {
     this._feedMusou(lethal);
     if (primary) this.counters.hits++;
 
+    // Something big takes a blow heavier: a longer freeze, a harder knock.
+    const big = (enemy.size ?? 1) > 1.3 ? 1.25 : 1;
     if (primary) {
       // A sweep through a crowd holds a little longer than one through a
       // single body — a tenth more per extra body, never more than half again.
       const many = 1 + Math.min(0.5, (crowd - 1) * 0.1);
-      this._hitStop = Math.max(this._hitStop, config.hitStop * weight * many);
+      this._hitStop = Math.max(this._hitStop, config.hitStop * weight * many * big);
       this._hitStopScale = config.hitStopScale;
       this._hitRelease = 0;
-      const shake = config.shake * weight;
+      const shake = config.shake * weight * big;
       this.rig.shake(shake);
       this.rig.punch(x, z, shake * combat.punch, combat.fovKick * weight, shake * combat.roll);
+      // The lens itself flinches on a kill: a split of colour at the edges.
+      if (lethal) this.post.kick(result === 'finisher' ? 0.9 : 0.5);
     }
 
     // Contact is on the near side of the body at chest height, not at its feet.
@@ -716,7 +725,16 @@ export class App {
     const edge = config.slices === true;
     this.meleeSparks.burst(px, py, pz, x, 0.12, z, combat.sparks, (edge ? 1 : 0.55) * weight);
     if (primary && result === 'finisher') this._iai(p, Math.atan2(x, z), 0.75);
-    if (!quiet) this.audio.impact({ x: px, y: py, z: pz }, { cut: edge, strength: lethal ? weight : 0.6 });
+    else if (primary && edge) {
+      // Every cut leaves its line in the air for a beat, across the blow.
+      const tilt = (Math.random() - 0.5) * 0.9;
+      this.fx.slash(px, py, pz, z, tilt, -x, getColor(settings.vfx.iai.color), 1.6, 0.05, 0.22);
+    }
+    if (!quiet) {
+      this.audio.impact({ x: px, y: py, z: pz }, { cut: edge, strength: lethal ? weight : 0.6 });
+      // Armour rings under the cut (the brute, 羅刹, a shield's bearer).
+      if (enemy.kindCfg?.armor || big > 1) this.audio.clang({ x: px, y: py, z: pz }, { strength: 0.45 });
+    }
   }
 
   /**
@@ -960,6 +978,7 @@ export class App {
     enemy._glintAt = this.elapsed + Math.max(0, lead);
     // A big body's blow is marked on the ground where it will land.
     const kind = enemy.kindCfg;
+    if ((enemy.size ?? 1) > 1.3) this.audio.windup({ x: enemy.position.x, y: enemy.position.y + 1.5, z: enemy.position.z }, enemy.kind === 'boss' ? 1.3 : 1);
     if (kind?.omenRadius) {
       const f = enemy.facing;
       const ahead = kind.omenAhead ?? 2;
@@ -1741,6 +1760,16 @@ export class App {
       }
     }
     music.intensity = Math.min(1, near / 3);
+    this.ambience.calm = 1 - music.intensity;
+    this.ambience.boss = piece === 'boss';
+    // Nearly done: the heart, louder the lower it goes.
+    const hpFrac = this.playerHp / Math.max(1, settings.combat.player.maxHp);
+    if (!this.playerDown && !this.paused && hpFrac < 0.3 && !this.pvp?.active) {
+      if (this.elapsed >= (this._beatAt ?? 0)) {
+        this._beatAt = this.elapsed + 0.75 + hpFrac * 1.2;
+        this.audio.heartbeat(1.2 - hpFrac * 2);
+      }
+    }
     const duck = this.playerDown ? 0.35 : this.paused && !this.title?.atTitle ? 0.5 : 1;
     if (duck !== this._musicDuck) {
       this._musicDuck = duck;
@@ -1835,12 +1864,12 @@ export class App {
     await this._editorLoad;
     const assets = new AssetLoader();
 
-    this.loading.setProgress(0.05, 'Loading environment…');
+    this.loading.setProgress(0.05, '夜を描いている…');
     const hdr = await assets.loadHDR(HDR_URL);
     await this.environment.loadEnvironment(hdr);
     frame.uEnvMap.value = this.environment.equirect;
 
-    this.loading.setProgress(0.3, 'Loading the forest floor…');
+    this.loading.setProgress(0.3, '大地を敷いている…');
     await this.ground.loadTextures(assets);
     // And what is lying on it. Before the shader warm-up below, so the two leaf
     // materials are compiled with everything else rather than on the first frame
@@ -1860,10 +1889,10 @@ export class App {
     this.terrain.update();
     this.ground.update(0, 0, 0);
 
-    this.loading.setProgress(0.55, 'Loading character, materials & animations…');
+    this.loading.setProgress(0.55, '侍を呼んでいる…');
     await this.character.load(assets);
 
-    this.loading.setProgress(0.72, 'Waking the enemies…');
+    this.loading.setProgress(0.72, '鬼を起こしている…');
     await this.enemies.load(assets);
     // An attack knows the frame the blow lands and nothing else; what being hit
     // means is decided here. Each hands over its own settings block, so the
@@ -1949,7 +1978,7 @@ export class App {
     // the scene for the shader warm-up below.
     this.enemies.respawnAll();
 
-    this.loading.setProgress(0.8, 'Building the character screen…');
+    this.loading.setProgress(0.8, '装備を整えている…');
     // The set and its rig cost nothing until they are drawn, and building them
     // now means `C` is instant. The equipment models themselves stay on disk
     // until the screen is opened — see `EquipmentLibrary`.
@@ -1963,7 +1992,7 @@ export class App {
       onExit: () => this._onScreenExit()
     });
 
-    this.loading.setProgress(0.83, 'Equipping…');
+    this.loading.setProgress(0.83, '刀を佩いている…');
     // The starting loadout — whatever was last dialled in on the set, or the
     // catalog's defaults on a first run. Gear hangs off the skeleton rather than
     // off either stage, so equipping here puts it on the body for the play scene
@@ -1975,7 +2004,7 @@ export class App {
     this.weaponFire = new WeaponFire({ equipment: this.characterScreen.equipment });
     this.characterScreen.setWeaponFire(this.weaponFire);
 
-    this.loading.setProgress(0.85, 'Compiling shaders…');
+    this.loading.setProgress(0.85, '陰影を練っている…');
     // Compile everything up front so the first frame never stutters — both
     // stages, so opening the character screen is not its own first frame. The
     // fire's light is walked through both scenes on the way, because adding a
@@ -1993,7 +2022,7 @@ export class App {
     await assets.settled();
     assets.dispose();
 
-    this.loading.setProgress(1, 'Ready');
+    this.loading.setProgress(1, '出陣');
     this.loading.hide();
     // The moves are named by the row along the bottom, so this only has to
     // cover what the row does not: the stick, and where to look for the rest.
@@ -2106,6 +2135,7 @@ export class App {
     this.musouDust.sync(this.elapsed, settings.musou.dust);
     this.musouShock.update(dt, settings.musou.shock);
     this.comboCounter.update(raw);
+    this.banner.update(raw);
     {
       const c = this.character;
       const free =
@@ -2269,6 +2299,7 @@ export class App {
     this.blood.dispose();
     this.meleeSparks.dispose();
     this.music.dispose();
+    this.ambience.dispose();
     this.gamepad.dispose();
     this.audio.dispose();
     this.musouShock.dispose();
@@ -2301,6 +2332,7 @@ export class App {
     this.environment.dispose();
     this.editor?.dispose();
     this.toast.dispose();
+    this.banner.dispose();
     this.stats?.dispose();
     this.actionHUD.dispose();
     this.rig.dispose();

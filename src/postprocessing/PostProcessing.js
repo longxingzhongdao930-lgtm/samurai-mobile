@@ -84,7 +84,9 @@ export class PostProcessing {
 
     const u = this.gradePass.uniforms;
     u.uTime.value = elapsed;
-    u.uAberration.value = post.enabled ? post.chromaticAberration : 0;
+    // A hit's flinch (`kick`) rides on top of the look's own aberration, and fades.
+    this._kick = Math.max(0, (this._kick ?? 0) * 0.86 - 0.004);
+    u.uAberration.value = post.enabled ? post.chromaticAberration + (this._kick ?? 0) * 1.2 : 0;
     u.uVignette.value = post.enabled ? post.vignette : 0;
     u.uContrast.value = post.enabled ? post.contrast : 1;
     u.uSaturation.value = post.enabled ? post.saturation : 1;
@@ -92,6 +94,11 @@ export class PostProcessing {
     u.uLift.value = post.lift;
     u.uGain.value = post.gain;
     u.uGrain.value = post.enabled ? post.grain : 0;
+  }
+
+  /** A blow's flinch: a moment of colour split at the screen's edges, 0..1. */
+  kick(amount) {
+    this._kick = Math.max(this._kick ?? 0, amount);
   }
 
   /**

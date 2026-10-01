@@ -299,6 +299,19 @@ export class CameraRig {
     this._frameHeight = damp(this._frameHeight ?? 0, this._frameHeightGoal ?? 0, 0.02, dt);
     _desiredTarget.copy(this.anchor);
     _desiredTarget.y += cam.targetHeight + this._frameHeight;
+    // Locked: the look point leans toward the lock (a third of the way, at most
+    // three metres), so the body and its opponent share the frame instead of
+    // the opponent sitting on the edge of it.
+    const lean = this._lock ? 1 : 0;
+    this._lean = damp(this._lean ?? 0, lean, 0.05, dt);
+    if (this._lean > 1e-3 && this._lock) {
+      const lx = (this._lock.x - this.anchor.x) / 3;
+      const lz = (this._lock.z - this.anchor.z) / 3;
+      const l = Math.hypot(lx, lz);
+      const k = (l > 3 ? 3 / l : 1) * this._lean;
+      _desiredTarget.x += lx * k;
+      _desiredTarget.z += lz * k;
+    }
 
     const target = this.controls.target;
     _follow.set(

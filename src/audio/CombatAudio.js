@@ -51,8 +51,8 @@ export class CombatAudio {
     /** The effects bus and the music bus, under the master. */
     this.sfxBus = null;
     this.musicBus = null;
-    /** Called once the graph exists — the music starts there. */
-    this.onUnlock = null;
+    /** Called once the graph exists — the music and the ambience start there. */
+    this._readyHandlers = [];
 
     this._unlock = () => this.unlock();
     window.addEventListener('pointerdown', this._unlock, true);
@@ -109,9 +109,13 @@ export class CombatAudio {
     window.removeEventListener('pointerdown', this._unlock, true);
     window.removeEventListener('keydown', this._unlock, true);
     this.syncLevels();
-    const ready = this.onUnlock;
-    this.onUnlock = null;
-    ready?.(this.context);
+    for (const ready of this._readyHandlers.splice(0)) ready(this.context);
+  }
+
+  /** Run `fn(context)` once the audio exists (now, if it already does). */
+  whenReady(fn) {
+    if (this.context && this.master) fn(this.context);
+    else this._readyHandlers.push(fn);
   }
 
   /** Push `settings.audio` into the buses (the settings screen calls this). */
@@ -477,6 +481,85 @@ export class CombatAudio {
       thud.start(now);
       thud.stop(now + 0.3);
     }
+  }
+
+  /**
+   * A big body gathering itself for a blow: a low breath swelling up through a
+   * closing filter, with steel scraping over it. Heard before it is seen.
+   */
+  windup(point, heavy = 1) {
+    if (!this._ready) return;
+    const context = this.context;
+    const now = context.currentTime;
+    const length = 0.45 + 0.25 * heavy;
+    const out = this._voice(point, 0.55 * heavy, now + length + 0.15);
+    const breath = this._noise(now, length);
+    const low = context.createBiquadFilter();
+    low.type = 'lowpass';
+    low.frequency.setValueAtTime(180, now);
+    low.frequency.exponentialRampToValueAtTime(700, now + length * 0.8);
+    const g = context.createGain();
+    envelope(g.gain, now, length * 0.7, length * 0.75, length, 0.9);
+    breath.connect(low).connect(g).connect(out);
+    const scrape = this._noise(now + length * 0.3, length * 0.6);
+    const band = context.createBiquadFilter();
+    band.type = 'bandpass';
+    band.Q.value = 6;
+    band.frequency.setValueAtTime(2400, now + length * 0.3);
+    band.frequency.exponentialRampToValueAtTime(3600, now + length);
+    const sg = context.createGain();
+    envelope(sg.gain, now + length * 0.3, length * 0.3, length * 0.4, length * 0.7, 0.18);
+    scrape.connect(band).connect(sg).connect(out);
+  }
+
+  /** The heart, when the body is nearly done: lub-dub, low and close. */
+  heartbeat(strength = 1) {
+    if (!this._ready) return;
+    const context = this.context;
+    const now = context.currentTime;
+    const out = this._voice(null, 0.5 * strength, now + 0.6);
+    for (const [at, level] of [
+      [0, 1],
+      [0.16, 0.7]
+    ]) {
+      const osc = context.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(62, now + at);
+      osc.frequency.exponentialRampToValueAtTime(38, now + at + 0.14);
+      const g = context.createGain();
+      envelope(g.gain, now + at, 0.006, 0.02, 0.16, level);
+      osc.connect(g).connect(out);
+      osc.start(now + at);
+      osc.stop(now + at + 0.2);
+    }
+  }
+
+  /**
+   * 鞘走り — the blade leaving the scabbard: a bright metallic scrape rising
+   * to a ring. For 居合 and the execution's draw.
+   */
+  draw(point, strength = 1) {
+    if (!this._ready) return;
+    const context = this.context;
+    const now = context.currentTime;
+    const out = this._voice(point, 0.45 * strength, now + 0.9);
+    const scrape = this._noise(now, 0.28);
+    const band = context.createBiquadFilter();
+    band.type = 'bandpass';
+    band.Q.value = 9;
+    band.frequency.setValueAtTime(1800, now);
+    band.frequency.exponentialRampToValueAtTime(5200, now + 0.25);
+    const g = context.createGain();
+    envelope(g.gain, now, 0.03, 0.18, 0.28, 0.9);
+    scrape.connect(band).connect(g).connect(out);
+    const ring = context.createOscillator();
+    ring.type = 'sine';
+    ring.frequency.value = 2650 * (0.98 + Math.random() * 0.04);
+    const rg = context.createGain();
+    envelope(rg.gain, now + 0.22, 0.004, 0.02, 0.6, 0.12);
+    ring.connect(rg).connect(out);
+    ring.start(now + 0.2);
+    ring.stop(now + 0.9);
   }
 
   /** A menu press: a short wooden tick. Not placed in the world. */

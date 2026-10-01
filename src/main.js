@@ -31,7 +31,7 @@ async function boot() {
   } catch (error) {
     console.error('[boot] failed to start', error);
     new LoadingScreen().fail(
-      error?.message ? `Failed to start: ${error.message}` : 'Failed to start — see the console.'
+      error?.message ? `起動できませんでした: ${error.message}` : '起動できませんでした（コンソールを確認）'
     );
   }
 }

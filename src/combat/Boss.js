@@ -173,7 +173,7 @@ export class Boss {
     const dz = c.z - p.z;
     const d = Math.hypot(dx, dz) || 1;
     if (d < 6) app.controller.knock(dx / d, dz / d, 5);
-    app.toast.show(phase === 2 ? '羅刹 — 怒り' : '羅刹 — 狂乱', 1400);
+    app.banner?.show(phase === 2 ? '怒' : '狂乱', phase === 2 ? '羅刹 — 怒り' : '羅刹 — 狂乱', 'red', 1.8);
     if (phase === 3) {
       // Two retainers answer the roar.
       for (const [side, kind] of [[-1, 'ninja'], [1, 'grunt']]) {
@@ -288,10 +288,23 @@ export class Boss {
     }
     app.fx.pillar(p.x, p.y, p.z, getColor('#ffd28a'), 2, 9, 1.4);
     app.fx.ring(p.x, p.y, p.z, getColor('#ffd28a'), 8, 0.8);
-    app._hitStop = Math.max(app._hitStop, 0.6);
-    app._hitStopScale = 0.05;
+    app.fx.ring(p.x, p.y, p.z, getColor(settings.vfx.omen.color), 12, 1.2);
+    // The fall: the world nearly stops for a long breath, the lens flinches,
+    // white light, a last roar going down, and the word.
+    app._hitStop = Math.max(app._hitStop, 1.1);
+    app._hitStopScale = 0.08;
     app._hitRelease = 0;
-    app.toast.show('鬼武将 羅刹 — 討伐', 2000);
+    app.rig.shake(0.5);
+    app.post?.kick(1.2);
+    app.audio.roar({ x: p.x, y: p.y + 2, z: p.z }, 1.8);
+    app.haptics?.pulse([60, 40, 200]);
+    const flash = app._parryFlash;
+    if (flash) {
+      flash.classList.remove('is-on');
+      void flash.offsetWidth;
+      flash.classList.add('is-on');
+    }
+    app.banner?.show('討伐', '鬼武将 羅刹', 'gold', 2.6);
     // The retainers go with it.
     for (const add of this.adds) if (add.alive) app.enemies.kill(add, 0, 1, settings.kick);
     this.hud.classList.add('is-gone');

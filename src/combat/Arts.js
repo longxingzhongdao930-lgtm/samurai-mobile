@@ -289,6 +289,7 @@ export class Arts {
     };
     app._invuln = Math.max(app._invuln, cfg.time + 0.35);
     app.execution._hienReadyAt = app.elapsed + settings.hien.cooldown;
+    app.audio.draw({ x: p.x, y: p.y + 1, z: p.z }, 1.1);
     app.audio.swing({ x: p.x, y: p.y + 1, z: p.z }, 1);
   }
 

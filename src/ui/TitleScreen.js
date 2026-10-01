@@ -84,6 +84,7 @@ export class TitleScreen {
           <button type="button" data-act="settings">設定</button>
           <button type="button" data-act="controls">操作説明</button>
         </div>
+        <button type="button" data-act="fullscreen" class="title__fullscreen" hidden>⛶ 全画面</button>
       </div>
       <div class="title__panel title__pause" data-view="pause" hidden>
         <p class="title__panel-head">一時停止</p>
@@ -146,6 +147,12 @@ export class TitleScreen {
     this.resumeBtn = this.root.querySelector('[data-act="resume"]');
     this.eraseBtn = this.root.querySelector('[data-act="erase"]');
     this.restartBtn = this.root.querySelector('[data-act="restart"]');
+    this.fullBtn = this.root.querySelector('[data-act="fullscreen"]');
+    this.fullBtn.hidden = !document.fullscreenEnabled;
+    this._onFull = () => {
+      this.fullBtn.textContent = document.fullscreenElement ? '⛶ 全画面を解除' : '⛶ 全画面';
+    };
+    document.addEventListener('fullscreenchange', this._onFull);
     this.pauseWhere = this.root.querySelector('.title__pause-where');
     /** 'title' or 'pause' — which first card the panels lead back to. */
     this.mode = 'title';
@@ -172,6 +179,7 @@ export class TitleScreen {
       else if (act === 'select' || act === 'settings' || act === 'controls') this.view(act);
       else if (act === 'back') this.view(this.mode === 'pause' ? 'pause' : 'main');
       else if (act === 'erase') this._erase();
+      else if (act === 'fullscreen') this._fullscreen();
       else if (act === 'resume-game') hooks.onResume?.();
       else if (act === 'restart') hooks.onRestart?.();
       else if (act === 'quit') hooks.onQuit?.();
@@ -270,6 +278,20 @@ export class TitleScreen {
     }
   }
 
+  /** 全画面 — and on a phone, held sideways where the browser allows it. */
+  async _fullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+      await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+      await screen.orientation?.lock?.('landscape').catch(() => {});
+    } catch {
+      // Refused (an iframe, iOS Safari): the button simply does nothing.
+    }
+  }
+
   /** Two presses: the first arms it, the second erases. */
   _erase() {
     if (!this._armed) {
@@ -285,6 +307,7 @@ export class TitleScreen {
   }
 
   dispose() {
+    document.removeEventListener('fullscreenchange', this._onFull);
     this.root.remove();
   }
 }

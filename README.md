@@ -11,10 +11,13 @@ file in the project.
 ```bash
 npm install
 npm run dev -- --host   # http://localhost:5173 (and your LAN address for a phone)
-npm run build           # production build in dist/
+npm run build           # production build in dist/ (with the PWA service worker)
+npm run preview         # serve dist/ — install it as an app from http://localhost:4173
 npm run lint            # ESLint
-npm test                # PvP server unit tests
+npm test                # PvP server + rank unit tests
 npm run test:e2e        # browser regression (needs `npm run dev` and Playwright's Chromium)
+npm run test:pvp        # two-browser PvP match (see tests/pvp-e2e.mjs)
+npm run optimize:assets # rebuild public/ models & textures from assets-src/ (needs `npm run dev`)
 ```
 
 `?dev=1` shows the editor (`G`) and the frame readout (`F`).
@@ -32,8 +35,27 @@ npm run test:e2e        # browser regression (needs `npm run dev` and Playwright
 - **自由戦闘.** The open night field: bodies keep coming. Try the arts, gather souls.
 - **対戦 PvP.** Room codes, best of rounds, over `npm run server` (see `server/`).
 
-Souls buy upgrades (**強化**, `U`). **設定** has the volumes (master, effects,
-music), 画質 (自動 / 高 / 標準 / 軽量), look sensitivity and セーブ削除.
+Souls buy upgrades (**強化**, `U`). **設定** has 難易度 (易 / 普 / 難), the
+volumes (master, effects, music), 画質 (自動 / 高 High / 中 Medium / 低 Low),
+look sensitivity, 振動 and セーブ削除.
+
+- **一時停止** (`P`, `Esc`, the phone's Pause, a pad's Start): 再開 · 設定 ·
+  操作説明 · 鏡から再開 (門からやり直す before the mirror) · タイトルへ.
+- **難易度** scales the blows that land on you, the parry window, the gaps
+  between enemy swings and how many swing at once, their wind-up, and 羅刹's
+  health. Duels always use the server's numbers.
+- **評価** — every clear is ranked S/A/B/C from the time (from the gate), the
+  health lost and falls, and parries/executions/一閃 (`src/world/rank.js`);
+  the best per difficulty is kept and shown on the title.
+- **台詞** at 出陣 and when 羅刹 stands up; brushed banners for its rage and
+  its fall.
+- **ゲームパッド** (standard layout): A attack · B leap · X kick · Y 飛燕/居合 ·
+  LB lock · RB guard · LT absorb · RT 無双 · D-pad ↑ 雷切 ← 影走り → slash
+  hit ↓ slide cut · R3 縮地 · Back 強化 · Start pause; the sticks walk and
+  look, and drive every menu.
+- **振動** on parries, hits taken, executions, 一閃 and 羅刹's roars (Android).
+- **PWA**: installable, fullscreen, and after the first visit it starts from
+  the cache — offline too. The title has a 全画面 button for the browser.
 
 ### The save
 
@@ -81,11 +103,24 @@ A touch screen gets its own layout ([src/ui/MobileControls.js](src/ui/MobileCont
 detected by `(pointer: coarse)` — `?mobile=1` forces it on a desktop. Every
 button *is* its key, so nothing in the game has a mobile branch.
 
+### Assets and first load
+
+What the game loads is generated from the sources in `assets-src/` by
+`npm run optimize:assets` ([tools/optimize-assets.mjs](tools/optimize-assets.mjs)):
+the FBX rig, bodies and motions become GLB (converted by three's own loaders
+and exporter in a browser, names kept, meshopt-compressed), the material
+library's and the gear's textures JPEG/WebP, the textures re-encoded, the HDR
+halved. The first visit went from ~75 MB to ~9 MB. The JS is split: three in
+its own long-cached chunk, the dev editor loaded only with `?dev=1`.
+
 ### Performance
 
 画質 sets the pixel ratio (a desktop caps the device ratio; a phone works to a
-pixel budget, so a tablet and a small phone cost the same), the sun's shadow
-map size and how often it redraws, and how many bodies the open field keeps up.
+pixel budget, so a tablet and a small phone cost the same), anti-aliasing
+(MSAA on a desktop, FXAA on a phone), a bright-only bloom for cuts and fire
+(High), the sun's shadow map size and how often it redraws, anisotropic
+filtering, draw distance, mist/leaf counts, the stage's pine wood and how many
+bodies the open field keeps up.
 **自動** starts from 標準 on a phone and 高 on a desktop and then steps the
 resolution down when frames run slower than ~45 fps, and back up when there is
 headroom. A phone also gets thinner defaults across the board

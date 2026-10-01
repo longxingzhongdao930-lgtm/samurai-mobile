@@ -138,8 +138,8 @@ export class Stage {
   /* ------------------------------------------------------------------ */
 
   _build() {
-    const mat = (color, emissive = '#000000') => {
-      const m = new MeshStandardMaterial({ color: new Color(color), emissive: new Color(emissive), roughness: 0.9 });
+    const mat = (color, emissive = '#000000', roughness = 0.9) => {
+      const m = new MeshStandardMaterial({ color: new Color(color), emissive: new Color(emissive), roughness });
       this.app.atmosphere?.patch(m);
       this.app.environment?.excludeFromKeyLights?.(m);
       return m;
@@ -192,7 +192,8 @@ export class Stage {
     // The save point: a stone pedestal; the mirror is its own glowing disc.
     stone.push(put(new CylinderGeometry(0.45, 0.6, 0.9, 8), SAVE.x + LANE - 0.6, 0.45, SAVE.z));
     for (const [list, material] of [
-      [stone, mat('#6d6a64')],
+      // Night-damp stone: a little sheen, so the lanterns and the moon catch in it.
+      [stone, mat('#6d6a64', '#000000', 0.55)],
       [wood, mat('#4a3322')],
       [red, mat('#9e2a1b', '#2a0604')]
     ]) {

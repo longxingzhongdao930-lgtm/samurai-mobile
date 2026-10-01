@@ -1021,6 +1021,147 @@ await run('fullRun', async () => {
   return { ok, music0, lesson, fieldMusic, intro, bossMusic, phases, clearMusic, clear, back, errors };
 });
 
+
+// 一時停止: P opens it over the game, its panels lead back to it, Escape
+// closes it; 鏡から再開 (or the gate) and タイトルへ do what they say.
+await run('pauseMenu', async () => {
+  const { ctx, page, errors } = await boot(PC, { count: 1, hp: 1e6 });
+  await page.evaluate(() => { save.set('stage1', { tutorialDone: true }); settings.enemyAI.maxAttackers = 0; app.stage.start(); });
+  await page.waitForFunction(() => app.stage.step === 'approach', null, { timeout: 60000 }).catch(() => {});
+  await page.keyboard.press('KeyP');
+  const open = await page.evaluate(() => ({ visible: app.title.visible, mode: app.title.mode, view: app.title.current, paused: app.paused, restart: document.querySelector('[data-act="restart"]').textContent, where: document.querySelector('.title__pause-where').textContent }));
+  await page.click('.title [data-view="pause"] [data-act="settings"]');
+  await page.click('.title [data-view="settings"] [data-act="back"]');
+  const back = await page.evaluate(() => app.title.current);
+  await page.keyboard.press('Escape');
+  const closed = await page.evaluate(() => ({ visible: app.title.visible, paused: app.paused }));
+  // 門からやり直す: no mirror yet, so the run starts again at the gate.
+  await page.evaluate(() => app._teleport(0, 5, 0));
+  await page.keyboard.press('KeyP');
+  await page.click('.title [data-act="restart"]');
+  await page.waitForTimeout(500);
+  const restarted = await page.evaluate(() => ({ step: app.stage.step, z: +app.character.position.z.toFixed(1), paused: app.paused, visible: app.title.visible }));
+  await page.keyboard.press('KeyP');
+  await page.click('.title [data-act="quit"]');
+  await page.waitForTimeout(300);
+  const quit = await page.evaluate(() => ({ title: app.title.visible, mode: app.title.mode, stage: app.stage.active, music: app.music.wanted }));
+  await ctx.close();
+  const ok = open.visible && open.mode === 'pause' && open.view === 'pause' && open.paused && open.restart.includes('門') && open.where.includes('一ノ章') &&
+    back === 'pause' && !closed.visible && !closed.paused && restarted.step === 'approach' && restarted.z < 1 && !restarted.paused && !restarted.visible &&
+    quit.title && quit.mode === 'title' && !quit.stage && quit.music === 'title' && !errors.length;
+  return { ok, open, back, closed, restarted, quit, errors };
+});
+
+// 難易度: the numbers it scales, and 羅刹's health; never in a duel's numbers.
+await run('difficulty', async () => {
+  const { ctx, page, errors } = await boot(PC, { count: 1, hp: 1e6 });
+  const read = () => page.evaluate(() => ({ id: app.difficulty.id, dmg: settings.combat.player.damage, parry: settings.defense.parryWindow, attackers: settings.enemyAI.maxAttackers }));
+  await page.evaluate(() => app._applyPrefs({ difficulty: 'normal' }));
+  const normal = await read();
+  await page.evaluate(() => app._applyPrefs({ difficulty: 'hard' }));
+  const hard = await read();
+  await page.evaluate(() => app._applyPrefs({ difficulty: 'easy' }));
+  const easy = await read();
+  await ctx.close();
+  const ok = hard.dmg > normal.dmg && easy.dmg < normal.dmg && hard.parry < normal.parry && easy.parry > normal.parry && easy.attackers <= normal.attackers && hard.attackers > normal.attackers && !errors.length;
+  return { ok, normal, hard, easy, errors };
+});
+
+// A pad: buttons are keys (A swings), and over a menu A/B and the stick drive it.
+await run('gamepad', async () => {
+  const { ctx, page, errors } = await boot(PC, { passive: true, count: 1 });
+  await page.evaluate(() => {
+    const pad = { id: 'Test pad', index: 0, connected: true, mapping: 'standard', axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+    window.__pad = pad;
+    navigator.getGamepads = () => [pad];
+    window.dispatchEvent(Object.assign(new Event('gamepadconnected'), { gamepad: pad }));
+    __place([{ d: 1.6 }]);
+  });
+  const press = async (i, on) => page.evaluate(([i, on]) => { __pad.buttons[i].pressed = on; }, [i, on]);
+  await press(0, true);
+  await page.waitForFunction(() => __log.some((l) => l.swing), null, { timeout: 120000 }).catch(() => {});
+  await press(0, false);
+  const swung = await page.evaluate(() => __log.find((l) => l.swing)?.swing ?? null);
+  // Start: the pause menu; B closes it again.
+  await idle(page);
+  await press(9, true);
+  await page.waitForFunction(() => app.title.visible, null, { timeout: 60000 }).catch(() => {});
+  await press(9, false);
+  const paused = await page.evaluate(() => ({ visible: app.title.visible, mode: app.title.mode }));
+  await page.waitForTimeout(400);
+  await press(1, true);
+  await page.waitForFunction(() => !app.title.visible, null, { timeout: 60000 }).catch(() => {});
+  await press(1, false);
+  const resumed = await page.evaluate(() => !app.title.visible && !app.paused);
+  // Left stick: the walk.
+  await page.evaluate(() => { __pad.axes[1] = -1; });
+  await page.waitForFunction(() => app.input.stick.y > 0.5, null, { timeout: 60000 }).catch(() => {});
+  const stick = await page.evaluate(() => ({ y: app.input.stick.y, run: app.input.stick.run }));
+  await page.evaluate(() => { __pad.axes[1] = 0; });
+  await ctx.close();
+  const ok = swung === 'combo1' && paused.visible && paused.mode === 'pause' && resumed && stick.y > 0.5 && !errors.length;
+  return { ok, swung, paused, resumed, stick, errors };
+});
+
+// The rank on the clear screen and the best kept per difficulty; vibration asked for on a parry.
+await run('rankHaptics', async () => {
+  const { ctx, page, errors } = await boot(PC, { count: 1, hp: 1e6 });
+  await page.evaluate(() => { save.set('stage1', { tutorialDone: true }); settings.enemyAI.maxAttackers = 0; settings.enemyKinds.archer.cooldownMin = 999; settings.enemyKinds.archer.cooldownMax = 999; app._applyPrefs({ difficulty: 'hard' }); app.stage.start(); });
+  await page.waitForFunction(() => app.stage.step === 'approach', null, { timeout: 60000 }).catch(() => {});
+  await page.evaluate(() => { app.counters.parry += 4; app.counters.execution += 2; app.haptics.log.length = 0; app.haptics._last = 0; app.haptics.pulse([30]); });
+  await page.evaluate(() => app._teleport(0, 12, 0));
+  await page.waitForFunction(() => app.stage.step === 'plaza', null, { timeout: 60000 }).catch(() => {});
+  await page.evaluate(() => { for (const e of app.stage.wave) if (e.alive) app.enemies.kill(e, 0, 1, settings.kick); });
+  await page.waitForFunction(() => app.stage.step === 'onward', null, { timeout: 60000 }).catch(() => {});
+  await page.evaluate(() => app._teleport(0, 54, 0));
+  await page.waitForFunction(() => !!app.stage.boss, null, { timeout: 60000 }).catch(() => {});
+  const bossHp = await page.evaluate(() => ({ hp: app.stage.boss.enemy.maxHealth, base: settings.enemyKinds.boss.health }));
+  await page.evaluate(() => app.enemies.kill(app.stage.boss.enemy, 0, 1, settings.kick));
+  await page.waitForFunction(() => !document.querySelector('.stage-clear').hidden, null, { timeout: 120000 }).catch(() => {});
+  const clear = await page.evaluate(() => ({ rank: document.querySelector('.stage-clear__rank').textContent, detail: document.querySelector('.stage-clear__detail').textContent, saved: save.get('stage1').ranks, haptics: app.haptics.log.length, banner: document.querySelector('.banner__word').textContent }));
+  await ctx.close();
+  const ok = bossHp.hp === Math.round(bossHp.base * 1.3) && ['S', 'A', 'B', 'C'].includes(clear.rank) && clear.detail.includes('難易度 +8') && clear.saved?.hard === clear.rank &&
+    clear.haptics >= 2 && clear.banner === '討伐' && !errors.length;
+  return { ok, bossHp, clear, errors };
+});
+
+// The whole chapter on a phone: taps for the menus, the same run to the clear.
+await run('fullRunPhone', async () => {
+  const { ctx, page, errors } = await boot(MOB, { count: 1, hp: 1e6, keepTitle: true });
+  const until = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 120000 }).catch(() => {});
+  const tap = async (sel) => { const el = await page.waitForSelector(sel, { state: 'visible', timeout: 60000 }); const b = await el.boundingBox(); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); };
+  await page.evaluate(() => { settings.enemyAI.maxAttackers = 0; settings.enemyKinds.archer.cooldownMin = 999; settings.enemyKinds.archer.cooldownMax = 999; });
+  await tap('.title [data-act="select"]');
+  await tap('.title [data-act="stage"]');
+  await until(() => app.stage.step === 'tutorial');
+  await tap('.tutorial__skip');
+  await until(() => app.stage.step === 'approach');
+  // The Attack button swings.
+  await tap('.mc [data-id="combo"], .mc button[aria-label*="Attack" i]').catch(() => {});
+  await page.evaluate(() => app._teleport(0, 12, 0));
+  await until(() => app.stage.step === 'plaza');
+  await page.evaluate(() => { for (const e of app.stage.wave) if (e.alive) app.enemies.kill(e, 0, 1, settings.kick); });
+  await until(() => app.stage.step === 'onward');
+  await page.evaluate(() => app._teleport(2, 42, 0));
+  await until(() => app.stage.checkpoint === 'save');
+  // The phone's Pause button opens the menu; 再開 closes it.
+  await tap('.mc [data-id="pause"], .mc-util[aria-label="Pause"], .mc-util[data-util="pause"]').catch(() => page.keyboard.press('KeyP'));
+  await until(() => app.title.visible && app.title.mode === 'pause');
+  const pause = await page.evaluate(() => ({ visible: app.title.visible, restart: document.querySelector('[data-act="restart"]').textContent }));
+  await tap('.title [data-act="resume-game"]');
+  await page.evaluate(() => app._teleport(0, 54, 0));
+  await until(() => !!app.stage.boss);
+  await page.evaluate(() => app.enemies.kill(app.stage.boss.enemy, 0, 1, settings.kick));
+  await until(() => !document.querySelector('.stage-clear').hidden);
+  const clear = await page.evaluate(() => ({ rank: document.querySelector('.stage-clear__rank').textContent, stats: document.querySelector('.stage-clear__stats').textContent }));
+  await tap('.stage-clear [data-act="leave"]');
+  await until(() => app.title.visible);
+  const back = await page.evaluate(() => ({ title: app.title.visible, record: document.querySelector('.title__record').textContent, dpr: app.renderer.gl.getPixelRatio(), quality: app.quality.tier }));
+  await ctx.close();
+  const ok = pause.visible && pause.restart.includes('鏡') && ['S', 'A', 'B', 'C'].includes(clear.rank) && back.title && back.record.includes('討伐済') && !errors.length;
+  return { ok, pause, clear, back, errors };
+});
+
 const allOk = Object.values(R).every(r => r.ok);
 console.log(JSON.stringify({ allOk, totalSec: Math.round((Date.now() - T0) / 1000), R }, null, 1));
 await browser.close();

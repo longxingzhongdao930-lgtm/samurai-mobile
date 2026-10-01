@@ -115,6 +115,13 @@ export class GamepadInput {
       }
       this._key(code, on);
     }
+    // A key just opened a menu (Start → pause): what is held now is not a
+    // press in it, and anything pressed from here on is.
+    if (document.querySelector(MENUS)) {
+      this._menuHeld = { a: pressed(0), b: pressed(1), start: pressed(9) };
+      this._releaseAll();
+      return;
+    }
 
     // Left stick: the analog walk; at the rim, the run (as the thumb stick).
     const lx = dead(pad.axes[0] ?? 0);

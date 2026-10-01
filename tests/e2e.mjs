@@ -28,6 +28,9 @@ async function boot(opts, setup = {}) {
     settings.combat.bufferTime = 600;
     settings.combat.player.maxHp = s.hp ?? 1e6; app.playerHp = settings.combat.player.maxHp;
     settings.enemies.count = s.count ?? 3;
+    // Plain swordsmen unless a test asks for a kind: the open field's mix
+    // (shields, ninja, brutes) would make every count of hits a dice roll.
+    app.enemies.forceKind = s.kinds ? null : 'grunt';
     if (s.passive) settings.enemyAI.maxAttackers = 0;
     window.__log = [];
     const im = app._impact.bind(app);
@@ -1137,7 +1140,9 @@ await run('fullRunPhone', async () => {
   await tap('.tutorial__skip');
   await until(() => app.stage.step === 'approach');
   // The Attack button swings.
-  await tap('.mc [data-id="combo"], .mc button[aria-label*="Attack" i]').catch(() => {});
+  await tap('.mc [data-id="combo"]').catch(() => {});
+  const swung = await page.waitForFunction(() => app.character.moves.some((m) => m.locked), null, { timeout: 60000 }).then(() => true).catch(() => false);
+  await idle(page);
   await page.evaluate(() => app._teleport(0, 12, 0));
   await until(() => app.stage.step === 'plaza');
   await page.evaluate(() => { for (const e of app.stage.wave) if (e.alive) app.enemies.kill(e, 0, 1, settings.kick); });
@@ -1147,7 +1152,7 @@ await run('fullRunPhone', async () => {
   // The phone's Pause button opens the menu; 再開 closes it.
   await tap('.mc [data-id="pause"], .mc-util[aria-label="Pause"], .mc-util[data-util="pause"]').catch(() => page.keyboard.press('KeyP'));
   await until(() => app.title.visible && app.title.mode === 'pause');
-  const pause = await page.evaluate(() => ({ visible: app.title.visible, restart: document.querySelector('[data-act="restart"]').textContent }));
+  const pause = await page.evaluate(() => ({ visible: app.title.visible, restart: document.querySelector('[data-act="restart"]').textContent, cp: app.stage.checkpoint, z: +app.character.position.z.toFixed(1), x: +app.character.position.x.toFixed(2), step: app.stage.step }));
   await tap('.title [data-act="resume-game"]');
   await page.evaluate(() => app._teleport(0, 54, 0));
   await until(() => !!app.stage.boss);
@@ -1158,8 +1163,8 @@ await run('fullRunPhone', async () => {
   await until(() => app.title.visible);
   const back = await page.evaluate(() => ({ title: app.title.visible, record: document.querySelector('.title__record').textContent, dpr: app.renderer.gl.getPixelRatio(), quality: app.quality.tier }));
   await ctx.close();
-  const ok = pause.visible && pause.restart.includes('鏡') && ['S', 'A', 'B', 'C'].includes(clear.rank) && back.title && back.record.includes('討伐済') && !errors.length;
-  return { ok, pause, clear, back, errors };
+  const ok = swung && pause.visible && pause.restart.includes('鏡') && ['S', 'A', 'B', 'C'].includes(clear.rank) && back.title && back.record.includes('討伐済') && !errors.length;
+  return { ok, swung, pause, clear, back, errors };
 });
 
 const allOk = Object.values(R).every(r => r.ok);

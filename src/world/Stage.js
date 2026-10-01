@@ -3,11 +3,17 @@ import {
   BoxGeometry,
   CircleGeometry,
   Color,
+  ConeGeometry,
   CylinderGeometry,
   DoubleSide,
   Group,
+  InstancedMesh,
+  Matrix4,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
+  Quaternion,
+  Vector3,
   PlaneGeometry,
   RingGeometry,
   ShaderMaterial
@@ -161,14 +167,22 @@ export class Stage {
         wood.push(put(new BoxGeometry(0.16, 1, 0.16), area.x + Math.sin(a) * (area.r + 0.6), 0.5, area.z + Math.cos(a) * (area.r + 0.6), a));
       }
     }
-    // Lanterns along the lanes.
+    // Lanterns along the lanes, lit: a warm core in each fire box (bright
+    // enough that 画質 高's bloom lets it glow).
+    const glow = [];
     for (const z of [2, 12, 38, 46]) {
       for (const x of [-LANE - 0.8, LANE + 0.8]) {
         stone.push(put(new BoxGeometry(0.4, 0.12, 0.4), x, 0.06, z));
         stone.push(put(new CylinderGeometry(0.09, 0.11, 0.8, 6), x, 0.5, z));
         stone.push(put(new BoxGeometry(0.36, 0.3, 0.36), x, 1.05, z));
+        stone.push(put(new ConeGeometry(0.34, 0.22, 4), x, 1.31, z, Math.PI / 4));
+        glow.push(put(new BoxGeometry(0.38, 0.16, 0.2), x, 1.05, z));
+        glow.push(put(new BoxGeometry(0.2, 0.16, 0.38), x, 1.05, z));
       }
     }
+    const lit = new Mesh(mergeGeometries(glow), new MeshBasicMaterial({ color: new Color(2.6, 1.3, 0.45) }));
+    this.group.add(lit);
+    this._buildForest();
     // The three torii.
     for (const z of [GATE1, GATE2, GATE3]) {
       for (const x of [-LANE, LANE]) red.push(put(new CylinderGeometry(0.16, 0.19, 3.6, 8), x, 1.8, z));
@@ -216,6 +230,76 @@ export class Stage {
       this.group.add(plane);
       this.barriers[name] = { plane, material, open: false, z };
     }
+  }
+
+  /**
+   * 杉 — a dark wood along both sides of the lanes and round the plaza and the
+   * arena, so the stage reads as a path cut through a forest rather than props
+   * on an empty plain. One instanced draw: a three-tier cone pine, scaled and
+   * turned per instance, never casting (the sun's map has enough to do), and
+   * thinned out on 画質 低.
+   */
+  _buildForest() {
+    const tiers = [];
+    for (const [r, h, y] of [
+      [1.5, 2.6, 2.4],
+      [1.15, 2.2, 3.7],
+      [0.75, 1.8, 4.9]
+    ]) {
+      tiers.push(new ConeGeometry(r, h, 7).translate(0, y, 0));
+    }
+    tiers.push(new CylinderGeometry(0.16, 0.24, 2.2, 6).translate(0, 1.1, 0));
+    const geometry = mergeGeometries(tiers.map((g) => g.toNonIndexed()));
+    const material = new MeshStandardMaterial({ color: new Color('#0f1914'), roughness: 1 });
+    this.app.atmosphere?.patch(material);
+
+    // Deterministic, so the wood is the same wood every visit.
+    let seed = 7;
+    const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const spots = [];
+    const clearOf = (x, z) =>
+      Math.hypot(x - PLAZA.x, z - PLAZA.z) > PLAZA.r + 3 && Math.hypot(x - ARENA.x, z - ARENA.z) > ARENA.r + 3;
+    // Both sides of the lanes.
+    for (let z = -8; z <= 82; z += 2.6) {
+      for (const side of [-1, 1]) {
+        const x = side * (LANE + 4 + rand() * 9);
+        if (clearOf(x, z)) spots.push([x, z + (rand() - 0.5) * 2]);
+        const far = side * (LANE + 14 + rand() * 12);
+        if (clearOf(far, z) && rand() > 0.35) spots.push([far, z + (rand() - 0.5) * 3]);
+      }
+    }
+    // Rings round the two open grounds.
+    for (const [area, n] of [
+      [PLAZA, 30],
+      [ARENA, 40]
+    ]) {
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + rand() * 0.2;
+        if (Math.abs(Math.sin(a)) < 0.25) continue; // the way in and out
+        const r = area.r + 4 + rand() * 7;
+        spots.push([area.x + Math.sin(a) * r, area.z + Math.cos(a) * r]);
+      }
+    }
+    const mesh = new InstancedMesh(geometry, material, spots.length);
+    const m = new Matrix4();
+    const q = new Quaternion();
+    const up = new Vector3(0, 1, 0);
+    const scale = new Vector3();
+    const pos = new Vector3();
+    spots.forEach(([x, z], i) => {
+      const s = 0.8 + rand() * 0.9;
+      q.setFromAxisAngle(up, rand() * Math.PI * 2);
+      scale.set(s, s * (0.9 + rand() * 0.5), s);
+      pos.set(x, 0, z);
+      m.compose(pos, q, scale);
+      mesh.setMatrixAt(i, m);
+    });
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    mesh.frustumCulled = false;
+    this.forest = mesh;
+    this._forestFull = spots.length;
+    this.group.add(mesh);
   }
 
   /* ------------------------------------------------------------------ */

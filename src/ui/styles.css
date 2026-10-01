@@ -3068,7 +3068,9 @@ body.title-open .stage-objective {
 .dialogue {
   position: fixed;
   left: 50%;
-  bottom: 9.5rem;
+  /* High, under the objective line: the bottom belongs to the boss's name
+     card and the move panels. */
+  top: 6.6rem;
   transform: translateX(-50%);
   z-index: 20;
   width: min(30rem, calc(100vw - 2rem));
@@ -3080,7 +3082,6 @@ body.title-open .stage-objective {
 }
 
 html.touch-ui .dialogue {
-  bottom: auto;
   top: calc(env(safe-area-inset-top, 0px) + 3.2rem);
 }
 

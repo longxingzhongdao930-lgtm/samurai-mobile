@@ -1060,18 +1060,99 @@ export class App {
     audio.music = prefs.music;
     this.audio.syncLevels();
 
-    const q = prefs.quality;
-    if (this.renderer.quality !== q) this.renderer.setQuality(q);
-    const base = this._baseShadowMap;
-    const shadowMap = q === 'light' ? Math.min(base, TOUCH ? 512 : 1024) : q === 'standard' ? Math.min(base, TOUCH ? 1024 : 2048) : base;
-    this.environment.setShadowMapSize(shadowMap);
-    this._shadowEvery = q === 'light' ? 2 : 1;
-    settings.enemies.count = q === 'light' ? Math.min(this._baseEnemyCount, TOUCH ? 7 : 10) : this._baseEnemyCount;
+    this._applyQuality(prefs.quality);
 
     settings.camera.sensitivity = this._baseSensitivity * prefs.sensitivity;
     this.rig.controls.rotateSpeed = 0.65 * prefs.sensitivity;
     this.haptics.enabled = prefs.vibration !== false;
     this._applyDifficulty();
+  }
+
+  /**
+   * 画質 — 高 (High) / 中 (Medium) / 低 (Low), and 自動 (Medium on a phone,
+   * High on a desktop, its resolution then following the frame rate).
+   *
+   * What a tier sets, every one of them switchable while running:
+   *  - resolution (`Renderer#targetPixelRatio`: a pixel budget on a phone)
+   *  - anti-aliasing: MSAA on the composer's targets on a desktop, FXAA where
+   *    that costs too much
+   *  - a bloom that only the brightest light passes (cuts, flares, fire)
+   *  - the sun's shadow map, and how often it is redrawn
+   *  - texture filtering at grazing angles (anisotropy)
+   *  - draw distance, the ground mist and the drifting leaves, the open
+   *    field's crowd
+   */
+  _applyQuality(quality) {
+    if (this.renderer.quality !== quality) this.renderer.setQuality(quality);
+    const tier = quality === 'auto' ? (TOUCH ? 'standard' : 'high') : quality;
+    if (!this._baseQuality) {
+      this._baseQuality = { fog: settings.groundFog.count, drift: settings.leaves.drift.count };
+    }
+    const base = this._baseQuality;
+    const shadowBase = this._baseShadowMap;
+    const T = {
+      high: {
+        samples: TOUCH ? 0 : 4,
+        fxaa: TOUCH,
+        bloom: { strength: TOUCH ? 0.22 : 0.32, radius: 0.35, threshold: 1.05 },
+        shadow: TOUCH ? Math.max(shadowBase, 2048) : shadowBase,
+        every: 1,
+        aniso: 8,
+        far: 400,
+        crowd: 1
+      },
+      standard: {
+        samples: TOUCH ? 0 : 2,
+        fxaa: TOUCH,
+        bloom: TOUCH ? null : { strength: 0.22, radius: 0.3, threshold: 1.1 },
+        shadow: Math.min(shadowBase, TOUCH ? 1024 : 2048),
+        every: 1,
+        aniso: 4,
+        far: 360,
+        crowd: 0.8
+      },
+      light: {
+        samples: 0,
+        fxaa: !TOUCH,
+        bloom: null,
+        shadow: Math.min(shadowBase, TOUCH ? 512 : 1024),
+        every: 2,
+        aniso: 1,
+        far: 300,
+        crowd: 0.5
+      }
+    }[tier] ?? null;
+    if (!T) return;
+    this.quality = { tier, ...T };
+    this.post.quality = { samples: T.samples, fxaa: T.fxaa, bloom: T.bloom };
+    this.environment.setShadowMapSize(T.shadow);
+    this._shadowEvery = T.every;
+    settings.groundFog.count = Math.round(base.fog * T.crowd);
+    settings.leaves.drift.count = Math.round(base.drift * T.crowd);
+    settings.enemies.count = tier === 'light' ? Math.min(this._baseEnemyCount, TOUCH ? 7 : 10) : this._baseEnemyCount;
+    if (this.stage?.forest) this.stage.forest.count = Math.round(this.stage._forestFull * (tier === 'light' ? 0.5 : 1));
+    if (this.camera.far !== T.far) {
+      this.camera.far = T.far;
+      this.camera.updateProjectionMatrix();
+    }
+    this._applyAnisotropy(Math.min(T.aniso, this.renderer.gl.capabilities.getMaxAnisotropy()));
+  }
+
+  /** Texture filtering at grazing angles, on every image texture in the world. */
+  _applyAnisotropy(level) {
+    this._anisotropy = level;
+    const seen = new Set();
+    this.scene.traverse((o) => {
+      for (const m of [].concat(o.material ?? [])) {
+        for (const value of Object.values(m)) {
+          if (!value?.isTexture || seen.has(value) || value.isDataTexture || value.isRenderTargetTexture) continue;
+          seen.add(value);
+          if (!value.image || value.anisotropy === level) continue;
+          value.anisotropy = level;
+          value.needsUpdate = true;
+        }
+      }
+    });
   }
 
   /** 難易度 into the numbers it scales — or the plain ones, in a duel. */
@@ -2022,6 +2103,9 @@ export class App {
     await assets.settled();
     assets.dispose();
 
+    // Everything is in the scene now: the textures, the stage's wood and the
+    // rest take the tier.
+    this._applyQuality(this.prefs.quality);
     this.loading.setProgress(1, '出陣');
     this.loading.hide();
     // The moves are named by the row along the bottom, so this only has to

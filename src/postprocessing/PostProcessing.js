@@ -4,6 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { GradeShader } from './GradeShader.js';
 import { frame } from '../core/FrameUniforms.js';
 import { settings } from '../config/settings.js';
@@ -62,6 +63,25 @@ export class PostProcessing {
     this.gradePass = new ShaderPass(GradeShader);
     this.gradePass.renderToScreen = true;
     this.composer.addPass(this.gradePass);
+
+    // FXAA, last, on the graded image — the anti-aliasing where MSAA on the
+    // composer's targets costs too much (a phone, 中/低). The composer hands
+    // the screen to whichever pass is last and enabled.
+    this.fxaaPass = new ShaderPass(FXAAShader);
+    this.fxaaPass.enabled = false;
+    this.composer.addPass(this.fxaaPass);
+    this._fxaaResolution(size.x * pixelRatio, size.y * pixelRatio);
+
+    /**
+     * 画質 overrides (`App#_applyQuality`): MSAA samples, FXAA, and the bloom
+     * that lets only the brightest light (cuts, flares, fire) glow. null keeps
+     * the look's own number.
+     */
+    this.quality = { samples: null, fxaa: false, bloom: null };
+  }
+
+  _fxaaResolution(w, h) {
+    this.fxaaPass.material.uniforms.resolution.value.set(1 / Math.max(1, w), 1 / Math.max(1, h));
   }
 
   /**
@@ -77,10 +97,13 @@ export class PostProcessing {
     const post = look;
 
     this._applySamples();
-    this.bloomPass.strength = post.bloomStrength;
-    this.bloomPass.radius = post.bloomRadius;
-    this.bloomPass.threshold = post.bloomThreshold;
-    this.bloomPass.enabled = post.enabled && post.bloomStrength > 0.001;
+    const q = this.quality;
+    const bloom = q?.bloom;
+    this.bloomPass.strength = bloom ? bloom.strength : post.bloomStrength;
+    this.bloomPass.radius = bloom ? bloom.radius : post.bloomRadius;
+    this.bloomPass.threshold = bloom ? bloom.threshold : post.bloomThreshold;
+    this.bloomPass.enabled = post.enabled && this.bloomPass.strength > 0.001;
+    this.fxaaPass.enabled = post.enabled && !!q?.fxaa;
 
     const u = this.gradePass.uniforms;
     u.uTime.value = elapsed;
@@ -135,7 +158,7 @@ export class PostProcessing {
    * bandwidth on all of it. Drop `post.samples` to 2, or to 0, to buy it back.
    */
   _applySamples() {
-    const samples = Math.max(0, Math.round(settings.post.samples ?? 0));
+    const samples = Math.max(0, Math.round(this.quality?.samples ?? settings.post.samples ?? 0));
     if (samples === this._samples) return;
     this._samples = samples;
     this.composer.renderTarget1.samples = samples;
@@ -148,6 +171,7 @@ export class PostProcessing {
   setSize(width, height, pixelRatio) {
     this.composer.setPixelRatio(pixelRatio);
     this.composer.setSize(width, height);
+    this._fxaaResolution(width * pixelRatio, height * pixelRatio);
     this.bloomPass.setSize(
       Math.max(2, width * BLOOM_SCALE),
       Math.max(2, height * BLOOM_SCALE)

@@ -26,9 +26,9 @@ const DIFFICULTIES = [
 
 const QUALITIES = [
   ['auto', '自動'],
-  ['high', '高'],
-  ['standard', '標準'],
-  ['light', '軽量']
+  ['high', '高 High'],
+  ['standard', '中 Medium'],
+  ['light', '低 Low']
 ];
 
 const time = (secs) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
@@ -130,7 +130,7 @@ export class TitleScreen {
         </div></div>
         <label class="title__field"><span>視点感度</span><input type="range" min="0.4" max="2" step="0.1" data-pref="sensitivity"></label>
         <label class="title__field title__check"><span>振動</span><input type="checkbox" data-pref-bool="vibration"><i>パリィ・被弾・処刑で振動（対応端末）</i></label>
-        <p class="title__hint">画質「自動」は動作の重さに合わせて解像度を調整します。</p>
+        <p class="title__hint">高：MSAA・グロー・高解像度の影 ／ 中：標準 ／ 低：スマホ省電力。「自動」は重さに合わせて解像度を調整します。</p>
         <button type="button" data-act="erase" class="title__danger">セーブ削除</button>
         <button type="button" data-act="back" class="title__back">戻る</button>
       </div>

@@ -74,7 +74,7 @@ export class Renderer {
     const mode = this.quality === 'auto' ? (touch ? 'standard' : 'high') : this.quality;
     let ratio;
     if (touch) {
-      const budget = { high: 1.4e6, standard: 0.95e6, light: 0.55e6 }[mode] ?? 0.95e6;
+      const budget = { high: 0.85e6, standard: 0.5e6, light: 0.33e6 }[mode] ?? 0.5e6;
       const fit = Math.sqrt(budget / Math.max(1, window.innerWidth * window.innerHeight));
       ratio = Math.max(0.6, Math.min(dpr, 2, fit));
     } else {

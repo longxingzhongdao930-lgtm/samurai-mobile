@@ -331,6 +331,30 @@ body.game .loader__status {
   background: var(--kin);
 }
 
+.tc-weapon {
+  position: absolute;
+  right: calc(64px + var(--safe-r));
+  top: 12px;
+  height: 40px;
+  min-width: 76px;
+  padding: 0 12px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(201, 162, 90, 0.6);
+  background: rgba(12, 10, 9, 0.75);
+  color: var(--washi);
+  font-family: var(--serif);
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: auto;
+  touch-action: none;
+}
+.tc-weapon__swap { color: var(--kin); font-size: 13px; }
+.tc-weapon .tc-key { position: static; }
+
 /* ============================== HUD ============================== */
 .gh {
   position: fixed;

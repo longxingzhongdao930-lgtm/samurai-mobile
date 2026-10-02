@@ -65,6 +65,14 @@ export class TouchControls {
       this._bindButton(chip, `el${index}`);
     });
 
+    // The weapon in hand; a tap turns to the next one.
+    this.weapon = document.createElement('button');
+    this.weapon.type = 'button';
+    this.weapon.className = 'tc-weapon';
+    this.weapon.innerHTML = '<span class="tc-weapon__name">刀</span><span class="tc-weapon__swap">⇄</span><kbd class="tc-key">E</kbd>';
+    this.root.appendChild(this.weapon);
+    this._bindButton(this.weapon, 'weapon');
+
     this.pause = document.createElement('button');
     this.pause.type = 'button';
     this.pause.className = 'tc-pause';
@@ -208,6 +216,10 @@ export class TouchControls {
     this.buttons.attack.querySelector('.tc-btn__glyph').textContent = execute ? '処' : '斬';
     this.buttons.attack.querySelector('.tc-btn__label').textContent = execute ? '処刑' : '攻撃';
     this.buttons.lock.classList.toggle('is-on', Boolean(locked));
+    if (state.weapon && this._weaponName !== state.weapon) {
+      this._weaponName = state.weapon;
+      this.weapon.querySelector('.tc-weapon__name').textContent = state.weapon;
+    }
     this.buttons.guard.classList.toggle('is-on', Boolean(guard));
   }
 

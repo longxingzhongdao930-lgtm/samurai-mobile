@@ -3,7 +3,7 @@ import { Attack } from '../../animation/Attack.js';
 import { settings } from '../../config/settings.js';
 import { PoseLayer } from './PoseLayer.js';
 import { BodyMotion } from './BodyMotion.js';
-import { WEAPONS } from '../data/weapons.js';
+import { WEAPONS, WEAPON_ORDER } from '../data/weapons.js';
 import { ELEMENTS, SPELLS, SPELL_ORDER } from '../data/elements.js';
 
 const _v = new Vector3();
@@ -88,10 +88,10 @@ export class PlayerCombat {
     const onStrike = (move, index) => this._onStrike(move, index);
     const make = (config) => new Attack(mixer, clip(config.clip), character, { config, onStrike });
 
-    this.combo = this.weapon.combo.map(make);
-    this.heavy = make(this.weapon.heavy);
-    this.counter = make(this.weapon.counter);
-    this.execute = make(this.weapon.execute);
+    this._make = make;
+    /** Built movesets, by weapon id: built once, kept for the next switch. */
+    this._sets = new Map();
+    this._useSet(this._setFor(this.weapon));
     // The cast: a shot from the bow (see BowRig) over the slash's wind-up,
     // slowed so there is time to draw; the release is the hit frame.
     this.cast = make({
@@ -100,6 +100,7 @@ export class PlayerCombat {
       cancelAt: 0.85, recoverAt: 0.9, trail: false, standoff: 99, maxWarp: 0, sfx: null
     });
     this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast];
+    this._moveOverrides = [...this.moves];
 
     this.guardPose = new PoseLayer(mixer, character.clips.get('crouch'), { blendIn: 0.07, blendOut: 0.14 });
     // The dodge tucks into the crouch and rolls through it (see BodyMotion).
@@ -111,6 +112,69 @@ export class PlayerCombat {
     character.locomotion.overrides.push(...this.moves, ...this.poses);
     /** Whole-body roll, lurch and fall over the clips. */
     this.body = new BodyMotion(character);
+  }
+
+  _setFor(weapon) {
+    if (!this._sets.has(weapon.id)) {
+      this._sets.set(weapon.id, {
+        combo: weapon.combo.map(this._make),
+        heavy: this._make(weapon.heavy),
+        counter: this._make(weapon.counter),
+        execute: this._make(weapon.execute)
+      });
+    }
+    return this._sets.get(weapon.id);
+  }
+
+  _useSet(set) {
+    this.combo = set.combo;
+    this.heavy = set.heavy;
+    this.counter = set.counter;
+    this.execute = set.execute;
+  }
+
+  /**
+   * Change weapon: only from a free stance. The moveset is swapped under the
+   * locomotion's overrides, the model by `WeaponSet`.
+   */
+  setWeapon(id) {
+    const weapon = WEAPONS[id];
+    if (!weapon?.available || weapon === this.weapon) return false;
+    for (const move of this.moves) move.cancel();
+    const overrides = this.character.locomotion.overrides;
+    for (const move of this._moveOverrides) {
+      const i = overrides.indexOf(move);
+      if (i >= 0) overrides.splice(i, 1);
+    }
+    this.weapon = weapon;
+    this._useSet(this._setFor(weapon));
+    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast];
+    this._moveOverrides = [...this.moves];
+    overrides.unshift(...this.moves);
+    this.comboIndex = -1;
+    this.game.weapons?.equip(weapon);
+    return true;
+  }
+
+  _readWeaponSwitch() {
+    if (!this.input.consume('weapon')) return;
+    if (this.state !== 'free') return;
+    const order = WEAPON_ORDER.filter((id) => WEAPONS[id]?.available);
+    const next = order[(order.indexOf(this.weapon.id) + 1) % order.length];
+    if (this.setWeapon(next)) {
+      this.game.hud?.notice(this.weapon.name);
+      this.game.audio?.play('select');
+    }
+  }
+
+  /** A thrown star landed: the same rewards a blade's hit gives. */
+  onRangedHit(config) {
+    this.hitCombo += 1;
+    this._hitComboTimer = 2.4;
+    this.stats.maxCombo = Math.max(this.stats.maxCombo, this.hitCombo);
+    this.special = Math.min(1, this.special + 0.02);
+    this.mp = Math.min(this.maxMp, this.mp + 1.2);
+    this.game.hitStop(0.03, 0.2);
   }
 
   get dead() {
@@ -160,6 +224,7 @@ export class PlayerCombat {
     }
 
     this._readElementChips();
+    this._readWeaponSwitch();
 
     if (this.state === 'dead') return this._hold();
     if (this.game.cinematic) return this._hold();
@@ -405,6 +470,10 @@ export class PlayerCombat {
       return;
     }
     if (this.state === 'cast' && move === this.combo[1]) return; // the special's pose only
+    if (config.throw) {
+      this.game.weapons.throwStars(config, move.target ?? this.lockTarget ?? this._autoTarget({ range: 18, arc: 70 }));
+      return;
+    }
 
     const origin = this.character.position;
     const facing = this.character.facing;
@@ -440,6 +509,16 @@ export class PlayerCombat {
     }
 
     if (config.ring) this.game.fx?.slam(origin, config.reach);
+    if (config.chain) {
+      // The weight's flight: to the body it was aimed at, else out to full reach.
+      const aim = move.target?.alive ? move.target.position : null;
+      _v.set(
+        aim ? aim.x : origin.x + fx * config.reach,
+        (aim ? aim.y : origin.y) + 1.1,
+        aim ? aim.z : origin.z + fz * config.reach
+      );
+      this.game.weapons?.chain(_v);
+    }
 
     if (landed > 0) {
       this.hitCombo += landed;

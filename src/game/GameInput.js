@@ -13,7 +13,7 @@
 /** Seconds an unconsumed press stays valid. Generous enough to chain a combo. */
 const BUFFER = 0.32;
 
-export const BUTTONS = ['attack', 'dodge', 'guard', 'magic', 'special', 'lock', 'el0', 'el1', 'el2', 'pause'];
+export const BUTTONS = ['attack', 'dodge', 'guard', 'magic', 'special', 'lock', 'el0', 'el1', 'el2', 'weapon', 'pause'];
 
 const KEY_BUTTONS = {
   KeyJ: 'attack',
@@ -28,6 +28,8 @@ const KEY_BUTTONS = {
   Digit1: 'el0',
   Digit2: 'el1',
   Digit3: 'el2',
+  KeyE: 'weapon',
+  KeyF: 'weapon',
   Escape: 'pause',
   KeyP: 'pause'
 };
@@ -127,11 +129,22 @@ export class GameInput {
       this.lockRefused = true;
     };
     this._onContext = (event) => event.preventDefault();
+    // The wheel turns through the weapons; one notch, one weapon.
+    this._wheelAt = 0;
+    this._onWheel = (event) => {
+      if (!this.canLock()) return;
+      const now = performance.now();
+      if (now - this._wheelAt < 220) return;
+      this._wheelAt = now;
+      this.press('weapon');
+      this.release('weapon');
+    };
 
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('keyup', this._onKeyUp);
     window.addEventListener('blur', this._onBlur);
     canvas.addEventListener('pointerdown', this._onPointerDown);
+    canvas.addEventListener('wheel', this._onWheel, { passive: true });
     window.addEventListener('pointerup', this._onPointerUp);
     window.addEventListener('mousemove', this._onMouseMove);
     document.addEventListener('pointerlockchange', this._onLockChange);
@@ -295,6 +308,7 @@ export class GameInput {
     window.removeEventListener('keyup', this._onKeyUp);
     window.removeEventListener('blur', this._onBlur);
     this.canvas.removeEventListener('pointerdown', this._onPointerDown);
+    this.canvas.removeEventListener('wheel', this._onWheel);
     window.removeEventListener('pointerup', this._onPointerUp);
     window.removeEventListener('mousemove', this._onMouseMove);
     document.removeEventListener('pointerlockchange', this._onLockChange);

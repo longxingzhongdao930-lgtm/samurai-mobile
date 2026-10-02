@@ -25,6 +25,7 @@ URLオプション: `?q=low|mid|high`（画質固定）· `?touch=1`（PCでタ�
 | 回避（見切り） | 避 | Space |
 | 処刑 | 体勢が崩れた敵の近くで斬（ボタンが「処」に変化） | 同左 |
 | 魔法 / 属性切替 | 術 / 火・雷・氷チップ | Q / 1・2・3 |
+| 武器切替（刀→大太刀→槍→薙刀→鎖鎌→手甲→手裏剣） | 右上の武器ボタン | E / ホイール |
 | 奥義 | 奥義（ゲージ満タン） | R |
 | ロックオン | 敵をタップ / ◎ | Tab / ホイール押し |
 | ポーズ | 右上 | Esc / P |
@@ -626,4 +627,12 @@ src/
 - **Animations** — [Mixamo](https://mixamo.com)
 - **Textures** — [ambientCG](https://ambientcg.com)
 - **HDRI** — [Poly Haven](https://polyhaven.com)
+- **Ōdachi** (`odachi.glb`) — "Masahiro Ōdachi Dragon Samurai Ōdachi Sword" by [tinohunda34](https://sketchfab.com/3d-models/none-f8b64024983047d9bb66775495efe24c), CC BY 4.0
+- **Spear** (`spear.glb`) — "spear" by [KIFIR](https://sketchfab.com/3d-models/spear-f13ddd24e2fe47aa8aca23487afd893e), CC BY-NC 4.0 — **non-commercial only**
+- **Naginata** (`naginata.glb`) — "Naginata_2_v02" by [safetyman](https://sketchfab.com/3d-models/none-28a9fd3332124adb9130c72d74307dcf), CC BY 4.0
+- **Kusarigama** (`kusarigama.glb`) — "Kusarigama" by [TheSlavarik](https://sketchfab.com/3d-models/none-d1270138aa3f4891b99703f5e543700c), CC BY 4.0
+- **Gauntlets** (`gauntlet_pair.glb`) — "Daedric Gauntlet (Skyrim fanArt)" by [francislam](https://sketchfab.com/3d-models/none-169110e93a28406bbc79c285bec08d66), CC BY-NC-SA 4.0 — **non-commercial only, and fan art of a Bethesda design**
+- **Shuriken** (`shuriken.glb`) — "Shuriken" by [afferu](https://sketchfab.com/3d-models/none-9ff964d8c8824ac6b2c052dd4a6496de), CC BY-SA 4.0
+
+  All weapon models were re-oriented into the katana's frame, decimated and had their textures resized; the scabbard, ribbon and spare parts were removed.
 - **Bow and Arrow** (`public/models/weapons/bow.glb`, quiver and spare arrows removed, textures resized) — [Amatsukast](https://sketchfab.com/3d-models/bow-and-arrow-1ce33880149543f9ae7b5848e6e52d66) on Sketchfab, [CC BY-NC-SA 4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/). **Non-commercial only** — replace it before any commercial release.

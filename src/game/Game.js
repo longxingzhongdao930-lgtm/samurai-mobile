@@ -5,6 +5,8 @@ import { TouchControls } from '../ui/TouchControls.js';
 import { AIDirector } from './ai/AIDirector.js';
 import { PlayerCombat } from './combat/PlayerCombat.js';
 import { BowRig } from './combat/BowRig.js';
+import { WeaponSet } from './combat/WeaponSet.js';
+import { WEAPON_ORDER } from './data/weapons.js';
 import { Effects } from './fx/Effects.js';
 import { Ribbons } from './fx/Ribbons.js';
 import { Magic } from './magic/Magic.js';
@@ -121,6 +123,8 @@ export class Game {
     this.magic = new Magic(this);
     this.player = new PlayerCombat(this);
     this.bow = new BowRig(this);
+    this.weapons = new WeaponSet(this);
+    this.weapons.preload(WEAPON_ORDER);
     app.controller.combat = this.player;
     this.playerTarget = { position: app.character.position, alive: true };
     this.hud = new HUD(this);
@@ -247,6 +251,7 @@ export class Game {
     ctx.playerDown = this.player.dead || this.state !== 'playing';
     this.director.update(dt, ctx);
     this.magic.update(dt);
+    this.weapons.update(dt);
     this.flow?.update(dt, raw);
     this.stage?.update(dt, raw, position);
 
@@ -288,7 +293,8 @@ export class Game {
       execute: this.executionTarget() !== null,
       locked: p.lockTarget?.alive,
       guard: p.guarding,
-      available: p.unlocked
+      available: p.unlocked,
+      weapon: p.weapon.name
     });
 
     this.audio.setListener(app.camera);
@@ -727,6 +733,7 @@ export class Game {
     this.app.paused = false;
     this.touch.setVisible(true);
     this.magic.clear();
+    this.weapons?.clear();
     this.fx.clear();
     if (this.flow) this.flow.restartFromCheckpoint();
     else {
@@ -741,6 +748,7 @@ export class Game {
     this.screens.close();
     this.app.paused = false;
     this.magic.clear();
+    this.weapons?.clear();
     this.fx.clear();
     this.director.clear();
     this.hud.setVisible(false);

@@ -1,6 +1,10 @@
 import { App } from './core/App.js';
 import { LoadingScreen } from './ui/LoadingScreen.js';
 import { settings } from './config/settings.js';
+import { applyGameSettings } from './game/data/gameSettings.js';
+import { Game } from './game/Game.js';
+import { Stage } from './game/world/Stage.js';
+import { Flow } from './game/Flow.js';
 
 /**
  * Entry point.
@@ -12,7 +16,18 @@ const canvas = document.getElementById('viewport');
 
 async function boot() {
   try {
-    const app = new App(canvas);
+    // `?dev` opens the original template (studio, editor, abilities); the
+    // default is the trial.
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.has('dev') ? 'dev' : 'game';
+    if (mode === 'game') applyGameSettings();
+    const sandbox = params.has('sandbox');
+    const app = new App(canvas, {
+      mode,
+      Game,
+      Stage: sandbox ? null : Stage,
+      Flow: sandbox ? null : Flow
+    });
     await app.load();
 
     // Handy for poking at the scene from the console. Nothing caches a value

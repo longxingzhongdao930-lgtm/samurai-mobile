@@ -60,6 +60,11 @@ export class EnemyManager {
     this._player = new Vector3();
     /** Bodies felled since the page loaded. The editor reads it. */
     this.kills = 0;
+    /**
+     * Whether the population keeps itself at `settings.enemies.count`. The
+     * game places its own bodies and turns this off.
+     */
+    this.maintain = true;
   }
 
   /* ------------------------------------------------------------------ */
@@ -149,7 +154,7 @@ export class EnemyManager {
       this.enemies.splice(i, 1);
     }
 
-    this._maintain(dt);
+    if (this.maintain) this._maintain(dt);
   }
 
   /** Keep `count` of them standing, spawning one `respawnDelay` after a gap opens. */

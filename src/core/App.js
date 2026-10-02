@@ -37,6 +37,8 @@ import { ActionHUD } from '../ui/ActionHUD.js';
 import { TargetHotkeys } from '../ui/TargetHotkeys.js';
 
 import { settings } from '../config/settings.js';
+import { GameInput } from '../game/GameInput.js';
+import { makeNightEnvironment } from '../game/world/nightEnv.js';
 
 const HDR_URL = './hdri/spruit_sunrise.hdr';
 
@@ -58,8 +60,18 @@ const HDR_URL = './hdri/spruit_sunrise.hdr';
  * two update paths runs. Neither mode knows about the other.
  */
 export class App {
-  constructor(canvas) {
+  /**
+   * @param {HTMLCanvasElement} canvas
+   * @param {{mode?: 'game'|'dev', Game?: Function, Stage?: Function, Flow?: Function}} [options]
+   *   `game` boots the trial (see `game/Game.js`); `dev` is the original
+   *   template — the studio, the editor and the three abilities on the keys.
+   */
+  constructor(canvas, { mode = 'dev', Game = null, Stage = null, Flow = null } = {}) {
     this.canvas = canvas;
+    this.mode = mode;
+    this._gameParts = { Game, Stage, Flow };
+    /** @type {import('../game/Game.js').Game|null} built in `load()` */
+    this.game = null;
     this.time = new Time();
     this.elapsed = 0;
     this.paused = false;
@@ -130,7 +142,7 @@ export class App {
     this.character = new CharacterController(this.environment);
     this.scene.add(this.character.root);
 
-    this.input = new Input();
+    this.input = mode === 'game' ? new GameInput(canvas) : new Input();
     this.controller = new ThirdPersonController(this.character, this.input, this.rig);
 
     /* ---- combat ---- */
@@ -206,7 +218,9 @@ export class App {
     this.judgement = new Judgement({
       terrain: this.terrain,
       enemies: this.enemies,
-      onStrike: (enemy, x, z, force) => this._onStrike(enemy, x, z, force)
+      // In the game the fist is the special: an area blow, not a single kill.
+      onStrike: (enemy, x, z, force) =>
+        this.game ? this.game.onJudgement(enemy, x, z) : this._onStrike(enemy, x, z, force)
     });
     this.scene.add(this.judgement.group);
 
@@ -289,7 +303,7 @@ export class App {
     /* ---- UI ---- */
     this.loading = new LoadingScreen();
     this.toast = new Toast();
-    this.stats = new Stats();
+    this.stats = new Stats({ visible: mode !== 'game' });
     // The moves and their keys, along the bottom — one panel per category. Fed a
     // state per ability every frame from `_syncAbilities`; it decides nothing.
     this.actionHUD = new ActionHUD();
@@ -308,6 +322,10 @@ export class App {
       },
       onCastJudgement: () => this._castJudgement()
     });
+    if (mode === 'game') {
+      this.editor.toggle();
+      this.actionHUD.root?.remove?.();
+    }
 
     /**
      * The equipment studio. Built in `load()`, because it needs the rig's
@@ -349,6 +367,14 @@ export class App {
         target instanceof HTMLSelectElement ||
         target instanceof HTMLTextAreaElement
       ) {
+        return;
+      }
+
+      // The game reads its own keys (`game/GameInput.js`); only the frame
+      // stats and, with ?debug, the editor stay on the window.
+      if (this.mode === 'game') {
+        if (event.code === 'KeyF') this.stats.toggle();
+        if (event.code === 'KeyG' && new URLSearchParams(location.search).has('debug')) this.editor.toggle();
         return;
       }
 
@@ -863,7 +889,9 @@ export class App {
     const assets = new AssetLoader();
 
     this.loading.setProgress(0.05, 'Loading environment…');
-    const hdr = await assets.loadHDR(HDR_URL);
+    // The trial's night is generated (see `game/world/nightEnv.js`) — the
+    // sunrise probe is 5.7 MB the phone does not need to download.
+    const hdr = this.mode === 'game' ? makeNightEnvironment() : await assets.loadHDR(HDR_URL);
     await this.environment.loadEnvironment(hdr);
     frame.uEnvMap.value = this.environment.equirect;
 
@@ -900,7 +928,7 @@ export class App {
     }
     // Stood up now rather than on the first frame, so their materials are in
     // the scene for the shader warm-up below.
-    this.enemies.respawnAll();
+    if (this.mode !== 'game') this.enemies.respawnAll();
 
     this.loading.setProgress(0.76, 'Forging the fist…');
     // The arm the ability drops. It is in the scene from here on, hidden, so
@@ -935,16 +963,28 @@ export class App {
     this.weaponFire = new WeaponFire({ equipment: this.characterScreen.equipment });
     this.characterScreen.setWeaponFire(this.weaponFire);
 
+    if (this.mode === 'game') {
+      this.loading.setProgress(0.86, '黒雨の城下町を築く…');
+      const { Game, Stage, Flow } = this._gameParts;
+      this.game = new Game(this);
+      await this.game.init({ Stage, Flow });
+      // A few bodies of each kind stood up and taken down again, so every
+      // program the crowd needs is compiled with the rest below.
+      this.game.warmup?.();
+    }
+
     this.loading.setProgress(0.85, 'Compiling shaders…');
     // Compile everything up front so the first frame never stutters — both
     // stages, so opening the character screen is not its own first frame. The
     // fire's light is walked through both scenes on the way, because adding a
     // light to a scene is what invalidates every material program in it.
-    this.weaponFire.attachTo(this.characterScreen.stage.scene);
-    await this.renderer.gl.compileAsync(
-      this.characterScreen.stage.scene,
-      this.characterScreen.camera.camera
-    );
+    if (this.mode !== 'game') {
+      this.weaponFire.attachTo(this.characterScreen.stage.scene);
+      await this.renderer.gl.compileAsync(
+        this.characterScreen.stage.scene,
+        this.characterScreen.camera.camera
+      );
+    }
     this.weaponFire.attachTo(this.scene);
     await this.renderer.gl.compileAsync(this.scene, this.camera);
 
@@ -957,9 +997,10 @@ export class App {
     this.loading.hide();
     // The moves are named by the row along the bottom, so this only has to
     // cover what the row does not: the stick, and where to look for the rest.
-    this.toast.show('WASD to move · Shift to run · your moves are along the bottom');
+    if (this.mode !== 'game') this.toast.show('WASD to move · Shift to run · your moves are along the bottom');
 
     this.start();
+    this.game?.ready();
   }
 
   start() {
@@ -976,6 +1017,22 @@ export class App {
     cancelAnimationFrame(this._raf);
   }
 
+  /**
+   * Advance the simulation by `seconds` in fixed steps without drawing — for
+   * automated checks of game logic on machines that render slowly.
+   */
+  simulate(seconds, step = 1 / 60) {
+    const tick = this.time.tick;
+    this.time.tick = () => step;
+    this._skipRender = true;
+    try {
+      for (let t = 0; t < seconds; t += step) this.frame();
+    } finally {
+      this.time.tick = tick;
+      this._skipRender = false;
+    }
+  }
+
   /* ------------------------------------------------------------------ */
 
   frame() {
@@ -987,9 +1044,10 @@ export class App {
     gl.info.reset();
 
     const raw = this.time.tick();
+    this.game?.preUpdate(raw);
     // The impact freeze, spent in *real* time so it lasts as long on any frame
     // rate, and applied as a scale so everything slows together (see `_hitStop`).
-    let scale = settings.global.timeScale;
+    let scale = settings.global.timeScale * (this.game?.timeScale ?? 1);
     if (this._hitStop > 0) {
       this._hitStop = Math.max(0, this._hitStop - raw);
       scale *= this._hitStopScale;
@@ -1041,6 +1099,9 @@ export class App {
     // It only ever touches XZ; which is the whole reason the body can be dropped
     // onto the ground here without the controller knowing the ground exists.
     this.controller.update(dt);
+    // The game's rules, once the body has moved: collisions, the crowd's
+    // decisions, spells in flight, the encounter script.
+    this.game?.update(dt, raw);
     // Stand the character on the surface. The jump's arc lives inside the model
     // (it is the clip's own hips translation), so this stays the body's *ground*
     // height throughout and a leap over a valley still lands on the far side.
@@ -1064,12 +1125,20 @@ export class App {
     // what they are spawned around, and what the kick's reach was measured
     // against this frame.
     this.enemies.update(dt, position);
-    // After them, so a body that has just been felled or has just walked out of
-    // the cone loses its ring on the same frame it stops being a target.
-    this._updateTargetRings(dt, position);
-    // And who the shadows would be sent at. After the bodies for the same
-    // reason: a marked body felled this frame drops its mark on this frame.
-    this._updateMarks(dt, position);
+    if (this.game) {
+      // One ring, under whoever is locked.
+      this._locked.clear();
+      const lock = this.game.player.lockTarget;
+      if (lock?.alive) this._locked.set(lock, this._lockKeys ?? (this._lockKeys = ['lock']));
+      this.targetRings.update(dt, this._locked, this.elapsed);
+    } else {
+      // After them, so a body that has just been felled or has just walked out of
+      // the cone loses its ring on the same frame it stops being a target.
+      this._updateTargetRings(dt, position);
+      // And who the shadows would be sent at. After the bodies for the same
+      // reason: a marked body felled this frame drops its mark on this frame.
+      this._updateMarks(dt, position);
+    }
 
     this.environment.setFocus(position.x, position.z, groundY);
     this.environment.update();
@@ -1093,7 +1162,7 @@ export class App {
 
     // After everything that could have taken the body, so a chip lights on the
     // frame the move it names actually starts.
-    this._syncAbilities();
+    if (!this.game) this._syncAbilities();
 
     this.ground.update(this.elapsed, position.x, position.z);
     // After the floor, because the puffs stand on the height field the bake it
@@ -1112,7 +1181,9 @@ export class App {
     // at any altitude.
     this.rig.setAnchor(position.x, groundY + lift, position.z);
     this.rig.update(raw);
+    this.game?.lateUpdate(dt, raw);
 
+    if (this._skipRender) return;
     this.contactShadows.setPosition(position.x, position.z, groundY);
     this.contactShadows.render(this.scene);
 

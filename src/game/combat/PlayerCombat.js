@@ -64,6 +64,8 @@ export class PlayerCombat {
     this._chargeTime = 0;
     this._dodge = { active: false, t: 0, fromX: 0, fromZ: 0, dx: 0, dz: 0, yaw: 0, perfect: false };
     this._knock = { x: 0, z: 0 };
+    this._comboGrace = 0;
+    this.headingOverride = null;
     this._held = { warp: { active: false, x: 0, z: 0, yaw: 0 } };
     /** Statistics for the result screen. */
     this.stats = { parries: 0, perfectDodges: 0, maxCombo: 0, damageTaken: 0, executions: 0 };
@@ -138,6 +140,7 @@ export class PlayerCombat {
     this.invulnerable = Math.max(0, this.invulnerable - dt);
     this.counterWindow = Math.max(0, this.counterWindow - dt);
     this._hitComboTimer -= dt;
+    if (this._comboGrace > 0 && (this._comboGrace -= dt) <= 0 && this.state === 'free') this.comboIndex = -1;
     if (this._hitComboTimer <= 0) this.hitCombo = 0;
     this._regen(dt);
 
@@ -309,7 +312,11 @@ export class PlayerCombat {
   }
 
   _nextCombo() {
-    const continuing = this.state === 'attack' && this.move && this.combo.includes(this.move);
+    // A press shortly after a link finished still continues the string: the
+    // grace is what lets a deliberate rhythm reach the fifth cut.
+    const continuing =
+      (this.state === 'attack' && this.move && this.combo.includes(this.move)) ||
+      (this.state === 'free' && this._comboGrace > 0 && this.comboIndex >= 0);
     this.comboIndex = continuing ? (this.comboIndex + 1) % this.combo.length : 0;
     const move = this.combo[this.comboIndex];
     this._startMove(move, this.lockTarget ?? this._autoTarget(move.config));
@@ -330,6 +337,11 @@ export class PlayerCombat {
       }
     }
 
+    // A big body is stood further off: the warp's standoff grows with the
+    // target's width, so the blade meets the hide instead of the hips.
+    move.baseConfig ??= move._config;
+    const radius = target?.agent?.radius ?? 0;
+    move._config = radius > 0.6 ? { ...move.baseConfig, standoff: move.baseConfig.standoff + (radius - 0.45), reach: move.baseConfig.reach + (radius - 0.45) } : move.baseConfig;
     move.start(target?.alive ? target : null);
     this.move = move;
     this.state = move === this.cast ? 'cast' : 'attack';
@@ -511,7 +523,10 @@ export class PlayerCombat {
     const dz = hit.from.z - position.z;
     const distance = Math.hypot(dx, dz) || 1;
     const facing = this.character.facing;
-    const front = (dx * Math.sin(facing) + dz * Math.cos(facing)) / distance > 0.1;
+    // The guard covers everything but the back: on a phone the body is not
+    // always squared up, and a parry that failed for a few degrees of facing
+    // would read as the input being dropped.
+    const front = (dx * Math.sin(facing) + dz * Math.cos(facing)) / distance > -0.45;
 
     // Parry: the guard went up just before the blow. Works on everything but
     // a grab-like unblockable, and it is the only answer to a guard break.
@@ -608,10 +623,12 @@ export class PlayerCombat {
   }
 
   _toFree() {
+    const fromCombo = this.state === 'attack' && this.move && this.combo.includes(this.move);
     this.state = 'free';
     this.stateTime = 0;
     this.move = null;
-    this.comboIndex = -1;
+    if (fromCombo) this._comboGrace = 0.45;
+    else this.comboIndex = -1;
     this.hurtPose.stop();
     this.game.fx?.trail.end();
   }

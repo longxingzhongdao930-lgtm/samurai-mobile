@@ -301,7 +301,7 @@ export class EnemyAgent {
     this.velocity.x = this.velocity.z = 0;
     this._setSpeed(0);
     move.start(this.game.playerTarget);
-    this._telegraphed = false;
+    this._glinted = false;
     this.game.onEnemyWindup(this, spec);
   }
 
@@ -309,6 +309,13 @@ export class EnemyAgent {
     const move = this.move;
     const enemy = this.enemy;
     if (!move) return this._endAttack();
+    // The glint: a fixed lead before the blow lands, whatever the move's
+    // length — so the flash itself is the parry cue, and learning one enemy's
+    // rhythm teaches every enemy's.
+    if (!this._glinted && this.timeToHit(move) <= (this.type.elite ? 0.5 : 0.42)) {
+      this._glinted = true;
+      this.game.onEnemyGlint(this, move.spec);
+    }
     // Track the player through the wind-up, commit once it is over: the swing
     // can be read and stepped out of, which is the whole bargain.
     if (move.phase < (move.spec.windupTo ?? 0.3) * 0.85) {
@@ -324,6 +331,23 @@ export class EnemyAgent {
       this._setFacing(move.warp.yaw);
     }
     if (!move.locked) this._endAttack();
+  }
+
+  /** Seconds until this move's next contact frame, honouring the slowed wind-up. */
+  timeToHit(move) {
+    const spec = move.spec;
+    const hits = spec.hits ?? [spec.hitAt ?? 0.5];
+    const phase = move.phase;
+    const next = hits.find((h) => h >= phase - 1e-4);
+    if (next === undefined) return Infinity;
+    const clip = move.action?.getClip().duration ?? 1;
+    const span = ((spec.clipTo ?? 1) - (spec.clipFrom ?? 0)) * clip;
+    const pace = spec.timeScale ?? 1;
+    const normal = span / pace;
+    const slow = span / (pace * (spec.windupScale ?? 0.4));
+    const windupTo = spec.windupTo ?? 0;
+    if (phase < windupTo) return (Math.min(next, windupTo) - phase) * slow + Math.max(0, next - windupTo) * normal;
+    return (next - phase) * normal;
   }
 
   _endAttack() {

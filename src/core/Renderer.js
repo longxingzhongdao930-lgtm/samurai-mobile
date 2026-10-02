@@ -2,7 +2,8 @@ import {
   WebGLRenderer,
   PCFSoftShadowMap,
   ACESFilmicToneMapping,
-  SRGBColorSpace
+  SRGBColorSpace,
+  Vector2
 } from 'three';
 import { settings } from '../config/settings.js';
 import { frame } from './FrameUniforms.js';
@@ -49,6 +50,7 @@ export class Renderer {
     this._onResize = null;
     /** Set by `applyPixelRatio`; null leaves the device ratio in charge. */
     this.pixelRatioOverride = null;
+    this._size = new Vector2();
   }
 
   /** Cap the pixel ratio: 4K + heavy transparency is not worth the fill rate. */
@@ -69,8 +71,12 @@ export class Renderer {
     return this.gl.domElement;
   }
 
+  /** Canvas size in CSS pixels. One Vector2, reused — read it, don't keep it. */
   get size() {
-    return this.gl.getSize({ width: 0, height: 0 });
+    const out = this.gl.getSize(this._size);
+    out.width = out.x;
+    out.height = out.y;
+    return out;
   }
 
   onResize(callback) {

@@ -1,4 +1,4 @@
-import { PerspectiveCamera, Vector3, MOUSE, TOUCH } from 'three';
+import { PerspectiveCamera, Spherical, Vector3, MOUSE, TOUCH } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { settings } from '../config/settings.js';
 import { clamp, damp } from '../utils/math.js';
@@ -7,6 +7,8 @@ import { LAYER } from './Layers.js';
 const _dir = new Vector3();
 const _desiredTarget = new Vector3();
 const _follow = new Vector3(); // how far the target moved this frame
+const _offset = new Vector3();
+const _spherical = new Spherical();
 
 /**
  * Third-person orbit rig.
@@ -127,6 +129,30 @@ export class CameraRig {
    */
   get azimuth() {
     return this.controls.getAzimuthalAngle();
+  }
+
+  /**
+   * Turn the orbit by hand — the touch camera pad and the lock-on assist.
+   *
+   * Written onto the camera's position, which is the one thing OrbitControls
+   * reads its angles back from, so the drag and the controls never disagree.
+   *
+   * @param {number} dTheta radians about the target, + is anticlockwise from above
+   * @param {number} dPhi radians of pitch, + looks further down
+   */
+  orbit(dTheta, dPhi) {
+    const target = this.controls.target;
+    _offset.copy(this.camera.position).sub(target);
+    _spherical.setFromVector3(_offset);
+    _spherical.theta += dTheta;
+    _spherical.phi = clamp(_spherical.phi + dPhi, settings.camera.minPolar, settings.camera.maxPolar);
+    _offset.setFromSpherical(_spherical);
+    this.camera.position.copy(target).add(_offset);
+  }
+
+  /** Pitch from straight down, radians — 0 looks straight down. */
+  get polar() {
+    return this.controls.getPolarAngle();
   }
 
   /**

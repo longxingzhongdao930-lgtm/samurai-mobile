@@ -112,7 +112,7 @@ export const WEAPONS = {
     dodge: { distance: 3.9, time: 0.36, iframes: 0.26, recovery: 0.12, cooldown: 0.08 },
     guard: {
       /** Seconds from the guard press in which a blow is parried rather than blocked. */
-      parryWindow: 0.2,
+      parryWindow: 0.24,
       /** Fraction of damage that still gets through a block. */
       chip: 0.12,
       /** Posture the player loses per blocked hit, as a fraction of its damage. */

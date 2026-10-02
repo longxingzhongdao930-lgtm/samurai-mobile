@@ -87,7 +87,7 @@ export class EnemyAgent {
     this.locomotion.overrides.push(...this.moves, ...this.poses);
 
     enemy.onAnimate = (dt) => this._animate(dt);
-    this.gear = equipEnemy(enemy, type.gear, { horns: type.horns ?? (type.id === 'oni' ? 'horns' : null) });
+    this.gear = equipEnemy(enemy, type.gear, { horns: type.horns ?? (type.id === 'oni' ? 'horns' : null), hat: type.hat ?? null });
   }
 
   get alive() {

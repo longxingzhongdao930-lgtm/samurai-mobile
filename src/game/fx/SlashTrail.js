@@ -51,7 +51,7 @@ export class SlashTrail {
       uniforms: {
         uColor: { value: new Color('#ffb36a') },
         uCore: { value: new Color('#fff6e8') },
-        uLife: { value: 0.16 },
+        uLife: { value: 0.11 },
         uStrength: { value: 1 }
       },
       vertexShader: /* glsl */ `
@@ -75,11 +75,12 @@ export class SlashTrail {
           float t = clamp(vAge / uLife, 0.0, 1.0);
           float fade = (1.0 - t) * (1.0 - t);
           // Hot at the edge the blade is on, thinning toward the inner side.
-          float edge = smoothstep(0.0, 1.0, vSide);
-          float a = fade * mix(0.15, 1.0, edge) * uStrength;
-          vec3 col = mix(uColor, uCore, edge * (1.0 - t));
+          // Only a thin hot rim along the edge; the inner side is a faint smear.
+          float edge = pow(smoothstep(0.0, 1.0, vSide), 3.0);
+          float a = fade * mix(0.04, 0.85, edge) * uStrength;
+          vec3 col = mix(uColor, uCore, edge * (1.0 - t) * 0.7);
           if (a < 0.01) discard;
-          gl_FragColor = vec4(col * a * 1.6, a);
+          gl_FragColor = vec4(col * a, a);
         }`,
       transparent: true,
       depthWrite: false,
@@ -122,7 +123,7 @@ export class SlashTrail {
     const gripIsLow = low.distanceTo(localHand) < high.distanceTo(localHand);
     const grip = gripIsLow ? low : high;
     const tip = gripIsLow ? high : low;
-    this._blade = { object, a: grip.clone().lerp(tip, 0.3), b: tip };
+    this._blade = { object, a: grip.clone().lerp(tip, 0.5), b: tip };
   }
 
   setColor(color, core = '#fff6e8') {

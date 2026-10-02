@@ -53,9 +53,9 @@ export class Effects {
     this._lightPeak = 0;
 
     const impact = settings.flight.blades.impact;
-    this.hitConfig = { ...impact, color: '#ffe2b8', ringColor: '#ff7a2a', sparkColor: '#ffb560', size: 0.9, sparks: 22, life: 0.26, intensity: 2.4, spikes: 5, sparkSpeed: 7 };
-    this.heavyConfig = { ...this.hitConfig, size: 1.5, sparks: 40, life: 0.36, intensity: 3.2, spikes: 8, sparkSpeed: 10 };
-    this.parryConfig = { ...impact, color: '#ffffff', ringColor: '#9fd8ff', sparkColor: '#fff0c8', size: 2.2, sparks: 70, life: 0.5, intensity: 4.0, spikes: 9, spikeLength: 2.2, sparkSpeed: 12, sparkLife: 0.7 };
+    this.hitConfig = { ...impact, color: '#ffd8a8', ringColor: '#ff6a1a', sparkColor: '#ff9a40', size: 0.75, sparks: 12, life: 0.22, intensity: 1.8, spikes: 5, sparkSpeed: 6, sparkStretch: 0.02, sparkSize: 0.035, sparkLife: 0.35 };
+    this.heavyConfig = { ...this.hitConfig, size: 1.25, sparks: 24, life: 0.32, intensity: 2.6, spikes: 8, sparkSpeed: 9 };
+    this.parryConfig = { ...impact, color: '#ffffff', ringColor: '#9fd8ff', sparkColor: '#ffe0a0', size: 1.9, sparks: 46, life: 0.45, intensity: 3.2, spikes: 9, spikeLength: 2.0, sparkSpeed: 11, sparkLife: 0.6, sparkStretch: 0.03, sparkSize: 0.04 };
     this.blockConfig = { ...this.parryConfig, size: 0.9, sparks: 24, life: 0.25, intensity: 2.2, spikes: 5 };
     const shock = settings.judgement.shock;
     this.slamConfig = { ...shock, color: '#ffb070', crackColor: '#ff6a20', radius: 3.3, life: 0.55, intensity: 2.2 };

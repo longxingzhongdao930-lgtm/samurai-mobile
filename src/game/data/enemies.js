@@ -54,9 +54,10 @@ export const ENEMY_TYPES = {
     aggression: 0.55,
     superArmor: false,
     gear: 'blade',
+    hat: 'jingasa',
     look: {
-      color: '#1c1f28', roughness: 0.78, metalness: 0.15, rimColor: '#ff5a1e', rimPower: 2.6,
-      rimEmissive: 1.4, edgeColor: '#ff8a3c', edgeEmissive: 6.0, edgeWidth: 0.12,
+      color: '#1c1f28', roughness: 0.78, metalness: 0.15, rimColor: '#ff5a1e', rimPower: 3.6,
+      rimEmissive: 1.1, edgeColor: '#ff8a3c', edgeEmissive: 6.0, edgeWidth: 0.12,
       dissolveDetail: 9.0, dissolveRise: 0.45
     },
     attacks: [
@@ -81,8 +82,8 @@ export const ENEMY_TYPES = {
     superArmor: false,
     gear: 'tanto',
     look: {
-      color: '#161322', roughness: 0.6, metalness: 0.2, rimColor: '#b45cff', rimPower: 2.2,
-      rimEmissive: 1.7, edgeColor: '#c890ff', edgeEmissive: 6.0, edgeWidth: 0.12,
+      color: '#161322', roughness: 0.6, metalness: 0.2, rimColor: '#b45cff', rimPower: 3.4,
+      rimEmissive: 1.3, edgeColor: '#c890ff', edgeEmissive: 6.0, edgeWidth: 0.12,
       dissolveDetail: 9.0, dissolveRise: 0.45
     },
     attacks: [
@@ -106,9 +107,10 @@ export const ENEMY_TYPES = {
     ranged: true,
     superArmor: false,
     gear: 'bow',
+    hat: 'jingasa',
     look: {
-      color: '#18211d', roughness: 0.75, metalness: 0.1, rimColor: '#7dff8a', rimPower: 2.4,
-      rimEmissive: 1.3, edgeColor: '#a8ff9e', edgeEmissive: 6.0, edgeWidth: 0.12,
+      color: '#18211d', roughness: 0.75, metalness: 0.1, rimColor: '#7dff8a', rimPower: 3.6,
+      rimEmissive: 1.0, edgeColor: '#a8ff9e', edgeEmissive: 6.0, edgeWidth: 0.12,
       dissolveDetail: 9.0, dissolveRise: 0.45
     },
     attacks: [
@@ -132,8 +134,8 @@ export const ENEMY_TYPES = {
     elite: true,
     gear: 'kanabo',
     look: {
-      color: '#3a0e0c', roughness: 0.62, metalness: 0.1, rimColor: '#ff2a12', rimPower: 1.9,
-      rimEmissive: 2.2, edgeColor: '#ff6a2c', edgeEmissive: 6.0, edgeWidth: 0.12,
+      color: '#4a120e', roughness: 0.62, metalness: 0.1, rimColor: '#ff2a12', rimPower: 2.8,
+      rimEmissive: 1.6, edgeColor: '#ff6a2c', edgeEmissive: 6.0, edgeWidth: 0.12,
       dissolveDetail: 7.0, dissolveRise: 0.45
     },
     attacks: [

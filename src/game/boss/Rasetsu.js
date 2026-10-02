@@ -37,8 +37,8 @@ export const RASETSU = {
   horns: 'bigHorns',
   score: 3000,
   look: {
-    color: '#120c0c', roughness: 0.55, metalness: 0.2, rimColor: '#ff2a12', rimPower: 1.7,
-    rimEmissive: 2.4, edgeColor: '#ff6a2c', edgeEmissive: 7.0, edgeWidth: 0.12,
+    color: '#140d0d', roughness: 0.5, metalness: 0.25, rimColor: '#ff2a12', rimPower: 2.6,
+    rimEmissive: 1.8, edgeColor: '#ff6a2c', edgeEmissive: 7.0, edgeWidth: 0.12,
     dissolveDetail: 5.0, dissolveRise: 0.45
   },
   attacks: [

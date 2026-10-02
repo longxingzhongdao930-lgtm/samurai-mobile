@@ -251,7 +251,10 @@ export class Game {
     const sensitivity = TOUCH ? 0.0062 : 0.004;
     if (_look.x || _look.y) rig.orbit(-_look.x * sensitivity, -_look.y * sensitivity * 0.7);
 
-    if (this.state !== 'playing') return;
+    if (this.state !== 'playing') {
+      this.stage?.cameraCollide(rig, raw);
+      return;
+    }
     const position = this.app.character.position;
     const lock = this.player.lockTarget;
     if (lock?.alive) {
@@ -266,7 +269,7 @@ export class Game {
       const delta = MathUtils.euclideanModulo(wanted - rig.azimuth + Math.PI, Math.PI * 2) - Math.PI;
       if (Math.abs(delta) < 2.6) rig.orbit(delta * Math.min(1, raw * 0.9), 0);
     }
-    this.stage?.cameraCollide(rig);
+    this.stage?.cameraCollide(rig, raw);
   }
 
   /* ------------------------------------------------------------------ */

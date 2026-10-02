@@ -82,6 +82,7 @@ export class Flow {
     game.boss = null;
     game.hud.showBoss('', false);
     game.cinematic = false;
+    game.director.maxMelee = 2;
     settings.camera.distance = 5.2;
     this.player.revive();
     this.player.unlocked = [...this.checkpoint.unlocked];
@@ -310,6 +311,8 @@ export class Flow {
         objective: '妖を斬り伏せよ',
         start: () => {
           this._fight([['ashigaru', -2, 30], ['ashigaru', 2.5, 31], ['ashigaru', 0, 34]], { cap: 3 });
+          // The first fight is a lesson: one blade at a time.
+          game.director.maxMelee = 1;
           hud().notice(touch() ? '「斬」で攻撃 · 連打で五連撃' : 'J / クリックで攻撃 · 連打で五連撃', 3.2);
           this._lesson = 0;
         },
@@ -322,7 +325,10 @@ export class Flow {
           }
           return this.fightOver;
         },
-        finish: () => hud().notice('脇道に何かが光っている…', 2.5)
+        finish: () => {
+          game.director.maxMelee = 2;
+          hud().notice('脇道に何かが光っている…', 2.5);
+        }
       },
       {
         id: 'street',

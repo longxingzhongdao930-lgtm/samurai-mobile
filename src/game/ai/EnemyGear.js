@@ -1,6 +1,7 @@
 import {
   BoxGeometry,
   ConeGeometry,
+  SphereGeometry,
   CylinderGeometry,
   Group,
   Mesh,
@@ -24,11 +25,12 @@ const _scale = new Vector3();
 let _cache = null;
 
 function build() {
-  const steel = new MeshStandardMaterial({ color: '#8a8f98', roughness: 0.32, metalness: 0.9 });
+  const steel = new MeshStandardMaterial({ color: '#b8c0cc', roughness: 0.25, metalness: 0.6, emissive: '#6a2a1a', emissiveIntensity: 0.5 });
   const darkWood = new MeshStandardMaterial({ color: '#2a1810', roughness: 0.8, metalness: 0.0 });
-  const iron = new MeshStandardMaterial({ color: '#2b2522', roughness: 0.55, metalness: 0.75, emissive: '#3a0800', emissiveIntensity: 0.4 });
+  const iron = new MeshStandardMaterial({ color: '#3a302a', roughness: 0.5, metalness: 0.5, emissive: '#5a1000', emissiveIntensity: 0.8 });
   const bone = new MeshStandardMaterial({ color: '#d9cdb4', roughness: 0.55, metalness: 0.0, emissive: '#2a0400', emissiveIntensity: 0.2 });
   const spirit = new MeshStandardMaterial({ color: '#203a24', roughness: 0.5, metalness: 0.1, emissive: '#5cff7a', emissiveIntensity: 1.6 });
+  const eye = new MeshStandardMaterial({ color: '#000000', emissive: '#ffd27a', emissiveIntensity: 6 });
 
   const blade = () => {
     const grip = new CylinderGeometry(0.018, 0.018, 0.24, 6).translate(0, 0.0, 0);
@@ -67,15 +69,22 @@ function build() {
   };
 
   return {
-    materials: { steel, wood: darkWood, iron, bone, spirit },
+    materials: { steel, wood: darkWood, iron, bone, spirit, eye },
     kinds: {
       blade: blade(),
       tanto: tanto(),
       kanabo: kanabo(1.25, 0.075),
       bigKanabo: kanabo(2.1, 0.12),
       bow: bow(),
-      horns: horns(0.18),
-      bigHorns: horns(0.34)
+      horns: horns(0.3),
+      bigHorns: horns(0.5),
+      jingasa: { wood: new ConeGeometry(0.36, 0.16, 12).translate(0, 0.24, 0.02) },
+      eyes: {
+        eye: mergeGeometries([
+          new SphereGeometry(0.018, 6, 4).scale(1.6, 0.7, 1).translate(-0.035, 0.09, 0.09).toNonIndexed(),
+          new SphereGeometry(0.018, 6, 4).scale(1.6, 0.7, 1).translate(0.035, 0.09, 0.09).toNonIndexed()
+        ])
+      }
     }
   };
 }
@@ -107,10 +116,11 @@ function mountOn(enemy, boneName) {
 /**
  * Dress one body. Returns the meshes added, so the caller can hide them.
  *
- * The hand mount's rotation points +Y out of the fist along the grip, which is
- * the bone's −X on Mixamo's right hand (and +X on the left).
+ * Measured off the player's own katana: on this skeleton a held blade runs
+ * along the hand bone's +Y, tipped a little toward +Z — so gear authored up
+ * +Y needs only that tilt and a nudge into the palm.
  */
-export function equipEnemy(enemy, gear, { horns = null } = {}) {
+export function equipEnemy(enemy, gear, { horns = null, hat = null } = {}) {
   const added = [];
   const hand = (boneName, kind, rot, offset) => {
     const mount = mountOn(enemy, boneName);
@@ -124,22 +134,44 @@ export function equipEnemy(enemy, gear, { horns = null } = {}) {
 
   switch (gear) {
     case 'blade':
-      hand('RightHand', 'blade', [0, 0, Math.PI / 2], [-0.02, 0.08, 0.02]);
+      hand('RightHand', 'blade', [0.19, 0, 0], [0, 0.06, 0.02]);
       break;
     case 'tanto':
-      hand('RightHand', 'tanto', [0, 0, Math.PI / 2], [-0.02, 0.08, 0.02]);
+      hand('RightHand', 'tanto', [0.19, 0, 0], [0, 0.06, 0.02]);
       break;
     case 'bow':
-      hand('LeftHand', 'bow', [Math.PI / 2, 0, 0], [0.0, 0.08, 0.0]);
+      hand('LeftHand', 'bow', [0, Math.PI / 2, 0], [0.0, 0.07, 0.0]);
       break;
     case 'kanabo':
-      hand('RightHand', 'kanabo', [0, 0, Math.PI / 2], [-0.02, 0.08, 0.02]);
+      hand('RightHand', 'kanabo', [0.19, 0, 0], [0, 0.0, 0.02]);
       break;
     case 'bigKanabo':
-      hand('RightHand', 'bigKanabo', [0, 0, Math.PI / 2], [-0.02, 0.08, 0.02]);
+      hand('RightHand', 'bigKanabo', [0.19, 0, 0], [0, 0.0, 0.02]);
       break;
     default:
       break;
+  }
+
+  // Two embers for eyes: the one thing that reads at twenty metres in the rain.
+  {
+    const mount = mountOn(enemy, 'Head');
+    if (mount) {
+      const item = meshesFor('eyes');
+      item.children.forEach((mesh) => {
+        mesh.castShadow = false;
+      });
+      mount.add(item);
+      added.push(item);
+    }
+  }
+
+  if (hat) {
+    const mount = mountOn(enemy, 'Head');
+    if (mount) {
+      const item = meshesFor(hat);
+      mount.add(item);
+      added.push(item);
+    }
   }
 
   if (horns) {

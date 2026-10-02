@@ -25,6 +25,13 @@ export class AIDirector {
     this._melee = new Set();
     this._ranged = new Set();
     this._frame = 0;
+    /**
+     * Seconds until the next melee swing may start, crowd-wide. Two bodies
+     * starting their wind-ups on the same frame read as one blur; staggered,
+     * each one is a cue the player can answer.
+     */
+    this._gap = 0;
+    this.minGap = 0.55;
   }
 
   /** Retarget the player's motion onto the enemy rig. Once. */
@@ -95,6 +102,8 @@ export class AIDirector {
       if (agent.type.elite && pool.size > 0) return false;
     }
     if (pool.size >= max) return false;
+    if (!ranged && this._gap > 0 && !agent.type.boss) return false;
+    if (!ranged) this._gap = this.minGap * (0.8 + Math.random() * 0.5);
     pool.add(agent);
     agent.token = true;
     return true;
@@ -137,6 +146,10 @@ export class AIDirector {
 
   update(dt, ctx) {
     this._frame++;
+    this._gap -= dt;
+    this._shadowTimer = (this._shadowTimer ?? 0) - dt;
+    const shadows = this._shadowTimer <= 0;
+    if (shadows) this._shadowTimer = 0.5;
     const skip = this.game.quality.aiSkip;
     for (let i = this.agents.length - 1; i >= 0; i--) {
       const agent = this.agents[i];
@@ -153,6 +166,15 @@ export class AIDirector {
       if (skip > 1 && agent.state === 'idle' && (i + this._frame) % skip !== 0) {
         agent._skipped = (agent._skipped ?? 0) + dt;
         continue;
+      }
+      // Only bodies near the player cast shadows: a skinned body in the
+      // shadow pass costs as much as drawing it again.
+      if (shadows) {
+        const near = agent.distance === undefined || agent.distance < (this.game.quality.name === 'low' ? 0 : agent.type.elite ? 30 : 13);
+        if (agent._shadow !== near) {
+          agent._shadow = near;
+          agent.enemy._castShadows(near);
+        }
       }
       const step = dt + (agent._skipped ?? 0);
       agent._skipped = 0;

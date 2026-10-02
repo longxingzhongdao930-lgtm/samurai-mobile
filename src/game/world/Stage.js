@@ -697,21 +697,26 @@ export class Stage {
   }
 
   /** Pull the camera in front of any wall between it and the player. */
-  cameraCollide(rig) {
+  cameraCollide(rig, dt = 1 / 60) {
     const camera = rig.camera;
     const target = rig.controls.target;
-    const steps = 10;
-    let last = 0;
+    const steps = 12;
+    let free = 1;
     for (let i = 1; i <= steps; i++) {
       const t = i / steps;
       _v.lerpVectors(target, camera.position, t);
       if (_v.y > 9) break; // above the roofs
-      if (!insideUnion(_v.x, _v.z, -1.2)) {
-        _t.lerpVectors(target, camera.position, Math.max(0.25, last));
-        camera.position.copy(_t);
-        return;
+      if (!insideUnion(_v.x, _v.z, 0.2)) {
+        free = Math.max(0.2, ((i - 1) / steps) * 0.95);
+        break;
       }
-      last = t;
+    }
+    // In at once (a wall must never be looked through), out gently.
+    const current = this._pull ?? 1;
+    this._pull = free < current ? free : current + (free - current) * Math.min(1, dt * 2.5);
+    if (this._pull < 0.999) {
+      _t.lerpVectors(target, camera.position, this._pull);
+      camera.position.copy(_t);
     }
   }
 

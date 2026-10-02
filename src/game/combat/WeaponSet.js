@@ -154,15 +154,9 @@ export class WeaponSet {
   /* the chain                                                           */
   /* ------------------------------------------------------------------ */
 
-  /** The weight flies out to `to` and back: a taut line for a moment. */
+  /** Where the weight lands (the chain itself is drawn by WeaponMotion). */
   chain(to) {
-    const hand = this.character.getBone('RightHand');
-    if (!hand) return;
-    hand.getWorldPosition(_a);
-    _b.copy(to);
-    _b.y = Math.max(_b.y, _a.y - 0.4);
-    this.game.fx.ribbons.bolt(_a, _b, { color: '#c8c8c8', width: 0.025, life: 0.16, jitter: 0.03 });
-    this.game.fx.glow.spawn(_b, '#e8e8e8', 0.5, 0.15, { grow: 1, intensity: 1.2 });
+    this.game.fx.glow.spawn(to, '#e8e8e8', 0.5, 0.15, { grow: 1, intensity: 1.2 });
   }
 
   /* ------------------------------------------------------------------ */

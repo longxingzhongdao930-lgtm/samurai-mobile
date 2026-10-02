@@ -6,6 +6,7 @@ import { AIDirector } from './ai/AIDirector.js';
 import { PlayerCombat } from './combat/PlayerCombat.js';
 import { BowRig } from './combat/BowRig.js';
 import { WeaponSet } from './combat/WeaponSet.js';
+import { WeaponMotion } from './combat/WeaponMotion.js';
 import { WEAPON_ORDER } from './data/weapons.js';
 import { Effects } from './fx/Effects.js';
 import { Ribbons } from './fx/Ribbons.js';
@@ -125,6 +126,7 @@ export class Game {
     this.bow = new BowRig(this);
     this.weapons = new WeaponSet(this);
     this.weapons.preload(WEAPON_ORDER);
+    this.motion = new WeaponMotion(this);
     app.controller.combat = this.player;
     this.playerTarget = { position: app.character.position, alive: true };
     this.hud = new HUD(this);
@@ -276,6 +278,7 @@ export class Game {
   lateUpdate(dt, raw) {
     const app = this.app;
     // First: the bow's IK re-poses the arms the effects and camera follow.
+    this.motion.update(dt);
     this.bow.update(dt, this.player.castTarget);
     this.fx.update(dt, this.elapsed);
     this.fx.ribbons.update(dt);

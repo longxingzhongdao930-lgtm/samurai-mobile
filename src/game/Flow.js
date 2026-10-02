@@ -301,7 +301,7 @@ export class Flow {
         start: () => {
           hud().areaCard('壱 · 城下町', '黒雨の夜');
           game.audio.play('bell', { volume: 0.5 });
-          setTimeout(() => hud().notice(touch() ? '左で移動 · 右をなぞってカメラ' : 'WASDで移動 · ドラッグでカメラ', 3), 2600);
+          game.after(2.6, () => hud().notice(touch() ? '左で移動 · 右をなぞってカメラ' : 'WASDで移動 · ドラッグでカメラ', 3));
         },
         done: () => true
       },
@@ -343,7 +343,7 @@ export class Flow {
           this._pickup('spirit', stage().spots.yard);
           game.director.spawn('archer', 22, 64, -Math.PI / 2);
           game.director.spawn('shinobi', 16, 76, -Math.PI / 2);
-          setTimeout(() => hud().notice(touch() ? '「避」で回避 · 攻撃直前なら見切り' : 'Spaceで回避 · 攻撃直前なら見切り', 3), 1800);
+          game.after(1.8, () => hud().notice(touch() ? '「避」で回避 · 攻撃直前なら見切り' : 'Spaceで回避 · 攻撃直前なら見切り', 3));
         },
         done: () => this.encounter ? this.fightOver : true
       },
@@ -362,7 +362,7 @@ export class Flow {
           hud().showBoss('赤鬼', true);
           game.boss = oni.enemy;
           game.rig.shake(0.3);
-          setTimeout(() => hud().notice('赤い「危」は防げない — 避けよ', 3), 1500);
+          game.after(1.5, () => hud().notice('赤い「危」は防げない — 避けよ', 3));
         },
         done: () => !this._oni.alive && this.fightOver,
         finish: () => {
@@ -497,7 +497,7 @@ export class Flow {
         id: 'end',
         start: () => {
           hud().setObjective('');
-          setTimeout(() => game.finish(), 3800);
+          game.after(3.8, () => game.finish());
         },
         done: () => false
       }

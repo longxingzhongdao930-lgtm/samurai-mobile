@@ -413,7 +413,7 @@ export class Rasetsu extends EnemyAgent {
     game.kills++;
     game.score += this.score;
     game.hud.showBoss('', false);
-    setTimeout(() => game.hud.areaCard('討伐', '黒角鬼・羅刹'), 900);
+    game.after(0.9, () => game.hud.areaCard('討伐', '黒角鬼・羅刹'));
     for (const agent of game.director.agents) {
       if (agent !== this && agent.alive) game.damageEnemy(agent.enemy, { damage: 9999, posture: 0, dirX: 0, dirZ: 1, source: 'special', force: { impulse: 4, lift: 5, spin: 1, slices: false } });
     }

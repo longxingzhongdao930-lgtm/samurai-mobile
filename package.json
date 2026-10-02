@@ -1,8 +1,8 @@
 {
-  "name": "character-equipment",
-  "version": "1.0.0",
+  "name": "samurai-mobile",
+  "version": "1.0.0-trial",
   "private": true,
-  "description": "A third-person Three.js template: a rigged samurai on an endless procedural night landscape, with motion-warped melee, summons, flight, ragdoll deaths and an equipment studio.",
+  "description": "黒雨の城下町 — a mobile-first Japanese dark-fantasy action trial built on a third-person Three.js template.",
   "type": "module",
   "scripts": {
     "dev": "vite",

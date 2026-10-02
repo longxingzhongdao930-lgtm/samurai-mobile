@@ -47,6 +47,8 @@ export class Game {
     this.stage = null;
     this.flow = null;
 
+    /** Delayed calls on game time: paused with the game, dropped on a retry. */
+    this._timers = [];
     this._slow = 1;
     this._slowTimer = 0;
     this._slowScale = 1;
@@ -167,6 +169,21 @@ export class Game {
   /* the frame                                                           */
   /* ------------------------------------------------------------------ */
 
+  /** Run `fn` after `seconds` of play (real seconds, not slowed, paused when paused). */
+  after(seconds, fn) {
+    this._timers.push({ t: seconds, fn });
+  }
+
+  _tickTimers(raw) {
+    for (let i = this._timers.length - 1; i >= 0; i--) {
+      const timer = this._timers[i];
+      timer.t -= raw;
+      if (timer.t > 0) continue;
+      this._timers.splice(i, 1);
+      timer.fn();
+    }
+  }
+
   /** Multiplier the App applies to the simulation clock. */
   get timeScale() {
     return this.slowFactor;
@@ -194,7 +211,10 @@ export class Game {
   update(dt, raw) {
     if (this.state !== 'playing' && this.state !== 'title') return;
     this.elapsed += dt;
-    if (this.state === 'playing') this.playTime += raw;
+    if (this.state === 'playing') {
+      this.playTime += raw;
+      this._tickTimers(raw);
+    }
 
     const position = this.app.character.position;
     this.stage?.collide(position, 0.38);
@@ -619,7 +639,7 @@ export class Game {
     this.slowMo(1.4, 0.3);
     this.hud.bigText('討死', '#c8321e', 1.6);
     this.player.lockTarget = null;
-    setTimeout(() => {
+    this.after(1.6, () => {
       if (this.state !== 'playing') return;
       this.state = 'defeat';
       this.touch.setVisible(false);
@@ -628,7 +648,7 @@ export class Game {
         onRetry: () => this.retry(),
         onTitle: () => this.toTitle()
       });
-    }, 1600);
+    });
   }
 
   /* ------------------------------------------------------------------ */
@@ -671,6 +691,7 @@ export class Game {
 
   retry() {
     this.retries++;
+    this._timers.length = 0;
     this.screens.close();
     this.state = 'playing';
     this.app.paused = false;
@@ -686,6 +707,7 @@ export class Game {
   }
 
   toTitle() {
+    this._timers.length = 0;
     this.screens.close();
     this.app.paused = false;
     this.magic.clear();

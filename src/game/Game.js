@@ -558,6 +558,8 @@ export class Game {
     const d = Math.hypot(dx, dz) || 1;
     _v.set(position.x + (dx / d) * 0.8, position.y + 1.3, position.z + (dz / d) * 0.8);
     this.fx.parry(_v, -dx / d, -dz / d);
+    // The blade snaps forward through the turn, the body with it.
+    this.player.body.impulse(2.4, (Math.random() < 0.5 ? -1 : 1) * 2);
     this.audio.play('parry');
     this.hitStop(0.09, 0.02);
     this.slowMo(0.55, 0.28);
@@ -573,12 +575,15 @@ export class Game {
     const d = Math.hypot(dx, dz) || 1;
     _v.set(position.x + (dx / d) * 0.7, position.y + 1.25, position.z + (dz / d) * 0.7);
     this.fx.block(_v, -dx / d, -dz / d);
+    // Shoved back on the heels by the weight of it.
+    this.player.body.impulse(-3.2 - (hit.damage ?? 10) * 0.08, 0);
     this.audio.play('block', { pitch: 0.9 + Math.random() * 0.2 });
     this.hitStop(0.04, 0.15);
     this.rig.shake(0.06);
   }
 
   onGuardBreak() {
+    this.player.body.impulse(-7, 4);
     this.audio.play('guardBreak');
     this.hud.bigText('崩', '#ff8a5a', 0.8);
     this.rig.shake(0.25);

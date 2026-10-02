@@ -2,6 +2,7 @@ import { MathUtils, Vector3 } from 'three';
 import { Attack } from '../../animation/Attack.js';
 import { settings } from '../../config/settings.js';
 import { PoseLayer } from './PoseLayer.js';
+import { BodyMotion } from './BodyMotion.js';
 import { WEAPONS } from '../data/weapons.js';
 import { SPELLS, SPELL_ORDER } from '../data/elements.js';
 
@@ -99,12 +100,15 @@ export class PlayerCombat {
     this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast];
 
     this.guardPose = new PoseLayer(mixer, character.clips.get('crouch'), { blendIn: 0.07, blendOut: 0.14 });
-    this.dodgePose = new PoseLayer(mixer, character.clips.get('crouchSlash'), { blendIn: 0.04, blendOut: 0.18 });
+    // The dodge tucks into the crouch and rolls through it (see BodyMotion).
+    this.dodgePose = new PoseLayer(mixer, character.clips.get('crouch'), { blendIn: 0.05, blendOut: 0.16 });
     this.hurtPose = new PoseLayer(mixer, character.clips.get('land'), { blendIn: 0.05, blendOut: 0.25 });
     this.poses = [this.guardPose, this.dodgePose, this.hurtPose];
 
     // Every one of them masks the gait, the same way the template's own moves do.
     character.locomotion.overrides.push(...this.moves, ...this.poses);
+    /** Whole-body roll, lurch and fall over the clips. */
+    this.body = new BodyMotion(character);
   }
 
   get dead() {
@@ -146,6 +150,8 @@ export class PlayerCombat {
 
     for (const move of this.moves) move.update(dt);
     for (const pose of this.poses) pose.update(dt);
+    this._driveBody(dt);
+    this.body.update(dt);
 
     this._readElementChips();
 
@@ -470,10 +476,13 @@ export class PlayerCombat {
     dodge.dx = Math.sin(yaw) * spec.distance * (back ? 0.75 : 1);
     dodge.dz = Math.cos(yaw) * spec.distance * (back ? 0.75 : 1);
     dodge.yaw = back ? this.character.facing : yaw;
+    dodge.roll = !back;
     this.state = 'dodge';
     this.stateTime = 0;
     this.invulnerable = spec.iframes;
-    this.dodgePose.play(0.08, 0.3, { seconds: spec.time });
+    this.dodgePose.hold(0.45);
+    // A backstep is a hop: the body rocks back on its heels as it goes.
+    if (back) this.body.impulse(-4.5, 0);
     this.game.audio?.play('dodge');
     this.game.fx?.dust(position, 0.8);
     return this._updateDodge(0);
@@ -495,6 +504,7 @@ export class PlayerCombat {
 
     if (u >= 1) {
       this.dodgePose.stop();
+      if (dodge.roll) this.body.impulse(1.5, 0); // coming up out of the roll
       if (dodge.t >= spec.time + spec.recovery || this.input.pending('attack') || this.input.pending('dodge')) {
         dodge.active = false;
         this._toFree();
@@ -601,8 +611,15 @@ export class PlayerCombat {
     this.stateTime = 0;
     this._hurtTime = seconds;
     this.invulnerable = knockdown ? seconds + 0.25 : 0.18;
-    if (knockdown) this.hurtPose.play(0.28, 0.85, { seconds });
-    else this.hurtPose.play(0.36, 0.5, { seconds: seconds * 0.9 });
+    if (knockdown) {
+      // Down on the back, then up: the fall and the get-up are driven in
+      // `_driveBody`; the clip only lends the crouch to rise out of.
+      this._fallFrom = this.body.fall;
+    } else {
+      this.hurtPose.play(0.36, 0.5, { seconds: seconds * 0.9 });
+      // Rocked back by the blow, twisted a little by where it landed.
+      this.body.impulse(-6.5, (Math.random() < 0.5 ? -1 : 1) * 3.5);
+    }
     this._faceToward(this.character.position.x + dx, this.character.position.z + dz);
   }
 
@@ -611,8 +628,62 @@ export class PlayerCombat {
     this.stateTime = 0;
     for (const move of this.moves) if (move.locked) move.release();
     this._cancelPoses();
-    this.hurtPose.play(0.3, 0.55, { seconds: 0.8 });
+    this.hurtPose.play(0.36, 0.5, { seconds: 0.5 });
     this.game.onPlayerDeath(hit);
+  }
+
+  /**
+   * The state-driven parts of the body motion: the dodge's roll, the
+   * knockdown's fall and rise, the death.
+   */
+  _driveBody(dt) {
+    const body = this.body;
+    const ease = (t) => t * t * (3 - 2 * t);
+    if (this.state === 'dodge' && this._dodge.roll) {
+      const spec = this.weapon.dodge;
+      const u = Math.min(1, Math.max(0, (this._dodge.t - spec.time * 0.04) / (spec.time * 0.86)));
+      body.roll = ease(u) * Math.PI * 2;
+      body.drop = Math.sin(u * Math.PI) * 0.25;
+    } else {
+      body.roll = 0;
+      body.drop += (0 - body.drop) * Math.min(1, dt * 12);
+    }
+
+    if (this.state === 'down') {
+      const t = this.stateTime;
+      const total = this._hurtTime;
+      const fallTime = 0.32;
+      const rise = total - 0.55;
+      if (t < fallTime) {
+        body.fall = -1.42 * (t / fallTime) * (t / fallTime);
+      } else if (t < rise) {
+        if (!this._landed) {
+          this._landed = true;
+          this.game.fx?.dust(this.character.position, 0.7);
+          this.game.rig.shake(0.12);
+          this.game.audio?.play('kick', { volume: 0.6, pitch: 0.7 });
+        }
+        body.fall = -1.42;
+      } else {
+        if (!this._rising) {
+          this._rising = true;
+          this.hurtPose.play(0.45, 0.85, { seconds: total - rise });
+        }
+        const u = Math.min(1, (t - rise) / Math.max(0.05, total - rise));
+        body.fall = -1.42 * (1 - ease(u));
+      }
+    } else if (this.state === 'dead') {
+      const u = Math.min(1, this.stateTime / 0.55);
+      body.fall = -1.45 * u * u;
+    } else if (body.fall !== 0) {
+      body.fall += (0 - body.fall) * Math.min(1, dt * 10);
+      if (Math.abs(body.fall) < 1e-3) body.fall = 0;
+      this._landed = false;
+      this._rising = false;
+    } else {
+      this._landed = false;
+      this._rising = false;
+    }
   }
 
   _faceToward(x, z) {
@@ -649,6 +720,7 @@ export class PlayerCombat {
   revive(hp = this.maxHp) {
     for (const move of this.moves) move.cancel();
     for (const pose of this.poses) pose.cancel();
+    this.body.reset();
     this.hp = hp;
     this.mp = this.maxMp;
     this.guardMeter = this.maxGuard;

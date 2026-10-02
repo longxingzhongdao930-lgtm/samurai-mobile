@@ -109,7 +109,7 @@ export const WEAPONS = {
       maxWarp: 4, warpAt: 0.3, hitStop: 0.2, hitStopScale: 0.03, shake: 0.3, sfx: 'execute',
       impulse: 3.5, lift: 4.5, spin: 1.2
     }),
-    dodge: { distance: 3.9, time: 0.36, iframes: 0.26, recovery: 0.12, cooldown: 0.08 },
+    dodge: { distance: 4.2, time: 0.44, iframes: 0.3, recovery: 0.1, cooldown: 0.08 },
     guard: {
       /** Seconds from the guard press in which a blow is parried rather than blocked. */
       parryWindow: 0.24,

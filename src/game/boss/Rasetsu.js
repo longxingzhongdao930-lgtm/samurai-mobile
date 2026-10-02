@@ -206,6 +206,9 @@ export class Rasetsu extends EnemyAgent {
       this._ultTell = (this._ultTell ?? 0) + dt;
       if (this._ultTell > 0.35) {
         this._ultTell = 0;
+        // The court pulses red with the charge, faster as it nears release.
+        this.game.hud.flash('rgba(160,10,0,0.22)', 0.3);
+        this.game.rig.shake(0.08 + move.phase * 0.3);
         this.game.fx.dangerRing.burst(this.position.x, this.position.z, this.game.fx.dangerConfig, move.spec.reach / this.game.fx.dangerConfig.radius);
       }
     }
@@ -230,6 +233,11 @@ export class Rasetsu extends EnemyAgent {
       this.game.audio.play('slam', { pos: this.position });
     }
     if (spec.fire) this._ignite(spec);
+    if (spec.ultimate) {
+      _v.copy(this.position).setY(this.position.y + 1.5);
+      this.game.fx.explosion(_v, 6, '#ff3a10');
+      this.game.hud.flash('rgba(255,120,40,0.45)', 0.5);
+    }
   }
 
   /** The ground where the blow landed keeps burning for a while. */
@@ -238,7 +246,10 @@ export class Rasetsu extends EnemyAgent {
     const radius = spec.ultimate ? 7 : 3.6;
     for (let i = 0; i < count; i++) {
       const a = (i / count) * Math.PI * 2;
-      this.zones.push({ x: this.position.x + Math.sin(a) * radius, z: this.position.z + Math.cos(a) * radius, r: 1.5, t: spec.ultimate ? 6 : 4.5, tick: 0 });
+      const zone = { x: this.position.x + Math.sin(a) * radius, z: this.position.z + Math.cos(a) * radius, r: 1.5, t: spec.ultimate ? 6 : 4.5, tick: 0 };
+      this.zones.push(zone);
+      _v.set(zone.x, 0, zone.z);
+      this.game.fx.firePillar(_v, spec.ultimate ? 5 : 3.2);
     }
     this.game.audio.play('fireHit', { pos: this.position });
   }

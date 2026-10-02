@@ -5,6 +5,7 @@ import { ShockRing } from '../../vfx/ShockRing.js';
 import { settings } from '../../config/settings.js';
 import { GlowPool } from './GlowPool.js';
 import { SlashTrail } from './SlashTrail.js';
+import { Shards } from './Shards.js';
 
 const _p = new Vector3();
 const _hand = new Vector3();
@@ -33,6 +34,8 @@ export class Effects {
     this.parrySparks = new BladeImpact(384);
     this.slamRing = new ShockRing({ terrain });
     this.dangerRing = new ShockRing({ terrain });
+    this.coldRing = new ShockRing({ terrain });
+    this.shards = new Shards(game.quality.name === 'low' ? 64 : 112);
     this.dustBurst = new DustBurst(game.quality.name === 'low' ? 512 : 1024);
 
     this.group.add(
@@ -42,6 +45,8 @@ export class Effects {
       this.parrySparks.mesh,
       this.slamRing.mesh,
       this.dangerRing.mesh,
+      this.coldRing.mesh,
+      this.shards.mesh,
       this.dustBurst.mesh
     );
 
@@ -60,6 +65,7 @@ export class Effects {
     const shock = settings.judgement.shock;
     this.slamConfig = { ...shock, color: '#ffb070', crackColor: '#ff6a20', radius: 3.3, life: 0.55, intensity: 2.2 };
     this.dangerConfig = { ...shock, color: '#ff3018', crackColor: '#ff2a10', radius: 3.6, life: 0.6, intensity: 2.6 };
+    this.coldConfig = { ...shock, color: '#8fdcff', crackColor: '#d8f6ff', radius: 3.0, life: 0.55, intensity: 2.4 };
     this.dustConfig = { ...settings.judgement.dust, color: '#5d6470', shadeColor: '#1a1e26', soilColor: '#20242c', opacity: 0.6, puffs: 18, clods: 14 };
 
     this._afterimageAcc = 0;
@@ -106,6 +112,44 @@ export class Effects {
     this.dust(position, Math.min(2, radius / 2));
     _p.set(position.x, position.y + 0.3, position.z);
     this.flare(_p, color, 30, 0.3);
+  }
+
+  /** A blue-white ring on the ground — thunder strikes and ice. */
+  coldBurst(position, radius) {
+    this.coldRing.burst(position.x, position.z, this.coldConfig, Math.max(0.3, radius / this.coldConfig.radius));
+  }
+
+  /**
+   * A fireball's end, or the 爆雷 reaction at full size: a white-hot core, a
+   * ring along the ground, embers thrown up and smoke rolling out.
+   */
+  explosion(point, radius = 2, color = '#ff7a2a') {
+    this.glow.spawn(point, '#fff0c8', radius * 0.7, 0.14, { grow: 1.4, intensity: 1.8 });
+    this.glow.spawn(point, color, radius * 1.6, 0.4, { grow: 0.8, intensity: 2 });
+    this.glow.burst(point, '#ffb040', Math.round(10 + radius * 6), { speed: 4 + radius * 2, size: 0.09, life: 0.8, up: 3, gravity: -7 });
+    this.glow.burst(point, color, Math.round(6 + radius * 3), { speed: 2 + radius, size: 0.35, life: 0.6, up: 2.2, gravity: 1 });
+    _p.set(point.x, Math.max(0, point.y - 1), point.z);
+    this.slamRing.burst(_p.x, _p.z, this.slamConfig, Math.max(0.3, radius / this.slamConfig.radius));
+    this.dust(_p, Math.min(2, radius / 2));
+    this.flare(point, color, 14 + radius * 7, 0.35);
+  }
+
+  /** Ice breaking: splinters, a cold ring, a pale flash. */
+  shatter(point, radius = 1.2, count = 12) {
+    this.shards.burst(point, count, 4 + radius * 2);
+    this.glow.spawn(point, '#d8fbff', radius * 1.3, 0.2, { grow: 1, intensity: 2.4 });
+    this.glow.burst(point, '#9fefff', 10, { speed: 4, size: 0.06, life: 0.5, up: 2, gravity: -8 });
+    _p.set(point.x, Math.max(0, point.y - 1), point.z);
+    this.coldBurst(_p, radius);
+    this.flare(point, '#9fe8ff', 18 + radius * 6, 0.3);
+  }
+
+  /** A column of fire standing out of the ground (the boss's burning floor). */
+  firePillar(position, height = 3) {
+    for (let i = 0; i < 6; i++) {
+      _p.set(position.x + (Math.random() - 0.5) * 0.5, position.y + (i / 6) * height, position.z + (Math.random() - 0.5) * 0.5);
+      this.glow.spawn(_p, i % 2 ? '#ff5a1a' : '#ffb040', 0.9 - i * 0.08, 0.7, { vy: 3.5, grow: -0.4, intensity: 2 });
+    }
   }
 
   dust(position, strength = 1) {
@@ -159,6 +203,8 @@ export class Effects {
     this.parrySparks.sync(elapsed, this.parryConfig);
     this.slamRing.update(dt, this.slamConfig);
     this.dangerRing.update(dt, this.dangerConfig);
+    this.coldRing.update(dt, this.coldConfig);
+    this.shards.update(dt);
     this.dustBurst.sync(elapsed, this.dustConfig);
 
     this._lightTime += dt;
@@ -172,6 +218,8 @@ export class Effects {
     this.parrySparks.clear();
     this.slamRing.clear();
     this.dangerRing.clear();
+    this.coldRing.clear();
+    this.shards.clear();
     this.dustBurst.clear();
     this.trail.end();
   }
@@ -183,6 +231,8 @@ export class Effects {
     this.parrySparks.dispose();
     this.slamRing.dispose();
     this.dangerRing.dispose();
+    this.coldRing.dispose();
+    this.shards.dispose();
     this.dustBurst.dispose();
   }
 }

@@ -4,6 +4,7 @@ import { ELEMENTS, REACTIONS, SPELLS, reactionKey } from '../data/elements.js';
 const _p = new Vector3();
 const _q = new Vector3();
 const _hand = new Vector3();
+const _e = new Vector3();
 
 /**
  * Spells, statuses, element reactions — and the archers' arrows, which are
@@ -88,7 +89,9 @@ export class Magic {
         vel: new Vector3(dirX, dirY, dirZ).multiplyScalar(spell.speed),
         life: spell.life,
         radius: spell.radius,
-        glow: this.fx.glow.hold(element.glow, spell.radius * 3.2, { intensity: 2.2 }),
+        glow: this.fx.glow.hold(element.glow, spell.radius * (element.id === 'fire' ? 4.2 : 2.6), { intensity: 2.2 }),
+        shard: element.id === 'ice' ? this.fx.shards.hold(0.62) : -1,
+        spin: Math.random() * 6,
         trailAcc: 0
       });
     }
@@ -148,11 +151,19 @@ export class Magic {
       }
       p.pos.addScaledVector(p.vel, dt);
       this.fx.glow.move(p.glow, p.pos.x, p.pos.y, p.pos.z);
+      if (p.shard >= 0) this.fx.shards.move(p.shard, p.pos, p.vel);
       p.trailAcc += dt;
-      if (p.trailAcc > 0.025) {
+      if (p.trailAcc > 0.02) {
         p.trailAcc = 0;
         const color = p.owner === 'player' ? p.element.color : p.color;
-        this.fx.glow.spawn(p.pos, color, p.radius * 1.6, 0.25, { grow: -0.5, intensity: 1.2, vy: p.owner === 'player' && p.element.id === 'fire' ? 0.6 : 0 });
+        const fire = p.owner !== 'player' || p.element.id === 'fire';
+        this.fx.glow.spawn(p.pos, color, p.radius * (fire ? 2.0 : 1.2), fire ? 0.35 : 0.2, { grow: -0.5, intensity: 1.3, vy: fire ? 0.8 : 0 });
+        if (fire) {
+          // A spiral of embers wound around the flight line.
+          p.spin += 0.9;
+          _e.set(Math.cos(p.spin) * p.radius * 1.4, Math.sin(p.spin) * p.radius * 1.4, 0).add(p.pos);
+          this.fx.glow.spawn(_e, '#ffd070', 0.1, 0.45, { vy: 1.2, intensity: 2, gravity: -1 });
+        }
       }
 
       const ground = this.game.app.terrain.heightAt(p.pos.x, p.pos.z);
@@ -207,9 +218,18 @@ export class Magic {
       }
 
       if (done) {
-        const color = p.owner === 'player' ? p.element.glow : p.color;
-        this.fx.glow.spawn(p.pos, color, p.radius * 4, 0.2, { grow: 1.5, intensity: 1.8 });
+        if (p.owner === 'player' && p.element.id === 'fire') {
+          this.fx.explosion(p.pos, p.spell.splash ?? 1.6, p.element.color);
+        } else if (p.owner === 'player' && p.element.id === 'ice') {
+          this.fx.shatter(p.pos, 0.9, 8);
+        } else if (p.owner === 'enemy' && p.color === '#ff7a2a') {
+          this.fx.explosion(p.pos, 1.2, p.color);
+        } else {
+          const color = p.owner === 'player' ? p.element.glow : p.color;
+          this.fx.glow.spawn(p.pos, color, p.radius * 4, 0.2, { grow: 1.5, intensity: 1.8 });
+        }
         this.fx.glow.free(p.glow);
+        this.fx.shards.free(p.shard ?? -1);
         this.projectiles.splice(i, 1);
       }
     }
@@ -222,6 +242,16 @@ export class Magic {
     const ground = _q.set(at.x, at.y + 0.1, at.z);
     this.fx.ribbons.bolt(top.clone(), ground.clone(), { color: element.glow, width: 0.22, life: 0.32, segments: 13, jitter: 1.4 });
     this.fx.ribbons.bolt(top.clone(), ground.clone(), { color: element.color, width: 0.5, life: 0.18, segments: 9, jitter: 1.0 });
+    // Branches forking off the main channel, and a second strike a beat apart.
+    for (let i = 0; i < 3; i++) {
+      const k = 0.25 + Math.random() * 0.5;
+      const from = top.clone().lerp(ground, k);
+      const to = from.clone().add(new Vector3((Math.random() - 0.5) * 4, -2 - Math.random() * 2, (Math.random() - 0.5) * 4));
+      this.fx.ribbons.bolt(from, to, { color: element.glow, width: 0.08, life: 0.22, segments: 6, jitter: 0.6 });
+    }
+    this.fx.ribbons.bolt(top.clone().add(new Vector3(1.5, 0, -1)), ground.clone().add(new Vector3(0.6, 0, 0.4)), { color: element.glow, width: 0.14, life: 0.4, segments: 11, jitter: 1.2 });
+    this.fx.coldBurst(at, spell.radius * 1.3);
+    this.fx.glow.burst(ground, '#ffffff', 8, { speed: 3, size: 0.05, life: 0.3, up: 4, gravity: -10 });
     this.fx.glow.spawn(ground, element.glow, 2.2, 0.25, { grow: 0.6, intensity: 1.4 });
     this.fx.glow.burst(ground, element.glow, 18, { speed: 7, size: 0.07, life: 0.4, up: 2 });
     this.fx.flare(ground, element.glow, 32, 0.3);
@@ -262,9 +292,7 @@ export class Magic {
 
   _splash(p) {
     const spell = p.spell;
-    this.fx.glow.burst(p.pos, p.element.color, 16, { speed: 5, size: 0.12, life: 0.6, up: 2, gravity: -3 });
-    this.fx.glow.spawn(p.pos, p.element.glow, spell.splash * 1.4, 0.3, { grow: 0.8, intensity: 2 });
-    this.fx.flare(p.pos, p.element.color, 30, 0.3);
+    // The blast itself is drawn where the bolt ends (see `update`).
     for (const enemy of this.game.enemies.enemies) {
       if (!enemy.alive || !enemy.agent) continue;
       if (enemy.position.distanceTo(_q.set(p.pos.x, enemy.position.y, p.pos.z)) > spell.splash) continue;
@@ -311,9 +339,26 @@ export class Magic {
     this.reactionCount++;
     const at = origin.position.clone();
     _p.set(at.x, at.y + 1, at.z);
-    this.fx.glow.spawn(_p, reaction.color, reaction.radius * 1.8, 0.45, { grow: 0.8, intensity: 3 });
-    this.fx.glow.burst(_p, reaction.color, 34, { speed: 9, size: 0.1, life: 0.7, up: 3, gravity: -6 });
-    this.fx.slam(at, reaction.radius, reaction.id === 'blast' ? '#ffb070' : '#ffb070');
+    if (reaction.id === 'blast') {
+      this.fx.explosion(_p, reaction.radius, '#ff8a2a');
+      this.fx.ribbons.bolt(_p.clone().setY(_p.y + 6), _p.clone(), { color: '#ffe0a0', width: 0.3, life: 0.25, segments: 8, jitter: 1 });
+    } else if (reaction.id === 'frozenShock') {
+      this.fx.shatter(_p, reaction.radius, 24);
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2;
+        this.fx.ribbons.bolt(_p.clone(), _p.clone().add(new Vector3(Math.cos(a) * reaction.radius, -0.6, Math.sin(a) * reaction.radius)), { color: '#cfefff', width: 0.08, life: 0.35, segments: 6, jitter: 0.5 });
+      }
+    } else {
+      // Steam: a white bank boiling up and out.
+      for (let i = 0; i < 14; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.random() * reaction.radius;
+        _e.set(at.x + Math.cos(a) * r, at.y + 0.4 + Math.random(), at.z + Math.sin(a) * r);
+        this.fx.glow.spawn(_e, '#cfd8e0', 1.2 + Math.random(), 1.2, { vy: 1.5, vx: Math.cos(a) * 2, vz: Math.sin(a) * 2, grow: 1.5, intensity: 0.6 });
+      }
+      this.fx.glow.spawn(_p, '#ffffff', reaction.radius * 1.4, 0.3, { grow: 1, intensity: 1.6 });
+      this.fx.slam(at, reaction.radius, '#ffb070');
+    }
     this.fx.flare(_p, reaction.color, 45, 0.45);
     this.game.audio?.play(reaction.sfx, { pos: at });
     this.game.rig.shake(reaction.shake ?? 0.2);

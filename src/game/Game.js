@@ -62,9 +62,28 @@ export class Game {
       // The orbit drag belongs to the right half of the screen, not the whole canvas.
       app.rig.controls.touches = { ONE: null, TWO: null };
     }
-    // Left-drag orbits (a click without a drag attacks — see GameInput); the
-    // right button guards.
-    app.rig.controls.mouseButtons = { LEFT: 0, MIDDLE: null, RIGHT: null };
+    // The mouse itself turns the camera (see GameInput), so no button drags
+    // the orbit; the buttons are attack and guard.
+    app.rig.controls.mouseButtons = { LEFT: null, MIDDLE: null, RIGHT: null };
+    // OrbitControls takes no input at all in the game (its update still runs
+    // the orbit); left enabled, it would grab the pointer on every click.
+    app.rig.controls.enabled = false;
+    this.input.canLock = () => !TOUCH && this.state === 'playing';
+    // Esc releases the pointer before the page sees the key: treat that as
+    // asking for the pause menu.
+    this.input.onUnlock = () => {
+      if (this.state === 'playing') this.pause();
+    };
+
+    // The samurai's own glow — the green gauntlets and the blade's emissive —
+    // was authored for a bright studio. In the rain it reads as the body
+    // lighting itself up, so it is turned well down here.
+    app.character.model?.traverse((node) => {
+      const materials = Array.isArray(node.material) ? node.material : node.material ? [node.material] : [];
+      for (const material of materials) {
+        if (material.emissiveIntensity !== undefined) material.emissiveIntensity = Math.min(material.emissiveIntensity * 0.18, 0.12);
+      }
+    });
 
     app.enemies.maintain = false;
     const scaleUI = () => {
@@ -279,7 +298,7 @@ export class Game {
   _camera(raw) {
     const rig = this.app.rig;
     this.input.consumeLook(_look);
-    const sensitivity = TOUCH ? 0.0062 : 0.004;
+    const sensitivity = TOUCH ? 0.0062 : 0.0028;
     if (_look.x || _look.y) rig.orbit(-_look.x * sensitivity, -_look.y * sensitivity * 0.7);
 
     if (this.state !== 'playing') {
@@ -642,6 +661,7 @@ export class Game {
     this.after(1.6, () => {
       if (this.state !== 'playing') return;
       this.state = 'defeat';
+      this.input.unlockPointer();
       this.touch.setVisible(false);
       this.screens.defeat({
         tip: this.flow?.tip() ?? '敵の刃が光った瞬間にガードで弾ける。',
@@ -659,6 +679,7 @@ export class Game {
     if (this.state !== 'playing') return;
     this.state = 'paused';
     this.app.paused = true;
+    this.input.unlockPointer();
     this.touch.setVisible(false);
     this.input.reset();
     this._showPause();
@@ -739,6 +760,7 @@ export class Game {
       C: '辛勝。回避と属性反応を使いこなせ。'
     }[rank];
     this.state = 'result';
+    this.input.unlockPointer();
     this.touch.setVisible(false);
     this.hud.setVisible(false);
     this.screens.result({

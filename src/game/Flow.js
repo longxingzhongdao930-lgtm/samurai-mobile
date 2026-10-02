@@ -301,7 +301,7 @@ export class Flow {
         start: () => {
           hud().areaCard('壱 · 城下町', '黒雨の夜');
           game.audio.play('bell', { volume: 0.5 });
-          game.after(2.6, () => hud().notice(touch() ? '左で移動 · 右をなぞってカメラ' : 'WASDで移動 · ドラッグでカメラ', 3));
+          game.after(2.6, () => hud().notice(touch() ? '左で移動 · 右をなぞってカメラ' : 'WASDで移動 · マウスで視点', 3));
         },
         done: () => true
       },
@@ -313,7 +313,7 @@ export class Flow {
           this._fight([['ashigaru', -2, 30], ['ashigaru', 2.5, 31], ['ashigaru', 0, 34]], { cap: 3 });
           // The first fight is a lesson: one blade at a time.
           game.director.maxMelee = 1;
-          hud().notice(touch() ? '「斬」で攻撃 · 連打で五連撃' : 'J / クリックで攻撃 · 連打で五連撃', 3.2);
+          hud().notice(touch() ? '「斬」で攻撃 · 連打で五連撃' : '左クリックで攻撃 · 連打で五連撃', 3.2);
           this._lesson = 0;
         },
         done: (dt) => {

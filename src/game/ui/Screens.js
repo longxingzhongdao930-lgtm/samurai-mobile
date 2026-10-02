@@ -46,7 +46,7 @@ export class Screens {
   title({ onStart, quality }) {
     const controls = this.touch
       ? '<li><b>左</b> 移動スティック</li><li><b>右スワイプ</b> カメラ</li><li><b>斬</b> 攻撃（長押しで居合）</li><li><b>守</b> ガード / 直前で弾き</li><li><b>避</b> 回避</li><li><b>術</b> 魔法 · <b>奥義</b> 必殺</li><li><b>敵をタップ</b> ロックオン</li>'
-      : '<li><b>WASD</b> 移動 · <b>Shift</b> 歩き</li><li><b>J / クリック</b> 攻撃（長押しで居合）</li><li><b>K / L / 右クリック</b> ガード · 直前で弾き</li><li><b>Space</b> 回避</li><li><b>Q</b> 魔法 · <b>1 2 3</b> 属性</li><li><b>R</b> 奥義 · <b>Tab</b> ロックオン</li><li><b>ドラッグ</b> カメラ · <b>Esc</b> ポーズ</li>';
+      : '<li><b>WASD</b> 移動 · <b>Shift</b> 歩き</li><li><b>マウス</b> カメラ</li><li><b>左クリック</b> 攻撃（長押しで居合）</li><li><b>右クリック</b> ガード · 直前で弾き</li><li><b>Space</b> 回避</li><li><b>Q</b> 魔法 · <b>1 2 3</b> 属性</li><li><b>R</b> 奥義 · <b>Tab / ホイール押し</b> ロックオン</li><li><b>Esc</b> ポーズ</li>';
     const panel = this._panel(
       'gs-title',
       `<div class="gs-title__mark">影</div>
@@ -54,7 +54,7 @@ export class Screens {
        <p class="gs-title__sub">— 体験版 —</p>
        <button class="gs-btn gs-btn--main" data-action="start">はじめる</button>
        <ul class="gs-controls">${controls}</ul>
-       <p class="gs-fine">画質: ${quality} · ヘッドホン推奨</p>`
+       <p class="gs-fine">画質: ${quality} · ヘッドホン推奨${this.touch ? '' : ' · マウスで視点 · Escでカーソル解放'}</p>`
     );
     this._bind(panel, { start: onStart });
   }

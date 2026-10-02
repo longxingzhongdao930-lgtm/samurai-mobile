@@ -78,7 +78,7 @@ export const GAME_SETTINGS = {
     hemiIntensity: 1.25,
     hemiSkyColor: '#5a78a8',
     hemiGroundColor: '#2a2a30',
-    rimIntensity: 3.6,
+    rimIntensity: 2.2,
     rimColor: '#9fc0f0',
     envIntensity: 0.35,
     shadowExtent: 34,

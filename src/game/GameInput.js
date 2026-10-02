@@ -81,14 +81,29 @@ export class GameInput {
     };
     this._onBlur = () => this.reset();
 
-    // Mouse: a click (no drag) is a light attack, right button guards. The orbit
-    // drag stays with OrbitControls; this only listens for what is not a drag.
-    this._down = null;
+    // Mouse, the way a PC action game plays: the camera follows the mouse
+    // (no button needed), the left button attacks (held, it charges the dash
+    // cut) and the right button guards. A click also captures the pointer
+    // where the browser allows it, so the cursor cannot leave the window
+    // mid-turn; where it is refused, the camera follows the cursor anyway.
+    this.pointerLocked = false;
+    this.lockRefused = false;
+    /** Set by the game: whether the mouse is steering right now (playing). */
+    this.canLock = () => false;
     this._onPointerDown = (event) => {
       if (event.pointerType === 'touch') return;
-      if (event.button === 0) this._down = { x: event.clientX, y: event.clientY, t: performance.now() };
-      if (event.button === 2) this.press('guard');
-      if (event.button === 1) {
+      if (!this.canLock()) return;
+      if (!this.pointerLocked && !this.lockRefused && canvas.requestPointerLock) {
+        try {
+          const request = canvas.requestPointerLock();
+          if (request?.catch) request.catch(() => (this.lockRefused = true));
+        } catch {
+          this.lockRefused = true;
+        }
+      }
+      if (event.button === 0) this.press('attack');
+      else if (event.button === 2) this.press('guard');
+      else if (event.button === 1) {
         event.preventDefault();
         this.press('lock');
         this.release('lock');
@@ -96,15 +111,20 @@ export class GameInput {
     };
     this._onPointerUp = (event) => {
       if (event.pointerType === 'touch') return;
-      if (event.button === 2) this.release('guard');
-      if (event.button !== 0 || !this._down) return;
-      const moved = Math.hypot(event.clientX - this._down.x, event.clientY - this._down.y);
-      const quick = performance.now() - this._down.t < 260;
-      this._down = null;
-      if (moved < 6 && quick) {
-        this.press('attack');
-        this.release('attack');
-      }
+      if (event.button === 0) this.release('attack');
+      else if (event.button === 2) this.release('guard');
+    };
+    this._onMouseMove = (event) => {
+      if (event.pointerType === 'touch' || !this.canLock()) return;
+      this.addLook(event.movementX || 0, event.movementY || 0);
+    };
+    this._onLockChange = () => {
+      const locked = document.pointerLockElement === canvas;
+      if (this.pointerLocked && !locked) this.onUnlock?.();
+      this.pointerLocked = locked;
+    };
+    this._onLockError = () => {
+      this.lockRefused = true;
     };
     this._onContext = (event) => event.preventDefault();
 
@@ -113,7 +133,15 @@ export class GameInput {
     window.addEventListener('blur', this._onBlur);
     canvas.addEventListener('pointerdown', this._onPointerDown);
     window.addEventListener('pointerup', this._onPointerUp);
+    window.addEventListener('mousemove', this._onMouseMove);
+    document.addEventListener('pointerlockchange', this._onLockChange);
+    document.addEventListener('pointerlockerror', this._onLockError);
     canvas.addEventListener('contextmenu', this._onContext);
+  }
+
+  /** Give the pointer back (pause, menus). */
+  unlockPointer() {
+    if (document.pointerLockElement) document.exitPointerLock?.();
   }
 
   /* ---- fed by keyboard, mouse and the touch overlay ---- */
@@ -268,6 +296,9 @@ export class GameInput {
     window.removeEventListener('blur', this._onBlur);
     this.canvas.removeEventListener('pointerdown', this._onPointerDown);
     window.removeEventListener('pointerup', this._onPointerUp);
+    window.removeEventListener('mousemove', this._onMouseMove);
+    document.removeEventListener('pointerlockchange', this._onLockChange);
+    document.removeEventListener('pointerlockerror', this._onLockError);
     this.canvas.removeEventListener('contextmenu', this._onContext);
   }
 }

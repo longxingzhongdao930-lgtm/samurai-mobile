@@ -126,6 +126,10 @@ export function equipEnemy(enemy, gear, { horns = null, hat = null } = {}) {
     const mount = mountOn(enemy, boneName);
     if (!mount) return;
     const item = meshesFor(kind);
+    item.traverse((node) => {
+      node.userData.ownMaterial = true;
+      node.userData.half = 'upper';
+    });
     item.rotation.set(rot[0], rot[1], rot[2]);
     item.position.set(offset[0], offset[1], offset[2]);
     mount.add(item);
@@ -152,23 +156,14 @@ export function equipEnemy(enemy, gear, { horns = null, hat = null } = {}) {
       break;
   }
 
-  // Two embers for eyes: the one thing that reads at twenty metres in the rain.
-  {
-    const mount = mountOn(enemy, 'Head');
-    if (mount) {
-      const item = meshesFor('eyes');
-      item.children.forEach((mesh) => {
-        mesh.castShadow = false;
-      });
-      mount.add(item);
-      added.push(item);
-    }
-  }
-
   if (hat) {
     const mount = mountOn(enemy, 'Head');
     if (mount) {
       const item = meshesFor(hat);
+      item.traverse((node) => {
+        node.userData.ownMaterial = true;
+        node.userData.half = 'upper';
+      });
       mount.add(item);
       added.push(item);
     }
@@ -178,6 +173,10 @@ export function equipEnemy(enemy, gear, { horns = null, hat = null } = {}) {
     const mount = mountOn(enemy, 'Head');
     if (mount) {
       const item = meshesFor(horns);
+      item.traverse((node) => {
+        node.userData.ownMaterial = true;
+        node.userData.half = 'upper';
+      });
       item.position.set(0, 0.12, 0.02);
       mount.add(item);
       added.push(item);

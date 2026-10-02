@@ -628,6 +628,13 @@ export class Enemy {
     const bindOffset = this._toBindPlane(_cutNormal, _cutNormal.dot(_cutPoint), _cutNormalBind);
 
     const upper = cloneRigged(this.parts[0].model);
+    // Armour and gear go with whichever half carries their bones.
+    const keep = (model, half) =>
+      model.traverse((node) => {
+        if (node.userData.half && node.userData.half !== half) node.visible = false;
+      });
+    keep(this.parts[0].model, 'lower');
+    keep(upper, 'upper');
     this.root.add(upper);
     this.parts.push(this._makePart(upper));
     // The clone has to be in the world before the solver reads a bone off it.
@@ -786,6 +793,8 @@ export class Enemy {
 
     part.model.traverse((node) => {
       if (!node.isMesh && !node.isSkinnedMesh) return;
+      // Anything the game hung on the body (armour, weapons) keeps its own look.
+      if (node.userData.ownMaterial) return;
 
       node.castShadow = true;
       node.receiveShadow = true;

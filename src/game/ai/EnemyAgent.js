@@ -215,20 +215,31 @@ export class EnemyAgent {
     const enemy = this.enemy;
     const director = ctx.director;
 
-    // Choose: attack if a token is free and something is in range.
+    // Ready to swing: take a token first (the crowd's permission), then close
+    // to range with it and commit. Without one, keep the ring.
     if (this.cooldown <= 0 && !ctx.playerDown) {
-      const spec = this._chooseAttack(distance);
-      if (spec && director.requestToken(this, type.ranged === true)) {
-        this._startAttack(spec);
-        return;
+      if (this.token || director.requestToken(this, type.ranged === true)) {
+        const spec = this._chooseAttack(distance);
+        if (spec) {
+          this._approach = 0;
+          this._startAttack(spec);
+          return;
+        }
+        // Could not reach in time: hand the turn to someone else.
+        this._approach = (this._approach ?? 0) + dt;
+        if (this._approach > 3.5) {
+          this._approach = 0;
+          director.releaseToken(this);
+          this.cooldown = 0.8;
+        }
       }
     }
 
     // Where to stand: on a ring around the player, at this body's own angle.
-    // Holders of a token close all the way; everyone else keeps the ring and
-    // drifts around it, so the group frames the player instead of stacking.
+    // Holders of a token close to striking range; everyone else keeps the ring
+    // and drifts around it, so the group frames the player instead of stacking.
     let ring = type.ring;
-    if (this.token) ring = 1.6;
+    if (this.token) ring = Math.max(1.2, this._closeRange() * 0.75);
     const angle = this.slotAngle;
     let goalX = ctx.player.x + Math.sin(angle) * ring;
     let goalZ = ctx.player.z + Math.cos(angle) * ring;
@@ -278,6 +289,16 @@ export class EnemyAgent {
     // dealing with you, and it keeps the wind-up readable from any angle.
     this._turnToward(Math.atan2(dx, dz), dt, 7);
     this._setSpeed(Math.hypot(this.velocity.x, this.velocity.z));
+  }
+
+  /** The shortest range any of this body's moves can start from. */
+  _closeRange() {
+    let best = Infinity;
+    for (const spec of this.type.attacks) {
+      if (spec.phases && !spec.phases.includes(this.phase)) continue;
+      best = Math.min(best, spec.range);
+    }
+    return Number.isFinite(best) ? best : 2;
   }
 
   _chooseAttack(distance) {

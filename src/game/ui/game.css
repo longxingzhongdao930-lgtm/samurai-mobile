@@ -70,9 +70,33 @@ body.game .loader__status {
 }
 .tc--desktop .tc-stick-zone,
 .tc--desktop .tc-look-zone,
-.tc--desktop .tc-stick,
-.tc--desktop .tc-cluster {
+.tc--desktop .tc-stick {
   display: none;
+}
+/* On a desktop the cluster stays as a read-out (gauges, element, execute
+   prompt) with the key under each button. */
+.tc--desktop .tc-cluster {
+  transform: scale(0.82);
+  transform-origin: 100% 100%;
+}
+.tc-key {
+  display: none;
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 4px;
+  font: 600 9px/14px system-ui, sans-serif;
+  color: var(--urushi);
+  background: var(--kin);
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.tc--desktop .tc-key {
+  display: block;
+}
+.tc-chip {
+  position: relative;
 }
 .tc-stick-zone {
   position: absolute;

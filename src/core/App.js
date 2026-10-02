@@ -344,6 +344,11 @@ export class App {
     this._bindEvents();
   }
 
+  /** A loading line in the mode's language. */
+  _say(en, ja) {
+    return this.mode === 'game' ? ja : en;
+  }
+
   /** Whether the equipment studio is the thing on screen. */
   get inCharacterScreen() {
     return this.characterScreen?.active === true;
@@ -888,24 +893,27 @@ export class App {
   async load() {
     const assets = new AssetLoader();
 
-    this.loading.setProgress(0.05, 'Loading environment…');
+    this.loading.setProgress(0.05, this._say('Loading environment…', '夜空を描く…'));
     // The trial's night is generated (see `game/world/nightEnv.js`) — the
     // sunrise probe is 5.7 MB the phone does not need to download.
     const hdr = this.mode === 'game' ? makeNightEnvironment() : await assets.loadHDR(HDR_URL);
     await this.environment.loadEnvironment(hdr);
     frame.uEnvMap.value = this.environment.equirect;
 
-    this.loading.setProgress(0.3, 'Loading the forest floor…');
+    this.loading.setProgress(0.3, this._say('Loading the forest floor…', '石畳を敷く…'));
     await this.ground.loadTextures(assets);
     // And what is lying on it. Before the shader warm-up below, so the two leaf
     // materials are compiled with everything else rather than on the first frame
     // a leaf is in shot.
-    await this.leaves.load(assets, this.renderer);
+    // The game's low tier has no leaves at all, so it does not fetch them.
+    if (this.mode !== 'game' || settings.leaves.litter.enabled) await this.leaves.load(assets, this.renderer);
 
     // Before the shader warm-up below, so the moon is compiled with the rest and
     // the first frame has a body in it rather than a disc that swaps a moment
     // later. If the maps fail the sky keeps its own disc and nothing else knows.
-    await this.moon.load(assets);
+    // Behind rain clouds the sky's own disc is moon enough: the game skips the
+    // 6 MB of lunar surface maps.
+    if (this.mode !== 'game') await this.moon.load(assets);
 
     // One build before the first frame, so the ground is shaped when the
     // loading screen lifts rather than settling a frame into it. The floor
@@ -915,10 +923,10 @@ export class App {
     this.terrain.update();
     this.ground.update(0, 0, 0);
 
-    this.loading.setProgress(0.55, 'Loading character, materials & animations…');
+    this.loading.setProgress(0.55, this._say('Loading character, materials & animations…', '侍を呼ぶ…'));
     await this.character.load(assets);
 
-    this.loading.setProgress(0.72, 'Waking the enemies…');
+    this.loading.setProgress(0.72, this._say('Waking the enemies…', '妖が目覚める…'));
     await this.enemies.load(assets);
     // An attack knows the frame the blow lands and nothing else; what being hit
     // means is decided here. Each hands over its own settings block, so the
@@ -930,14 +938,14 @@ export class App {
     // the scene for the shader warm-up below.
     if (this.mode !== 'game') this.enemies.respawnAll();
 
-    this.loading.setProgress(0.76, 'Forging the fist…');
+    this.loading.setProgress(0.76, this._say('Forging the fist…', '天罰の拳を鍛える…'));
     // The arm the ability drops. It is in the scene from here on, hidden, so
     // its material is compiled with everything else below rather than on the
     // frame it is first called for. A failure costs a warning and an ability
     // that does nothing — see `Judgement#load`.
     await this.judgement.load(assets);
 
-    this.loading.setProgress(0.8, 'Building the character screen…');
+    this.loading.setProgress(0.8, this._say('Building the character screen…', '装備を整える…'));
     // The set and its rig cost nothing until they are drawn, and building them
     // now means `C` is instant. The equipment models themselves stay on disk
     // until the screen is opened — see `EquipmentLibrary`.
@@ -951,7 +959,7 @@ export class App {
       onExit: () => this._onScreenExit()
     });
 
-    this.loading.setProgress(0.83, 'Equipping…');
+    this.loading.setProgress(0.83, this._say('Equipping…', '刀を帯びる…'));
     // The starting loadout — whatever was last dialled in on the set, or the
     // catalog's defaults on a first run. Gear hangs off the skeleton rather than
     // off either stage, so equipping here puts it on the body for the play scene
@@ -973,7 +981,7 @@ export class App {
       this.game.warmup?.();
     }
 
-    this.loading.setProgress(0.85, 'Compiling shaders…');
+    this.loading.setProgress(0.85, this._say('Compiling shaders…', '最後の仕上げ…'));
     // Compile everything up front so the first frame never stutters — both
     // stages, so opening the character screen is not its own first frame. The
     // fire's light is walked through both scenes on the way, because adding a
@@ -993,7 +1001,7 @@ export class App {
     await assets.settled();
     assets.dispose();
 
-    this.loading.setProgress(1, 'Ready');
+    this.loading.setProgress(1, this._say('Ready', '準備完了'));
     this.loading.hide();
     // The moves are named by the row along the bottom, so this only has to
     // cover what the row does not: the stick, and where to look for the rest.

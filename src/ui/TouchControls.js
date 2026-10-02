@@ -12,12 +12,12 @@
 const STICK_RADIUS = 58;
 
 const LAYOUT = [
-  { id: 'attack', glyph: '斬', label: '攻撃', cls: 'tc-btn--attack' },
-  { id: 'dodge', glyph: '避', label: '回避', cls: 'tc-btn--dodge' },
-  { id: 'guard', glyph: '守', label: 'ガード', cls: 'tc-btn--guard' },
-  { id: 'magic', glyph: '術', label: '魔法', cls: 'tc-btn--magic' },
-  { id: 'special', glyph: '奥義', label: '必殺', cls: 'tc-btn--special' },
-  { id: 'lock', glyph: '◎', label: 'ロック', cls: 'tc-btn--lock' }
+  { id: 'attack', glyph: '斬', label: '攻撃', cls: 'tc-btn--attack', key: 'J' },
+  { id: 'dodge', glyph: '避', label: '回避', cls: 'tc-btn--dodge', key: 'Space' },
+  { id: 'guard', glyph: '守', label: 'ガード', cls: 'tc-btn--guard', key: 'K' },
+  { id: 'magic', glyph: '術', label: '魔法', cls: 'tc-btn--magic', key: 'Q' },
+  { id: 'special', glyph: '奥義', label: '必殺', cls: 'tc-btn--special', key: 'R' },
+  { id: 'lock', glyph: '◎', label: 'ロック', cls: 'tc-btn--lock', key: 'Tab' }
 ];
 
 export class TouchControls {
@@ -40,7 +40,7 @@ export class TouchControls {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = `tc-btn ${spec.cls}`;
-      button.innerHTML = `<span class="tc-btn__glyph">${spec.glyph}</span><span class="tc-btn__label">${spec.label}</span>`;
+      button.innerHTML = `<span class="tc-btn__glyph">${spec.glyph}</span><span class="tc-btn__label">${spec.label}</span><kbd class="tc-key">${spec.key}</kbd>`;
       if (spec.id === 'special') {
         button.insertAdjacentHTML('afterbegin', '<svg class="tc-ring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46"/></svg>');
       }
@@ -59,7 +59,7 @@ export class TouchControls {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = `tc-chip tc-chip--${index}`;
-      chip.textContent = glyph;
+      chip.innerHTML = `${glyph}<kbd class="tc-key">${index + 1}</kbd>`;
       this.elements.appendChild(chip);
       this.chips.push(chip);
       this._bindButton(chip, `el${index}`);

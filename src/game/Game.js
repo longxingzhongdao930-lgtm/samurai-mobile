@@ -125,6 +125,17 @@ export class Game {
 
   start() {
     this.audio.unlock();
+    // On a phone, take the whole screen and hold it sideways. Both are
+    // best-effort: iOS Safari has neither, and a refusal changes nothing.
+    if (TOUCH) {
+      const root = document.documentElement;
+      if (!document.fullscreenElement && root.requestFullscreen) {
+        root.requestFullscreen({ navigationUI: 'hide' }).then(
+          () => screen.orientation?.lock?.('landscape').catch(() => {}),
+          () => {}
+        );
+      }
+    }
     this.audio.play('confirm');
     this.screens.close();
     this.hud.setVisible(true);
@@ -630,6 +641,10 @@ export class Game {
     this.app.paused = true;
     this.touch.setVisible(false);
     this.input.reset();
+    this._showPause();
+  }
+
+  _showPause() {
     this.screens.pause({
       muted: this._muted,
       onResume: () => this.resume(),
@@ -641,7 +656,7 @@ export class Game {
       onVolume: () => {
         this._muted = !this._muted;
         if (this.audio.master) this.audio.master.gain.value = this._muted ? 0 : this.audio.volume.master;
-        this.pause.call(this, true);
+        this._showPause();
       }
     });
   }

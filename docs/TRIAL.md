@@ -32,6 +32,8 @@
 | Stick & Steel | MIT | Rapier物理ベースで設計が異なるため導入なし。「同時発音数の上限」の考え方のみ採用 |
 | three-player-controller | MIT | TypeScript＋BVH物理で依存が重く、既存の移動・カメラの方が軽量なため導入なし |
 
+追加モデル: 弓「Bow and Arrow」(Amatsukast / Sketchfab) は **CC BY-NC-SA 4.0＝非商用限定**。体験版・非商用公開は可、販売する場合は差し替え必須。魔法発動時に `game/combat/BowRig.js` が弓を構えさせ（胴の半身ひねり＋両腕2ボーンIK）、矢の先端から魔法を放つ。
+
 新規ランタイム依存は **ゼロ**（three / lil-gui のまま）。テクスチャ・音はすべて実行時生成でライセンス問題なし。
 
 ## 3. 体験版の構成

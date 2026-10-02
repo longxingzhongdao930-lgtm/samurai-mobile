@@ -43,11 +43,12 @@ export class Magic {
     return out;
   }
 
-  cast(elementId, target) {
+  /** `from`: where the spell leaves — the arrow's point, when loosed from the bow. */
+  cast(elementId, target, from = null) {
     const spell = SPELLS[elementId];
     const element = ELEMENTS[elementId];
     if (!spell) return;
-    const origin = this._origin(new Vector3());
+    const origin = from ? from.clone() : this._origin(new Vector3());
     const character = this.game.app.character;
     const yaw = character.facing;
     this.game.audio?.play(spell.sfx, { volume: 0.9 });

@@ -4,6 +4,7 @@ import { quality, TOUCH, DynamicBudget } from '../core/Quality.js';
 import { TouchControls } from '../ui/TouchControls.js';
 import { AIDirector } from './ai/AIDirector.js';
 import { PlayerCombat } from './combat/PlayerCombat.js';
+import { BowRig } from './combat/BowRig.js';
 import { Effects } from './fx/Effects.js';
 import { Ribbons } from './fx/Ribbons.js';
 import { Magic } from './magic/Magic.js';
@@ -119,6 +120,7 @@ export class Game {
     app.scene.add(this.fx.group);
     this.magic = new Magic(this);
     this.player = new PlayerCombat(this);
+    this.bow = new BowRig(this);
     app.controller.combat = this.player;
     this.playerTarget = { position: app.character.position, alive: true };
     this.hud = new HUD(this);
@@ -268,6 +270,8 @@ export class Game {
   /** After the camera: effects that follow the final pose, HUD, sound. */
   lateUpdate(dt, raw) {
     const app = this.app;
+    // First: the bow's IK re-poses the arms the effects and camera follow.
+    this.bow.update(dt, this.player.castTarget);
     this.fx.update(dt, this.elapsed);
     this.fx.ribbons.update(dt);
     this._camera(raw);

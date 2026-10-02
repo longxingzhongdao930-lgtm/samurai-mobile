@@ -626,3 +626,4 @@ src/
 - **Animations** — [Mixamo](https://mixamo.com)
 - **Textures** — [ambientCG](https://ambientcg.com)
 - **HDRI** — [Poly Haven](https://polyhaven.com)
+- **Bow and Arrow** (`public/models/weapons/bow.glb`, quiver and spare arrows removed, textures resized) — [Amatsukast](https://sketchfab.com/3d-models/bow-and-arrow-1ce33880149543f9ae7b5848e6e52d66) on Sketchfab, [CC BY-NC-SA 4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/). **Non-commercial only** — replace it before any commercial release.

@@ -4,9 +4,10 @@ import { settings } from '../../config/settings.js';
 import { PoseLayer } from './PoseLayer.js';
 import { BodyMotion } from './BodyMotion.js';
 import { WEAPONS } from '../data/weapons.js';
-import { SPELLS, SPELL_ORDER } from '../data/elements.js';
+import { ELEMENTS, SPELLS, SPELL_ORDER } from '../data/elements.js';
 
 const _v = new Vector3();
+const _from = new Vector3();
 
 /**
  * Everything the player's body can do in a fight, as one state machine.
@@ -91,10 +92,11 @@ export class PlayerCombat {
     this.heavy = make(this.weapon.heavy);
     this.counter = make(this.weapon.counter);
     this.execute = make(this.weapon.execute);
-    // The cast: the slash's wind-up, the hand forward on the release.
+    // The cast: a shot from the bow (see BowRig) over the slash's wind-up,
+    // slowed so there is time to draw; the release is the hit frame.
     this.cast = make({
       ...this.weapon.combo[0],
-      id: 'cast', clipFrom: 0.04, clipTo: 0.3, timeScale: 1.6, hits: [0.72], lunge: 0,
+      id: 'cast', clipFrom: 0.04, clipTo: 0.24, timeScale: 0.62, hits: [0.74], lunge: 0,
       cancelAt: 0.85, recoverAt: 0.9, trail: false, standoff: 99, maxWarp: 0, sfx: null
     });
     this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast];
@@ -152,6 +154,10 @@ export class PlayerCombat {
     for (const pose of this.poses) pose.update(dt);
     this._driveBody(dt);
     this.body.update(dt);
+    if (this._bow && this.state !== 'cast') {
+      this._bow = false;
+      this.game.bow.end();
+    }
 
     this._readElementChips();
 
@@ -204,8 +210,10 @@ export class PlayerCombat {
       input.consume('magic');
       if (this.mp >= this.spell.cost) {
         this.mp -= this.spell.cost;
-        this._startMove(this.cast, this.lockTarget ?? this._autoTarget({ range: 18, arc: 70 }));
+        this.castTarget = this.lockTarget ?? this._autoTarget({ range: 18, arc: 70 });
+        this._startMove(this.cast, this.castTarget);
         this.state = 'cast';
+        this._bow = this.game.bow?.begin(ELEMENTS[this.element]?.color ?? '#ffffff') ?? false;
         return this._held;
       }
       this.game.hud?.notice('霊力が足りない');
@@ -392,7 +400,8 @@ export class PlayerCombat {
   _onStrike(move, index) {
     const config = move.config;
     if (move === this.cast) {
-      this.game.magic.cast(this.element, move.target ?? this.lockTarget);
+      const from = this._bow ? this.game.bow.release(_from) : null;
+      this.game.magic.cast(this.element, move.target ?? this.lockTarget, from);
       return;
     }
     if (this.state === 'cast' && move === this.combo[1]) return; // the special's pose only

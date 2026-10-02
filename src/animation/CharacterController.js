@@ -1,11 +1,9 @@
 import {
-  AnimationClip,
   AnimationMixer,
   Box3,
   Group,
   MathUtils,
   MeshStandardMaterial,
-  PropertyBinding,
   SRGBColorSpace,
   Vector3
 } from 'three';
@@ -17,6 +15,7 @@ import { Attack } from './Attack.js';
 import { Flight } from './Flight.js';
 import { Jump } from './Jump.js';
 import { Locomotion } from './Locomotion.js';
+import { retargetClip } from './retarget.js';
 
 /** The skinned body. Geometry and skin weights; its materials are replaced below. */
 const CHARACTER_URL = './models/tpose.fbx';
@@ -329,109 +328,16 @@ export class CharacterController {
       return null;
     }
 
-    const unitScale = this._measureClipUnits(clip);
-    const hips = this._hipsTrackName();
-    const tracks = [];
-
-    for (const original of clip.tracks) {
-      const track = original.clone();
-      const node = PropertyBinding.parseTrackName(track.name).nodeName;
-
-      if (!this.bones.has(node)) continue; // a joint this body does not have
-
-      if (track.name.endsWith('.position')) {
-        const values = track.values;
-        if (unitScale !== 1) {
-          for (let i = 0; i < values.length; i++) values[i] *= unitScale;
-        }
-        // Freeze travel, keep the bob (see the note above). Frozen onto the
-        // *bind* pose rather than onto the clip's own first key: a clip authored
-        // with the body standing somewhere other than the origin would otherwise
-        // carry that offset in as a permanent shove sideways, and anything that
-        // places the model by its root — the controller, a summoned shadow on
-        // its mark — would be aiming the wrong point at the ground.
-        if (node === hips) {
-          if (ROOT_MOTION_CLIPS.has(name)) this.rootMotion.set(name, extractTravel(track, name));
-          const bind = this.bones.get('Hips');
-          const x = bind ? bind.position.x : values[0];
-          const z = bind ? bind.position.z : values[2];
-          for (let i = 0; i < values.length; i += 3) {
-            values[i] = x;
-            values[i + 2] = z;
-          }
-        }
-      }
-
-      tracks.push(track);
-    }
-
-    if (!tracks.length) {
-      console.warn(`[CharacterController] "${name}" shares no joints with this rig`);
-      return null;
-    }
-
-    return new AnimationClip(name, clip.duration, tracks);
-  }
-
-  /**
-   * The hips under the name a track would address it by.
-   *
-   * `bones` indexes each joint twice (raw and namespace-stripped); tracks name
-   * the raw one, which is the node's own name.
-   */
-  _hipsTrackName() {
-    return this.bones.get('Hips')?.name ?? null;
-  }
-
-  /**
-   * How far the clip's units are from the body's, read off a bone length.
-   *
-   * The body and the motion can be exported at different scales (centimetres
-   * out of Mixamo, metres out of a DCC round-trip), and joint translations have
-   * to be brought into the body's units before they mean anything.
-   *
-   * The measurement is taken off any joint *below* the hips, because every one
-   * of those translations is a **bone length**: the offset from its parent,
-   * which is fixed by the skeleton and identical in every pose the rig can hold.
-   * The ratio against the same bone's bind translation is therefore the unit
-   * conversion exactly, whatever the clip happens to be doing.
-   *
-   * The hips are the one joint this cannot be read off, and reading it off them
-   * is what used to break: the hips translation is the *pose* — how high the
-   * body is standing — so a clip whose first frame is a crouch measured as a
-   * body two and a half times too small, and every translation in it, bone
-   * lengths included, was multiplied to "correct" it. A crouch that arrives
-   * hovering half a metre off the floor on a stretched skeleton is that number.
-   *
-   * The median across the joints is taken rather than the first, so one
-   * mis-authored track cannot decide it, and anything inside a factor of two
-   * falls back to 1 — small bind differences are rig, not units, and a wrong
-   * guess here is far more visible than a missing correction.
-   */
-  _measureClipUnits(clip) {
-    const hipsName = this._hipsTrackName();
-    const ratios = [];
-
-    for (const track of clip.tracks) {
-      if (!track.name.endsWith('.position') || track.values.length < 3) continue;
-      const nodeName = PropertyBinding.parseTrackName(track.name).nodeName;
-      if (nodeName === hipsName) continue;
-
-      const bone = this.bones.get(nodeName);
-      if (!bone) continue;
-
-      const clipLength = Math.hypot(track.values[0], track.values[1], track.values[2]);
-      const bindLength = bone.position.length();
-      if (clipLength < 1e-6 || bindLength < 1e-6) continue;
-
-      ratios.push(bindLength / clipLength);
-    }
-
-    if (!ratios.length) return 1;
-
-    ratios.sort((a, b) => a - b);
-    const ratio = ratios[ratios.length >> 1];
-    return ratio > 0.5 && ratio < 2 ? 1 : ratio;
+    // Freeze travel, keep the bob — onto the *bind* pose rather than the clip's
+    // own first key, so a clip authored off the origin cannot shove the body
+    // sideways. A root-motion clip has its journey recorded on the way past.
+    const result = retargetClip(clip, this.bones, name, {
+      onHipsTrack: ROOT_MOTION_CLIPS.has(name)
+        ? (track) => this.rootMotion.set(name, extractTravel(track, name))
+        : null
+    });
+    if (!result) console.warn(`[CharacterController] "${name}" shares no joints with this rig`);
+    return result;
   }
 
   /**

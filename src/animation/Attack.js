@@ -48,11 +48,27 @@ export class Attack {
    * @param {import('./CharacterController.js').CharacterController} character
    * @param {{configKey?: string, onHit?: (target: object, dirX: number, dirZ: number) => void}} options
    */
-  constructor(mixer, clip, character, { configKey = 'kick', onHit = null } = {}) {
+  constructor(mixer, clip, character, { configKey = 'kick', config = null, onHit = null, onStrike = null } = {}) {
     this.character = character;
     this.configKey = configKey;
+    /**
+     * A tuning block handed over directly instead of looked up in `settings` —
+     * how the game's weapon data drives its moves (see `game/data/weapons.js`).
+     */
+    this._config = config;
     /** Called once, on the frame the foot connects with a target still in reach. */
     this.onHit = onHit;
+    /**
+     * Called on every contact frame (`config.hits`, or `hitAt`) whether or not
+     * anyone is there — for callers that resolve the blow themselves, such as
+     * a sweep that can catch several bodies at once.
+     * @type {((move: Attack, index: number) => void)|null}
+     */
+    this.onStrike = onStrike;
+    /** Index of the next entry in `config.hits` still to land. */
+    this._nextHit = 0;
+    /** Extra multiplier on the pace — a slowed or hasted body. */
+    this.paceScale = 1;
 
     this.action = null;
     if (clip) {
@@ -98,7 +114,28 @@ export class Attack {
 
   /** Live tuning, read per frame so the editor's edits land immediately. */
   get config() {
-    return settings[this.configKey];
+    return this._config ?? settings[this.configKey];
+  }
+
+  /**
+   * The slice of the clip this move plays, as fractions of its length.
+   *
+   * Every phase in the config (`hitAt`, `recoverAt`, `cancelAt`, the warp's
+   * timings) is measured across this slice rather than the whole clip, so one
+   * clip that holds two cuts can be two moves.
+   */
+  get range() {
+    const config = this.config;
+    return { from: config.clipFrom ?? 0, to: config.clipTo ?? 1 };
+  }
+
+  /** Where in its own slice the move is, 0..1. */
+  get phase() {
+    if (!this.action) return 1;
+    const duration = this.action.getClip().duration;
+    if (duration <= 0) return 1;
+    const { from, to } = this.range;
+    return MathUtils.clamp((this.action.time / duration - from) / Math.max(1e-3, to - from), 0, 1);
   }
 
   /**
@@ -157,13 +194,20 @@ export class Attack {
 
     this.action.reset();
     this.action.enabled = true;
-    this.action.setEffectiveWeight(0);
+    this.action.paused = false;
+    // A move that starts mid-clip is already moving when it lands on the body,
+    // and fades in faster than one that starts from a stance.
+    this.action.time = this.range.from * this.action.getClip().duration;
     this.action.setEffectiveTimeScale(this.config.timeScale ?? 1);
     this.action.play();
+    // Taking over from a move still on the body (a combo link) starts from the
+    // weight it had, so the hand-over is a cross-fade rather than a pop.
+    if (!(this.weight > 0)) this.weight = 0;
+    this.action.setEffectiveWeight(this.weight);
 
-    this.weight = 0;
     this.locked = true;
     this._struck = false;
+    this._nextHit = 0;
     this.target = target;
     this._resolveWarp(target);
     return true;
@@ -190,12 +234,27 @@ export class Attack {
     from.z = position.z;
     from.yaw = this.character.facing;
 
+    const config = this.config;
     if (!target) {
-      this.warp.active = false;
+      // Nothing to aim at: the move steps out along the heading by its own
+      // `lunge`, so a swing at the air still carries the body into it.
+      const lunge = config.lunge ?? 0;
+      if (lunge <= 0) {
+        this.warp.active = false;
+        return;
+      }
+      to.yaw = from.yaw;
+      to.x = from.x + Math.sin(from.yaw) * lunge;
+      to.z = from.z + Math.cos(from.yaw) * lunge;
+      this._past.x = to.x;
+      this._past.z = to.z;
+      this.warp.active = true;
+      this.warp.x = from.x;
+      this.warp.z = from.z;
+      this.warp.yaw = from.yaw;
       return;
     }
 
-    const config = this.config;
     const dx = target.position.x - position.x;
     const dz = target.position.z - position.z;
     const distance = Math.hypot(dx, dz);
@@ -242,16 +301,29 @@ export class Attack {
     // Re-read rather than left as `start` set it, so the pace is a live slider
     // like everything else. Every time below is normalised, so changing it
     // mid-swing shortens the move without moving where the blow lands in it.
-    action.setEffectiveTimeScale(config.timeScale ?? 1);
+    // A move with an anticipation (`windupTo`) plays that stretch at
+    // `windupScale` — the readable wind-up an enemy's blow is announced by.
+    let pace = config.timeScale ?? 1;
+    if (config.windupTo && this.locked && this.phase < config.windupTo) pace *= config.windupScale ?? 0.4;
+    action.setEffectiveTimeScale(pace * (this.paceScale ?? 1));
 
-    const duration = action.getClip().duration;
-    const phase = duration > 0 ? MathUtils.clamp(action.time / duration, 0, 1) : 1;
+    const phase = this.phase;
+    // Hold the last frame of the slice rather than playing on into whatever
+    // the clip does next — the rest of it is another move.
+    if (phase >= 1 && (config.clipTo ?? 1) < 1) action.paused = true;
 
     if (this.locked) {
       this._advanceWarp(phase, config);
 
-      if (!this._struck && phase >= config.hitAt) {
+      const hits = config.hits;
+      if (hits) {
+        while (this._nextHit < hits.length && phase >= hits[this._nextHit]) {
+          this.onStrike?.(this, this._nextHit);
+          this._nextHit++;
+        }
+      } else if (!this._struck && phase >= config.hitAt) {
         this._struck = true;
+        this.onStrike?.(this, 0);
         this._strike(config);
       }
 
@@ -346,6 +418,17 @@ export class Attack {
     // the player turned, in which case the pose is the truth.
     const yaw = this.character.facing;
     this.onHit?.(target, Math.sin(yaw), Math.cos(yaw));
+  }
+
+  /**
+   * Hand the body back without snapping the pose: control returns now and the
+   * clip fades out over its own `blendOut`. How a combo link or a dodge cancel
+   * leaves a move.
+   */
+  release() {
+    this.locked = false;
+    this.target = null;
+    this.warp.active = false;
   }
 
   /** Abandon the swing — for resets, the character screen and teardown. */

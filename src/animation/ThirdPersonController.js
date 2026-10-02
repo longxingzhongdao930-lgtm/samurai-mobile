@@ -57,6 +57,14 @@ export class ThirdPersonController {
      * @type {import('../combat/EnemyManager.js').EnemyManager|null}
      */
     this.enemies = null;
+
+    /**
+     * The game's combat layer, when there is one (see `game/combat/PlayerCombat.js`).
+     * Consulted before the stick each frame: it may take the body for a move,
+     * slow the walk under a guard, or hold the heading on a locked target.
+     * @type {{control: (dt: number) => ({warp: object}|null), moveScale: number, headingOverride: number|null}|null}
+     */
+    this.combat = null;
   }
 
   /** @param {import('../combat/EnemyManager.js').EnemyManager} enemies */
@@ -98,6 +106,14 @@ export class ThirdPersonController {
     if (flight?.flying) {
       this._fly(dt, axis, running);
       return;
+    }
+
+    if (this.combat) {
+      const held = this.combat.control(dt);
+      if (held) {
+        this._applyAttackWarp(held, dt);
+        return;
+      }
     }
 
     hop?.update(dt);
@@ -161,7 +177,8 @@ export class ThirdPersonController {
     // forward = -(sin, cos), right = (cos, -sin) — see the camera basis above.
     _desired.set(axis.y * -sin + axis.x * cos, axis.y * -cos + axis.x * -sin);
 
-    const wanted = config.enabled ? (running ? config.runSpeed : config.walkSpeed) : 0;
+    const wanted =
+      (config.enabled ? (running ? config.runSpeed : config.walkSpeed) : 0) * (this.combat?.moveScale ?? 1);
     _desired.multiplyScalar(wanted);
 
     // Stopping is sharper than starting: the deceleration ramp is what stops the
@@ -185,7 +202,10 @@ export class ThirdPersonController {
 
     /* ---- heading ---- */
     const speed = this.velocity.length();
-    if (speed > config.idleThreshold) {
+    const override = this.combat?.headingOverride ?? null;
+    if (override !== null) {
+      this.character.turnToward(override, 0.0005, dt);
+    } else if (speed > config.idleThreshold) {
       // 0 faces +Z, so the heading of a world direction is atan2(x, z).
       const heading = Math.atan2(this.velocity.x, this.velocity.y);
       this.character.turnToward(heading, settings.character.turnRate, dt);

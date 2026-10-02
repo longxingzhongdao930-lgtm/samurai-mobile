@@ -26,7 +26,7 @@ export class Renderer {
       alpha: false
     });
 
-    this.gl.setPixelRatio(this.targetPixelRatio());
+    this.gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
     this.gl.setSize(window.innerWidth, window.innerHeight, false);
 
     this.gl.shadowMap.enabled = true;
@@ -47,11 +47,22 @@ export class Renderer {
     this.gl.info.autoReset = false;
 
     this._onResize = null;
+    /** Set by `applyPixelRatio`; null leaves the device ratio in charge. */
+    this.pixelRatioOverride = null;
   }
 
   /** Cap the pixel ratio: 4K + heavy transparency is not worth the fill rate. */
   targetPixelRatio() {
-    return Math.min(window.devicePixelRatio || 1, 1.75);
+    return this.pixelRatioOverride ?? Math.min(window.devicePixelRatio || 1, 1.75);
+  }
+
+  /**
+   * Pin the render scale (the game's dynamic budget steers it) and re-run the
+   * resize path so the composer's targets follow.
+   */
+  applyPixelRatio(ratio) {
+    this.pixelRatioOverride = ratio;
+    this.handleResize();
   }
 
   get domElement() {

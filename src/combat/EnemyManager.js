@@ -198,6 +198,35 @@ export class EnemyManager {
    * against the inner edge, and five bodies in a huddle is the tell that they
    * were placed by a loop.
    */
+  /**
+   * Stand one body at an exact spot — the game's encounters place their own.
+   *
+   * @param {number} x
+   * @param {number} z
+   * @param {number} yaw
+   * @param {{height?: number}} [options] `height` in metres overrides
+   *   `settings.enemies.height` for this body alone
+   */
+  spawnAt(x, z, yaw, { height = settings.enemies.height } = {}) {
+    if (!this.source) return null;
+    const scale = height / this._localHeight;
+    this._offset.set(-this._base.cx * scale, -this._base.minY * scale, -this._base.cz * scale);
+    const enemy = new Enemy({
+      source: this.source,
+      clip: this.clip,
+      scale,
+      offset: this._offset,
+      localHeight: this._localHeight,
+      forwardYaw: this._forwardYaw,
+      terrain: this.terrain,
+      effects: this.effects
+    });
+    enemy.place(x, z, yaw);
+    this.group.add(enemy.root);
+    this.enemies.push(enemy);
+    return enemy;
+  }
+
   spawn() {
     if (!this.source) return null;
     const config = settings.enemies;
@@ -282,7 +311,7 @@ export class EnemyManager {
     let bestScore = Infinity;
 
     for (const enemy of this.enemies) {
-      if (!enemy.alive) continue;
+      if (!enemy.alive || enemy.targetable === false) continue;
 
       const dx = enemy.position.x - origin.x;
       const dz = enemy.position.z - origin.z;

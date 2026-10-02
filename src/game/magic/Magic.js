@@ -222,10 +222,10 @@ export class Magic {
     const ground = _q.set(at.x, at.y + 0.1, at.z);
     this.fx.ribbons.bolt(top.clone(), ground.clone(), { color: element.glow, width: 0.22, life: 0.32, segments: 13, jitter: 1.4 });
     this.fx.ribbons.bolt(top.clone(), ground.clone(), { color: element.color, width: 0.5, life: 0.18, segments: 9, jitter: 1.0 });
-    this.fx.glow.spawn(ground, element.glow, 3.0, 0.3, { grow: 0.6, intensity: 2.5 });
+    this.fx.glow.spawn(ground, element.glow, 2.2, 0.25, { grow: 0.6, intensity: 1.4 });
     this.fx.glow.burst(ground, element.glow, 18, { speed: 7, size: 0.07, life: 0.4, up: 2 });
-    this.fx.flare(ground, element.glow, 70, 0.35);
-    this.game.hud?.flash('rgba(200,220,255,0.35)', 0.18);
+    this.fx.flare(ground, element.glow, 32, 0.3);
+    this.game.hud?.flash('rgba(200,220,255,0.22)', 0.14);
     this.game.audio?.play('thunder', { pos: at });
     this.game.rig.shake(0.12);
 
@@ -314,7 +314,7 @@ export class Magic {
     this.fx.glow.spawn(_p, reaction.color, reaction.radius * 1.8, 0.45, { grow: 0.8, intensity: 3 });
     this.fx.glow.burst(_p, reaction.color, 34, { speed: 9, size: 0.1, life: 0.7, up: 3, gravity: -6 });
     this.fx.slam(at, reaction.radius, reaction.id === 'blast' ? '#ffb070' : '#ffb070');
-    this.fx.flare(_p, reaction.color, 90, 0.5);
+    this.fx.flare(_p, reaction.color, 45, 0.45);
     this.game.audio?.play(reaction.sfx, { pos: at });
     this.game.rig.shake(reaction.shake ?? 0.2);
     this.game.hitStop(0.08, 0.1);

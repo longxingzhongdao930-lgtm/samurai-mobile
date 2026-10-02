@@ -21,7 +21,7 @@ const TIERS = {
     lanternLights: 2,
     rainCount: 900,
     leaves: false,
-    groundFog: 60,
+    groundFog: 30,
     maxEnemies: 12,
     aiSkip: 2,
     terrainSegments: 128
@@ -36,7 +36,7 @@ const TIERS = {
     lanternLights: 3,
     rainCount: 1600,
     leaves: true,
-    groundFog: 110,
+    groundFog: 70,
     maxEnemies: 20,
     aiSkip: 1,
     terrainSegments: 192
@@ -51,7 +51,7 @@ const TIERS = {
     lanternLights: 4,
     rainCount: 2600,
     leaves: true,
-    groundFog: 160,
+    groundFog: 120,
     maxEnemies: 30,
     aiSkip: 1,
     terrainSegments: 256

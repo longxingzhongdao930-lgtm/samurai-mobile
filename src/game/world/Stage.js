@@ -17,6 +17,7 @@ import {
   Vector3
 } from 'three';
 import { LAYER } from '../../core/Layers.js';
+import { settings } from '../../config/settings.js';
 import { Builder } from './Builder.js';
 import { Rain } from './Rain.js';
 import { makeTextures } from './textures.js';
@@ -740,10 +741,14 @@ export class Stage {
         this.flash = 0.8;
       }
     }
-    const env = this.game.app.environment;
+    // The flash goes through the settings the environment samples each frame
+    // (writing the light directly would be overwritten later in the frame).
+    const env = settings.environment;
+    this._baseHemi ??= env.hemiIntensity;
+    this._baseSky ??= settings.sky.exposure;
     const f = this.flash * this.flash;
-    env.hemi.intensity = env._baseHemi ?? (env._baseHemi = env.hemi.intensity);
-    env.hemi.intensity = env._baseHemi + f * 3.5;
+    env.hemiIntensity = this._baseHemi + f * 3.5;
+    settings.sky.exposure = this._baseSky + f * 0.9;
 
     // Lanterns nearest the player get the real lights.
     const lights = this.lights;

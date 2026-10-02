@@ -119,9 +119,9 @@ export const GAME_SETTINGS = {
   },
   post: {
     exposure: 1.2,
-    bloomStrength: 0.55,
-    bloomRadius: 0.5,
-    bloomThreshold: 0.85,
+    bloomStrength: 0.38,
+    bloomRadius: 0.45,
+    bloomThreshold: 1.0,
     vignette: 0.85,
     contrast: 1.08,
     saturation: 0.92,

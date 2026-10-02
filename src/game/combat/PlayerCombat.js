@@ -206,6 +206,18 @@ export class PlayerCombat {
       this.game.audio?.play('deny');
     }
 
+    // A fresh guard press cuts a swing short once its blow has gone out, so a
+    // glint seen mid-combo can still be parried.
+    if (this.state === 'attack' && input.held.guard && input.holdTime.guard < 0.1 && this._canCancel(0.4)) {
+      for (const move of this.moves) if (move.locked) move.release();
+      this._toFree();
+    }
+
+    // Every fresh press re-opens the parry window, even over a guard that is
+    // already up — tapping guard in rhythm with the blows is the technique.
+    const guardPressed = input.consume('guard');
+    if (guardPressed) this.guardTime = 0;
+
     if (this.state === 'free' && input.held.guard) {
       if (!this.guarding) {
         this.guarding = true;

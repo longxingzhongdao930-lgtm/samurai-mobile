@@ -84,6 +84,7 @@ for (const def of [...TOWN_CHARACTERS, DRAGON_APPEARANCE]) test(`${def.id}: real
     assert.ok(enemy.model.position.y - enemy.baseModelY > 0.3, 'body hovers above collision ground');
     if (def.id === 'queen') assert.equal(enemy.caster.swords.length, 6);
     else {
+      assert.equal(shots, 3, 'three bolts before the laser');
       const caster = enemy.caster, hand = enemy.bones.get('CC_Base_R_Hand_085');
       assert.ok(hand, 'actual right hand exists');
       assert.ok(caster.handPosition().distanceTo(hand.getWorldPosition(new Vector3())) < 0.00001);
@@ -95,6 +96,13 @@ for (const def of [...TOWN_CHARACTERS, DRAGON_APPEARANCE]) test(`${def.id}: real
       agent.state = 'hurt'; enemy.update(0.3);
       assert.equal(caster.orb.visible, false, 'interruption cancels charge');
       assert.equal(caster.beam.visible, false, 'beam expires');
+      assert.equal(caster.ringPivot.visible, false, 'interruption hides ring');
+      agent._startAttack(type.attacks[0]);
+      for (let frame = 0; frame < 300 && agent.move.phase < 0.6; frame++) { agent.update(1/60, ctx); enemy.update(1/60); }
+      assert.equal(caster.ringPivot.visible, true);
+      assert.ok(caster.ring.scale.x >= 0.14 && caster.ring.scale.x <= 0.18, 'palm-sized ring');
+      assert.ok(caster.ringPivot.getWorldPosition(new Vector3()).distanceTo(caster.palmPosition()) < 0.1, 'ring stays just ahead of right palm');
+      agent.state = 'idle';
     }
   }
   const result = agent.takeHit({ damage: 5, posture: 2, dirX: 0, dirZ: 1, source: 'magic' });

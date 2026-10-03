@@ -80,6 +80,7 @@ export function townMotions(model, animations, definition) {
   }
   const clips = new Map();
   const durations = { idle: 2.4, walk: 1.1, run: 0.72, attack0: 1.3, attack1: 1.5, land: 0.7, crouch: 1.2, death: 1.4 };
+  if (definition.id === 'mage') durations.attack0 = 3.8;
   if (definition.id === 'queen') { durations.attack0 = 2.2; durations.attack1 = 3.2; }
   for (const profile of definition.attackProfiles ?? []) durations[profile.name] = profile.duration;
   for (const [name, duration] of Object.entries(durations)) {

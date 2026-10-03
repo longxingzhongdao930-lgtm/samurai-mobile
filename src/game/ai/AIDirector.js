@@ -1,3 +1,4 @@
+import { TextureLoader, SRGBColorSpace } from 'three';
 import { DRAGON_APPEARANCE } from '../boss/TarislandDragon.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { TOWN_CHARACTERS, TOWN_TYPES } from '../data/townCharacters.js';
@@ -69,10 +70,12 @@ export class AIDirector {
 
   async loadAppearances() {
     const loader = new GLTFLoader();
+    const magicRingTexture = await new TextureLoader().loadAsync('./textures/effects/magic-ring-blue.png');
+    magicRingTexture.colorSpace = SRGBColorSpace;
     // Load each shared source once; clones share geometry and textures.
     for (const definition of [...TOWN_CHARACTERS, DRAGON_APPEARANCE]) {
       const gltf = await loader.loadAsync(definition.url);
-      this.appearances.set(definition.id, { gltf, definition });
+      this.appearances.set(definition.id, { gltf, definition: definition.id === 'mage' ? { ...definition, magicRingTexture } : definition });
     }
   }
 

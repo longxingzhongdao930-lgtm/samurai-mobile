@@ -53,6 +53,7 @@ export class TownEnemy {
     this.timer = 0;
     this.hover = ['queen', 'mage'].includes(this.kind);
     this.baseModelY = this.model.position.y;
+    this.magicRingTexture = definition.magicRingTexture;
     if (this.hover) this.caster = new FloatingCaster(this);
     if (this.kind === 'samurai') this.ronin = new RoninStep(this);
   }

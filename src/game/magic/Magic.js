@@ -103,7 +103,8 @@ export class Magic {
     const enemy = agent.enemy;
     const hand = enemy.bones.get(spec.originBone ?? 'LeftHand');
     const origin = new Vector3();
-    if (hand) hand.getWorldPosition(origin);
+    if (spec.originCaster && enemy.caster) origin.copy(enemy.caster.muzzlePosition());
+    else if (hand) hand.getWorldPosition(origin);
     else origin.copy(enemy.position).setY(enemy.position.y + 1.4);
     const player = this.game.playerPosition;
     _p.set(player.x - origin.x, player.y + 1.1 - origin.y, player.z - origin.z).normalize();
@@ -122,8 +123,8 @@ export class Magic {
       life: 2.2,
       radius: shot.radius,
       color: shot.color,
-      glow: this.fx.glow.hold(shot.color, Math.max(0.5, shot.radius * 2.4), { intensity: 2.4 }),
-      trailAcc: 0
+      glow: this.fx.glow.hold(shot.color, Math.max(spec.magicSequence ? 0.18 : 0.5, shot.radius * 2.4), { intensity: 2.4 }),
+      trailAcc: 0, spin: 0
     });
     this.game.audio?.play('arrow', { pos: origin, volume: 0.8 });
   }
@@ -157,7 +158,7 @@ export class Magic {
       if (p.trailAcc > 0.02) {
         p.trailAcc = 0;
         const color = p.owner === 'player' ? p.element.color : p.color;
-        const fire = p.owner !== 'player' || p.element.id === 'fire';
+        const fire = p.owner === 'player' ? p.element.id === 'fire' : !p.spec?.magicSequence;
         this.fx.glow.spawn(p.pos, color, p.radius * (fire ? 2.0 : 1.2), fire ? 0.35 : 0.2, { grow: -0.5, intensity: 1.3, vy: fire ? 0.8 : 0 });
         if (fire) {
           // A spiral of embers wound around the flight line.

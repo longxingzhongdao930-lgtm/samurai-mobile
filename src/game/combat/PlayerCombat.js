@@ -253,6 +253,12 @@ export class PlayerCombat {
         break;
     }
 
+    // Transformed: the dragon takes every button but the dodge.
+    if (this.game.form?.active) {
+      const held = this.game.form.control(dt, input);
+      if (held !== undefined) return held;
+    }
+
     // Defence first: a dodge cancels anything past its first frames, and the
     // guard can be raised out of a recovery.
     if (input.pending('dodge') && this._canCancel()) {
@@ -262,6 +268,12 @@ export class PlayerCombat {
 
     if (input.pending('special') && this._canCancel(0.5)) {
       input.consume('special');
+      if (this.special >= 1 && this.game.form?.begin()) {
+        for (const move of this.moves) if (move.locked) move.release();
+        this._cancelPoses();
+        this._toFree();
+        return this._hold();
+      }
       if (this.special >= 1 && this.game.castSpecial()) {
         this.special = 0;
         this._startMove(this.combo[1], this.lockTarget ?? this._autoTarget(this.combo[1].config));
@@ -361,6 +373,7 @@ export class PlayerCombat {
 
   /** How fast the stick may move the body right now (the guard walks). */
   get moveScale() {
+    if (this.game.form?.active) return 1.2;
     return this.guarding ? this.weapon.guard.moveScale : 1;
   }
 
@@ -618,6 +631,10 @@ export class PlayerCombat {
   receiveHit(hit) {
     if (this.state === 'dead' || this.game.cinematic) return 'ignored';
     const position = this.character.position;
+    if (this.game.form?.active && this.invulnerable <= 0) {
+      if (!this.game.form.absorb(hit)) this._die(hit);
+      return 'hit';
+    }
 
     if (this.invulnerable > 0) {
       if (this.state === 'dodge' && !this._dodge.perfect) {

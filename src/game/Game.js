@@ -7,6 +7,7 @@ import { PlayerCombat } from './combat/PlayerCombat.js';
 import { BowRig } from './combat/BowRig.js';
 import { WeaponSet } from './combat/WeaponSet.js';
 import { WeaponMotion } from './combat/WeaponMotion.js';
+import { DragonForm } from './combat/DragonForm.js';
 import { Effects } from './fx/Effects.js';
 import { Ribbons } from './fx/Ribbons.js';
 import { Magic } from './magic/Magic.js';
@@ -126,6 +127,7 @@ export class Game {
     this.weapons = new WeaponSet(this);
     // Weapon models load on first use: nothing extra on a phone at start-up.
     this.motion = new WeaponMotion(this);
+    this.form = new DragonForm(this);
     app.controller.combat = this.player;
     this.playerTarget = { position: app.character.position, alive: true };
     this.hud = new HUD(this);
@@ -153,6 +155,7 @@ export class Game {
 
   start() {
     this.audio.unlock();
+    this.form.load();
     // On a phone, take the whole screen and hold it sideways. Both are
     // best-effort: iOS Safari has neither, and a refusal changes nothing.
     if (TOUCH) {
@@ -277,6 +280,7 @@ export class Game {
   lateUpdate(dt, raw) {
     const app = this.app;
     // First: the bow's IK re-poses the arms the effects and camera follow.
+    this.form.update(dt);
     this.motion.update(dt);
     this.bow.update(dt, this.player.castTarget);
     this.fx.update(dt, this.elapsed);
@@ -738,6 +742,7 @@ export class Game {
     this.touch.setVisible(true);
     this.magic.clear();
     this.weapons?.clear();
+    this.form?.clear();
     this.fx.clear();
     if (this.flow) this.flow.restartFromCheckpoint();
     else {
@@ -753,6 +758,7 @@ export class Game {
     this.app.paused = false;
     this.magic.clear();
     this.weapons?.clear();
+    this.form?.clear();
     this.fx.clear();
     this.director.clear();
     this.hud.setVisible(false);

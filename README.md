@@ -635,4 +635,5 @@ src/
 - **Shuriken** (`shuriken.glb`) — "Shuriken" by [afferu](https://sketchfab.com/3d-models/none-9ff964d8c8824ac6b2c052dd4a6496de), CC BY-SA 4.0
 
   All weapon models were re-oriented into the katana's frame, decimated and had their textures resized; the scabbard, ribbon and spare parts were removed.
+- **Dragonkin** (`models/dragonkin.glb`, the special's transformation) — "Silver Dragonkin (Mir4)" by [Doctor A.](https://sketchfab.com/3d-models/silver-dragonkin-mir4-89ead4e87cdc4b70840f748383f0998f) on Sketchfab, published as CC BY 4.0. **A creature from the game MIR4: the uploader's right to license it is doubtful — personal / non-public use only; replace before any public or commercial release.** Animations trimmed to 12, textures resized.
 - **Bow and Arrow** (`public/models/weapons/bow.glb`, quiver and spare arrows removed, textures resized) — [Amatsukast](https://sketchfab.com/3d-models/bow-and-arrow-1ce33880149543f9ae7b5848e6e52d66) on Sketchfab, [CC BY-NC-SA 4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/). **Non-commercial only** — replace it before any commercial release.

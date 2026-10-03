@@ -64,7 +64,7 @@ export class WeaponMotion {
   _source() {
     const p = this.player;
     const spec = MOTIONS[p.weapon.id];
-    if (!spec || this.game.weapons?.shown?.id !== p.weapon.id) return null;
+    if (!spec || this.game.form?.active || this.game.weapons?.shown?.id !== p.weapon.id) return null;
     if (p.state === 'attack' && p.move) {
       const id = p.move.config.id;
       const keys = spec.moves[id];
@@ -312,7 +312,7 @@ class KusariChain {
   update(dt, motion, src) {
     const shown = this.game.weapons?.shown;
     const held = shown?.id === 'kusarigama' ? shown.objects[0] : null;
-    const visible = Boolean(held) && held.parent?.visible !== false && held.visible;
+    const visible = Boolean(held) && !this.game.form?.active && held.parent?.visible !== false && held.visible;
     this.links.visible = this.weight.visible = visible;
     if (!visible) {
       this.started = false;

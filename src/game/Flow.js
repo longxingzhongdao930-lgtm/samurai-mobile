@@ -76,6 +76,7 @@ export class Flow {
     game.director.clear();
     game.magic.clear();
     game.weapons?.clear();
+    game.form?.clear();
     this.stage.clearBarriers();
     for (const pickup of this.pickups) game.fx.glow.free(pickup.glow);
     this.pickups.length = 0;

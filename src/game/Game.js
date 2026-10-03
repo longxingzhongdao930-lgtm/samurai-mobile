@@ -794,7 +794,16 @@ export class Game {
     this.audio.play('select');
   }
 
+  _resetTransientCombat() {
+    this.input.reset();
+    this._slowTimer = 0;
+    this._slowScale = this.slowFactor = 1;
+    this.app._hitStop = 0;
+    this.app._hitStopScale = 1;
+  }
+
   retry() {
+    this._resetTransientCombat();
     this.retries++;
     this._timers.length = 0;
     this.screens.close();
@@ -814,6 +823,7 @@ export class Game {
   }
 
   toTitle() {
+    this._resetTransientCombat();
     this._timers.length = 0;
     this.screens.close();
     this.app.paused = false;

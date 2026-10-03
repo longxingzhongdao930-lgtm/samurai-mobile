@@ -738,11 +738,13 @@ export class PlayerCombat {
         this.guarding = false;
         this.guardPose.stop();
         this._takeDamage(hit.damage * 0.5, hit);
+        if (this.state === 'dead') return 'hit';
         this._stagger(0.95, dx, dz, 1.1, false);
         this.game.onGuardBreak(hit);
         return 'break';
       }
       this._takeDamage(hit.damage * spec.chip, hit, true);
+      if (this.state === 'dead') return 'hit';
       this._knock.x -= (dx / distance) * 0.35;
       this._knock.z -= (dz / distance) * 0.35;
       this.spirit.defend(false);
@@ -909,6 +911,15 @@ export class PlayerCombat {
     this.lockTarget = null;
     this.guarding = false;
     this.counterWindow = 0;
+    this.counterTarget = null;
+    this.guardTime = 99;
+    this._charging = false;
+    this._chargeTime = 0;
+    this._dodge.active = false;
+    this._dodge.perfect = false;
+    this._held.warp.active = false;
+    this.headingOverride = null;
+    this.comboIndex = -1;
   }
 
   heal(amount) {

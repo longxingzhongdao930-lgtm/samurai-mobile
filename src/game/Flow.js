@@ -33,7 +33,7 @@ export class Flow {
     this.beats = this._script();
     this.encounter = null;
     this.pickups = [];
-    this.checkpoint = { beat: 0, position: new Vector3(0, 0, 0), facing: 0, unlocked: [true, false, false], blessings: [] };
+    this.checkpoint = { beat: 0, position: new Vector3(0, 0, 0), facing: 0, unlocked: [true, false, false], blessings: [], maxHp: 100, special: 0 };
     this._tutorial = new Set();
     this._tipIndex = 0;
   }
@@ -59,7 +59,7 @@ export class Flow {
   start() {
     this.beat = 0;
     this._tutorial.clear();
-    this.checkpoint = { beat: 0, position: new Vector3(0, 0, 0), facing: 0, unlocked: [true, false, false], blessings: [] };
+    this.checkpoint = { beat: 0, position: new Vector3(0, 0, 0), facing: 0, unlocked: [true, false, false], blessings: [], maxHp: 100, special: 0 };
     this._reset();
     this._enter();
   }
@@ -92,6 +92,8 @@ export class Flow {
     game.cinematic = false;
     game.director.maxMelee = 2;
     settings.camera.distance = 5.2;
+    this.player.maxHp = this.checkpoint.maxHp ?? 100;
+    this.player.special = this.checkpoint.special ?? 0;
     this.player.revive();
     this.player.unlocked = [...this.checkpoint.unlocked];
     if (this.player.elementIndex > 0 && !this.player.unlocked[this.player.elementIndex]) this.player.elementIndex = 0;
@@ -105,6 +107,7 @@ export class Flow {
     app.character.position.copy(position);
     settings.character.facing = facing;
     app.character.setFacing(facing);
+    this.stage._pull = 1;
     // Camera straight behind.
     const rig = app.rig;
     rig.controls.target.set(position.x, position.y + settings.camera.targetHeight, position.z);
@@ -112,12 +115,14 @@ export class Flow {
     rig.controls.update();
   }
 
-  _setCheckpoint(position, facing = 0) {
+  _setCheckpoint(position, facing = 0, beat = this.beat + 1) {
     this.checkpoint = {
-      beat: this.beat + 1,
+      beat,
       position: position.clone(),
       facing,
       unlocked: [...this.player.unlocked],
+      maxHp: this.player.maxHp,
+      special: this.player.special,
       blessings: this.game.blessings.snapshot()
     };
   }
@@ -371,7 +376,7 @@ export class Flow {
         trigger: crossed(89),
         objective: '白翼獣アカテスを討て',
         start: () => {
-          this._setCheckpoint(new Vector3(0, 0, 80), 0);
+          this._setCheckpoint(new Vector3(0, 0, 80), 0, this.beat);
           stage().setBarrier('plazaA', true);
           stage().setBarrier('gateAB', true);
           const oni = this._emerge('achates', 0, 101, true);
@@ -469,7 +474,7 @@ export class Flow {
         trigger: crossed(192),
         objective: '境内の妖を祓え',
         start: () => {
-          this._setCheckpoint(new Vector3(0, 0, 184), 0);
+          this._setCheckpoint(new Vector3(0, 0, 184), 0, this.beat);
           this._fight(
             [['archer', -11, 210], ['archer', 11, 210], ['ashigaru', -4, 200], ['ashigaru', 4, 200], ['shinobi', 0, 205], ['ashigaru', -7, 196], ['shinobi', 7, 196], ['infinian', 0, 206]],
             { cap: 7, barriers: ['shrineIn', 'shrineOut'], combat: 1.3 }
@@ -500,7 +505,7 @@ export class Flow {
         trigger: crossed(218),
         objective: '城門へ',
         start: () => {
-          hud().areaCard('参 · 城門', '薪の王の座');
+          hud().areaCard('参 · 城門', '黒雨の古竜の座');
           this._fight([['ashigaru', -1.5, 230], ['ashigaru', 1.5, 231], ['mage', -2, 238], ['archer', 2, 238]], { cap: 4 });
         },
         done: () => this.fightOver,

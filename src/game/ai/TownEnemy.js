@@ -1,3 +1,5 @@
+import { RoninStep } from './RoninStep.js';
+import { FloatingCaster } from './FloatingCaster.js';
 import { AnimationMixer, Box3, Group, LoopOnce, Vector3 } from 'three';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { townMotions, rigForward } from '../../animation/TownMotions.js';
@@ -49,6 +51,10 @@ export class TownEnemy {
     this.flash = 0;
     this.lean = 0;
     this.timer = 0;
+    this.hover = ['queen', 'mage'].includes(this.kind);
+    this.baseModelY = this.model.position.y;
+    if (this.hover) this.caster = new FloatingCaster(this);
+    if (this.kind === 'samurai') this.ronin = new RoninStep(this);
   }
   get alive() { return this.state === 'alive'; }
   get finished() { return this.state === 'gone'; }
@@ -63,7 +69,8 @@ export class TownEnemy {
       this.onAnimate?.(dt);
       this.mixer.update(dt * this.timeScale);
       this.root.rotation.x = this.lean;
-      this.position.y = this.terrain?.heightAt(this.position.x, this.position.z) ?? 0;
+      if (this.hover) this.model.position.y = this.baseModelY + 0.4 + Math.sin((this.caster.time + dt) * 2) * 0.06;
+      this.position.y = (this.terrain?.heightAt(this.position.x, this.position.z) ?? 0) + (this.airHeight ?? 0);
     } else {
       this.timer += dt;
       this.mixer.update(dt);
@@ -74,6 +81,7 @@ export class TownEnemy {
       }
       if (fade >= 1) this.state = 'gone';
     }
+    this.caster?.update(dt);
     for (let i = 0; i < this.materials.length; i++) {
       const m = this.materials[i], base = this._colors[i];
       if (base.emissive) {
@@ -86,6 +94,7 @@ export class TownEnemy {
   die() {
     if (!this.alive) return false;
     if (this.agent?.entrance) { this.model.position.y = this.agent.entrance.baseY; this.agent.entrance = null; }
+    this.model.position.y = this.baseModelY;
     this.state = 'dead'; this.timer = 0; this.flash = 0;
     this.mixer.stopAllAction();
     const clip = this.clips.get('death');
@@ -98,6 +107,7 @@ export class TownEnemy {
   _castShadows(on) { this.model.traverse(node => { if (node.isMesh) node.castShadow = on; }); }
   retire() { this.die(); }
   dispose() {
+    this.caster?.dispose();
     this.mixer.stopAllAction(); this.mixer.uncacheRoot(this.model);
     this.model.traverse(node => { if (node.isSkinnedMesh) node.skeleton.dispose(); });
     for (const material of this.materials) material.dispose();

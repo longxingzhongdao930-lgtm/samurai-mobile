@@ -191,3 +191,10 @@ export const MOTIONS = {
     }
   }
 };
+
+// These keys share the aerial controller's contact phase (0.5) and landing phase (1).
+MOTIONS.gauntlet.moves.heavy = [k(0.3, [0.18, 0.95, 0.25], null, { l: [-0.12, 1.4, 0.3], ln: 12 }), k(0.62, [0.02, 1.85, 0.55], null, { l: [-0.12, 1.4, 0.3], tw: -20, ln: -8 }), k(0.9, [0.12, 1.4, 0.3], null, { l: [-0.12, 1.4, 0.3] })];
+MOTIONS.gauntlet.moves.k3 = [k(0.25, [0.35, 1.35, 0.12], null, { tw: -25 }), k(0.55, [-0.02, 1.45, 0.65], null, { tw: 25, ln: 8 }), k(0.85, [0.12, 1.4, 0.3], null, { tw: 0 })];
+MOTIONS.gauntlet.moves.air1 = [k(0, [0.12, 1.4, 0.28], null, { l: [-0.12, 1.4, 0.25] }), k(0.5, [0.12, 1.4, 0.25], null, { l: [-0.02, 1.5, 0.75], tw: -20 }), k(1, [0.12, 1.4, 0.28], null, { l: [-0.12, 1.4, 0.3] })];
+MOTIONS.gauntlet.moves.air2 = [k(0, [0.15, 1.4, 0.15], null, { tw: 15 }), k(0.5, [0, 1.5, 0.75], null, { tw: -25 }), k(1, [0.12, 1.4, 0.3], null, { tw: 0 })];
+MOTIONS.gauntlet.moves.airSlam = [k(0, [0.1, 1.9, 0.1], null, { l: [-0.1, 1.9, 0.1], ln: -10 }), k(1, [0.1, 0.75, 0.55], null, { l: [-0.1, 0.75, 0.55], ln: 30 })];

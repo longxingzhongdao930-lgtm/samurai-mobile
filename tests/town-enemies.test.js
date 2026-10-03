@@ -42,6 +42,49 @@ for (const def of [...TOWN_CHARACTERS, GWYN_APPEARANCE]) test(`${def.id}: real r
   const idle = enemy.clips.get('idle'), walk = enemy.clips.get('walk');
   assert.ok(idle.duration > 0 && walk.duration > 0);
   assert.ok(walk.tracks.some(t => t.values.some((v, i) => Math.abs(v - t.values[i % t.getValueSize()]) > 0.001)), 'locomotion has changing bone transforms');
+  if (def.id === 'samurai') {
+    const move = enemy.clips.get('attack0');
+    const original = gltf.animations[0];
+    const handName = 'CATRigLArmPalm_025.quaternion';
+    const actual = move.tracks.find(t => t.name === handName).createInterpolant().evaluate(move.duration * 0.26);
+    const expected = original.tracks.find(t => t.name === handName).createInterpolant().evaluate(6.1);
+    for (let i = 0; i < 4; i++) assert.ok(Math.abs(actual[i] - expected[i]) < 0.002, 'authored blade glimpse retained');
+    agent.state = 'engage'; agent.cooldown = 999; enemy.place(0, 3.5, 0);
+    const before = enemy.position.clone();
+    agent.update(0.1, ctx); assert.ok(enemy.position.distanceTo(before) < 0.001, 'no walking between steps');
+    agent._startAttack(type.attacks[0]);
+    for (let frame = 0; frame < 600 && !enemy.ronin.shifted; frame++) { agent.update(1/60, ctx); enemy.update(1/60); }
+    assert.ok(enemy.ronin.shifted, 'shukuchi occurs after the glimpse');
+    assert.ok(enemy.position.z < game.playerPosition.z, 'arrives behind a forward-facing player');
+    agent.state = 'hurt'; const interrupted = enemy.position.clone();
+    agent.update(0.01, ctx); assert.ok(enemy.position.distanceTo(interrupted) < 0.001, 'interruption stops stepping');
+    agent.state = 'idle';
+    game.stage = { collide: pos => { pos.z = Math.max(0, pos.z); } };
+    enemy.place(0, 1, 0); enemy.ronin.step(new Vector3(0, 0, -3));
+    assert.ok(enemy.position.z >= 0, 'shukuchi respects a blocking wall');
+    delete game.stage;
+  }
+  if (['queen', 'mage'].includes(def.id)) {
+    for (const track of walk.tracks.filter(t => /Thigh|Calf|Foot|Toe|thigh|calf|foot|ball/.test(t.name))) {
+      assert.ok(track.values.every((v, i) => Math.abs(v - track.values[i % track.getValueSize()]) < 0.00001), 'floating legs do not walk');
+    }
+    enemy.update(0.1);
+    assert.ok(enemy.model.position.y - enemy.baseModelY > 0.3, 'body hovers above collision ground');
+    if (def.id === 'queen') assert.equal(enemy.caster.swords.length, 6);
+    else {
+      const caster = enemy.caster, hand = enemy.bones.get('CC_Base_R_Hand_085');
+      assert.ok(hand, 'actual right hand exists');
+      assert.ok(caster.handPosition().distanceTo(hand.getWorldPosition(new Vector3())) < 0.00001);
+      caster.aim.copy(game.playerPosition).y += 1.1; caster.hasAim = true;
+      const before = hits;
+      caster.fire(type.attacks[0]); assert.equal(hits, before + 1, 'beam hits its aimed target');
+      game.playerPosition.x += 3;
+      caster.fire(type.attacks[0]); assert.equal(hits, before + 1, 'sidestep escapes locked beam');
+      agent.state = 'hurt'; enemy.update(0.3);
+      assert.equal(caster.orb.visible, false, 'interruption cancels charge');
+      assert.equal(caster.beam.visible, false, 'beam expires');
+    }
+  }
   const result = agent.takeHit({ damage: 5, posture: 2, dirX: 0, dirZ: 1, source: 'magic' });
   assert.equal(result.damage, 5);
   assert.equal(agent.hp, type.hp - 5);

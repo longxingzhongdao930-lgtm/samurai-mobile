@@ -401,7 +401,7 @@ export class Enemy {
     // are live, and a body left standing in the air the moment someone moves
     // `amplitude` is the kind of thing this stage exists to avoid.
     const position = this.root.position;
-    if (this.terrain) position.y = this.terrain.heightAt(position.x, position.z);
+    if (this.terrain) position.y = this.terrain.heightAt(position.x, position.z) + (this.airHeight ?? 0);
 
     if (!config.watch || !player) return;
     const dx = player.x - position.x;

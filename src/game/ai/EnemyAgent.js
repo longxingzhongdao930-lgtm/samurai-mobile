@@ -120,6 +120,8 @@ export class EnemyAgent {
   update(dt, ctx) {
     const enemy = this.enemy;
     if (!enemy.alive) return;
+    this.airRecovery = Math.max(0, (this.airRecovery ?? 0) - dt);
+    if (this.airControlled) { this._setSpeed(0); return; }
     if (updateEntrance(this, dt)) { this._setSpeed(0); return; }
     this.stateTime += dt;
     this.cooldown -= dt;
@@ -218,6 +220,7 @@ export class EnemyAgent {
   }
 
   _engageUpdate(dt, ctx, dx, dz, distance, slow) {
+    if (this.enemy.ronin) return this.enemy.ronin.engage(dt, ctx, distance, slow);
     const type = this.type;
     const enemy = this.enemy;
     const director = ctx.director;
@@ -329,6 +332,7 @@ export class EnemyAgent {
     this.velocity.x = this.velocity.z = 0;
     this._setSpeed(0);
     move.start(this.game.playerTarget);
+    if (this.enemy.ronin) { this.enemy.ronin.shifted = false; move.warp.active = false; }
     this._glinted = false;
     this.game.onEnemyWindup(this, spec);
   }
@@ -337,6 +341,7 @@ export class EnemyAgent {
     const move = this.move;
     const enemy = this.enemy;
     if (!move) return this._endAttack();
+    this.enemy.ronin?.attack(move);
     // The glint: a fixed lead before the blow lands, whatever the move's
     // length — so the flash itself is the parry cue, and learning one enemy's
     // rhythm teaches every enemy's.
@@ -389,6 +394,8 @@ export class EnemyAgent {
   /** The contact frame of this body's move: resolve it against the player. */
   _onStrike(move, index) {
     const spec = move.spec;
+    if (this.enemy.ronin) this.game.fx?.slam?.(this.enemy.position, 1.5, '#dce8ff');
+    if (spec.laser) { this.enemy.caster.fire(spec); return; }
     if (spec.projectile) {
       this.game.magic.enemyShot(this, spec);
       return;
@@ -399,7 +406,7 @@ export class EnemyAgent {
     const dx = player.x - enemy.position.x;
     const dz = player.z - enemy.position.z;
     const distance = Math.hypot(dx, dz);
-    if (distance > spec.reach + 0.35) {
+    if (Math.abs(player.y - enemy.position.y) > (this.type.elite ? 2.6 : 1.5) || distance > spec.reach + 0.35) {
       this.game.audio?.play('whoosh', { pos: enemy.position, volume: 0.6 });
       return;
     }

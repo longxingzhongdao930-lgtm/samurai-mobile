@@ -1151,7 +1151,7 @@ export class App {
     // here, which is the one place in the project that owns the body's height.
     // Held against the terrain rather than against an absolute altitude, so
     // flying over a hill climbs it and the camera is never buried by a slope.
-    const lift = this.character.flight?.lift ?? 0;
+    const lift = (this.character.flight?.lift ?? 0) + (this.character.airHeight ?? 0);
     position.y = groundY + lift;
     this.character.update(dt);
 

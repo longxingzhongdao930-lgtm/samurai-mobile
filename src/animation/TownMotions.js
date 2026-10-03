@@ -1,3 +1,4 @@
+import { roninMotion } from './RoninMotion.js';
 import { AnimationClip, AnimationMixer, Quaternion, QuaternionKeyframeTrack, VectorKeyframeTrack, Vector3 } from 'three';
 
 const FEET = {
@@ -94,7 +95,7 @@ export function townMotions(model, animations, definition) {
         let angle = 0;
         if (name === 'walk' || name === 'run') {
           const stride = name === 'run' ? 0.55 : 0.32;
-          angle = leg ? wave * stride : knee ? Math.max(0, -wave) * stride : arm ? -wave * stride * 0.55 : 0;
+          angle = ['queen', 'mage', 'samurai'].includes(definition.id) ? (spine ? Math.sin(u * Math.PI * 2) * 0.025 : 0) : leg ? wave * stride : knee ? Math.max(0, -wave) * stride : arm ? -wave * stride * 0.55 : 0;
         } else if (profile) {
           // Each contact reaches the forward pose on the same timeline as damage.
           const keys = [[0, 0]];
@@ -119,7 +120,7 @@ export function townMotions(model, animations, definition) {
             const a = keys[Math.max(0, end - 1)], b = keys[Math.max(0, end)];
             swing = a[1] + (b[1] - a[1]) * (u - a[0]) / Math.max(0.001, b[0] - a[0]);
           }
-          angle = arm ? swing * (definition.id === 'mage' ? 0.65 : 1) : spine ? swing * 0.2 : 0;
+          angle = definition.id === 'mage' ? (arm && !left ? -Math.sin(Math.min(1, u / 0.55) * Math.PI / 2) * 0.85 : 0) : arm ? swing * 0.25 : spine ? swing * 0.08 : 0;
         } else if (name === 'land') angle = spine ? -Math.sin(u * Math.PI) * 0.3 : 0;
         else if (name === 'crouch' || name === 'death') angle = knee ? Math.sin(u * Math.PI / 2) * 0.7 : spine ? 0.25 * u : 0;
         else angle = spine ? Math.sin(u * Math.PI * 2) * 0.025 : 0;
@@ -143,6 +144,26 @@ export function townMotions(model, animations, definition) {
       }
     }
     idle.resetDuration(); clips.set('idle', idle);
+  }
+  if (definition.id === 'queen') {
+    // The model already contains six levitating swords. Keep their authored
+    // motion and the controlling hands; freeze the legs for hovering travel.
+    for (const name of ['idle', 'walk', 'run', 'attack0', 'attack1']) {
+      const clip = pose.clone(); clip.name = name;
+      const duration = name.startsWith('attack') ? durations[name] : pose.duration;
+      for (const track of clip.tracks) {
+        if (/thigh|calf|foot|ball|pelvis.*position/i.test(track.name)) {
+          const size = track.getValueSize();
+          for (let i = size; i < track.values.length; i++) track.values[i] = track.values[i % size];
+        }
+        track.scale(duration / pose.duration);
+      }
+      clip.resetDuration(); clips.set(name, clip);
+    }
+  }
+  if (definition.id === 'samurai') {
+    clips.set('attack0', roninMotion(pose, 'attack0'));
+    clips.set('attack1', roninMotion(pose, 'attack1'));
   }
   return clips;
 }

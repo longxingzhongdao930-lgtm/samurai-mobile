@@ -311,8 +311,8 @@ export class Game {
       guard: p.guarding,
       available: p.unlocked,
       weapon: this.form.active ? '銀竜' : p.weapon.name,
-      attackGlyph: this.form.active ? '爪' : p.weapon.glyph,
-      attackLabel: this.form.active ? '連撃' : p.weapon.verb
+      attackGlyph: this.form.active ? '爪' : p.air?.airborne ? '撃' : p.weapon.glyph,
+      attackLabel: this.form.active ? '連撃' : p.air?.airborne ? '空中追撃' : p.weapon.verb
     });
 
     this.audio.setListener(app.camera);
@@ -578,6 +578,7 @@ export class Game {
 
   /** The parry cue: a star on the weapon a fixed moment before contact. */
   onEnemyGlint(agent, spec) {
+    if (agent.type.id === 'samurai') return; // The authored blade glimpse is this enemy's cue.
     const enemy = agent.enemy;
     const hand = enemy.bones.get(spec.projectile ? 'LeftHand' : 'RightHand');
     if (hand) hand.getWorldPosition(_v);

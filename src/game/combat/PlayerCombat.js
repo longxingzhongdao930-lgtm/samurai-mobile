@@ -1,3 +1,4 @@
+import { GauntletAir } from './GauntletAir.js';
 import { MathUtils, Vector3 } from 'three';
 import { Attack } from '../../animation/Attack.js';
 import { settings } from '../../config/settings.js';
@@ -75,6 +76,7 @@ export class PlayerCombat {
     this._hitComboTimer = 0;
 
     this._build();
+    this.air = new GauntletAir(this);
   }
 
   /* ------------------------------------------------------------------ */
@@ -140,6 +142,7 @@ export class PlayerCombat {
   setWeapon(id) {
     const weapon = WEAPONS[id];
     if (!weapon?.available || weapon === this.weapon) return false;
+    this.air?.reset(); this._gauntletCharged = false;
     for (const move of this.moves) move.cancel();
     const overrides = this.character.locomotion.overrides;
     for (const move of this._moveOverrides) {
@@ -162,7 +165,7 @@ export class PlayerCombat {
     const order = WEAPON_ORDER.filter((id) => WEAPONS[id]?.available);
     const next = order[(order.indexOf(this.weapon.id) + 1) % order.length];
     if (this.setWeapon(next)) {
-      this.game.hud?.notice(this.weapon.name);
+      this.game.hud?.notice(this.weapon.id === 'gauntlet' ? '手甲 — 長押しして離すと打ち上げ・攻撃で追撃' : this.weapon.name, this.weapon.id === 'gauntlet' ? 3.5 : 1.6);
       this.game.audio?.play('select');
     }
   }
@@ -223,6 +226,8 @@ export class PlayerCombat {
       this._bow = false;
       this.game.bow.end();
     }
+
+    if (this.air?.update(dt, input)) return this._hold();
 
     this._readElementChips();
     this._readWeaponSwitch();
@@ -346,8 +351,21 @@ export class PlayerCombat {
       }
     }
 
+    if (this.weapon.id === 'gauntlet' && ['free', 'attack'].includes(this.state) && this.move !== this.heavy
+      && input.held.attack && input.holdTime.attack >= 0.34 && this._canCancel(0.4)) {
+      if (!this._gauntletCharged) this.game.audio?.play('charge');
+      this._gauntletCharged = true;
+      return this._hold();
+    }
+
+    if (this.weapon.id === 'gauntlet' && this._gauntletCharged && !input.held.attack && this._canCancel(0.4)) {
+      this._gauntletCharged = false; this._chargeTime = 0;
+      this._startMove(this.heavy, this.lockTarget ?? this._autoTarget(this.heavy.config));
+      return this._held;
+    }
+
     // Holding attack through a combo link charges the dash cut.
-    if (this.state === 'attack' && input.held.attack && this.move && this.move !== this.heavy) {
+    if (this.weapon.id !== 'gauntlet' && this.state === 'attack' && input.held.attack && this.move && this.move !== this.heavy) {
       this._chargeTime += dt;
       if (this._chargeTime > 0.34 && this.move.phase >= Math.min(0.55, this.move.config.cancelAt)) {
         this._chargeTime = 0;
@@ -505,6 +523,8 @@ export class PlayerCombat {
       if (distance > reach) continue;
       if (distance > 0.3 && config.arc < 360 && (dx * fx + dz * fz) / distance < halfArc) continue;
 
+      if (Math.abs(enemy.position.y - origin.y) > 1.6) continue;
+      const opening = ['broken', 'recoil'].includes(enemy.agent.state);
       const executing = move === this.execute;
       const result = this.game.damageEnemy(enemy, {
         damage: config.damage,
@@ -520,6 +540,9 @@ export class PlayerCombat {
         heavy: move === this.heavy || move === this.combo[4]
       });
       if (result) landed++;
+      if (config.airLauncher && result?.damage > 0 && !result.killed) {
+        this.air.launch(enemy, opening || result.broke || move === this.counter);
+      }
     }
 
     if (config.ring) this.game.fx?.slam(origin, config.reach);
@@ -552,6 +575,7 @@ export class PlayerCombat {
   /* ------------------------------------------------------------------ */
 
   _startDodge() {
+    this._gauntletCharged = false;
     const spec = this.weapon.dodge;
     for (const move of this.moves) if (move.locked) move.release();
     this._cancelPoses();
@@ -706,6 +730,7 @@ export class PlayerCombat {
   }
 
   _stagger(seconds, dx, dz, knock, knockdown) {
+    this._gauntletCharged = false;
     for (const move of this.moves) if (move.locked) move.release();
     this._cancelPoses();
     this.guarding = false;
@@ -824,6 +849,8 @@ export class PlayerCombat {
 
   /** Back to full, standing — a retry from a checkpoint. */
   revive(hp = this.maxHp) {
+    this.air?.reset();
+    this._gauntletCharged = false;
     for (const move of this.moves) move.cancel();
     for (const pose of this.poses) pose.cancel();
     this.body.reset();

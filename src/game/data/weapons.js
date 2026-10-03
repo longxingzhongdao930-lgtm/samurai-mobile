@@ -251,6 +251,16 @@ WEAPONS.gauntlet = {
   })
 };
 
+// Hand-to-hand combat has a short ground chain and a deliberate release-to-launch uppercut.
+WEAPONS.gauntlet.combo = WEAPONS.gauntlet.combo.slice(0, 3).map((spec, index) => ({
+  ...spec, ...(index === 2 ? { clip: 'slashHit', clipFrom: 0.07, clipTo: 0.38, hits: [0.55] } : {}),
+  launch: false, knockback: 0.3
+}));
+WEAPONS.gauntlet.heavy = { ...WEAPONS.gauntlet.heavy, clip: 'slashHit', clipFrom: 0.07, clipTo: 0.66,
+  hits: [0.62], timeScale: 1.3, maxWarp: 1.8, passThrough: 0, lunge: 0.5, standoff: 1.1,
+  reach: 2.3, damage: 14, posture: 38, knockback: 0, launch: false, airLauncher: true };
+WEAPONS.gauntlet.counter = { ...WEAPONS.gauntlet.counter, airLauncher: true, knockback: 0, launch: false };
+
 /** 手裏剣 — throwing stars: the attack throws, from wherever you stand. */
 const THROW = {
   clip: 'slashHit', clipFrom: 0.04, clipTo: 0.3, timeScale: 1.7, hits: [0.6], lunge: 0, standoff: 99,

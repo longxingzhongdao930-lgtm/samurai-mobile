@@ -159,6 +159,7 @@ export class WeaponMotion {
     } else if (pose.l) {
       left = toWorld(pose.l, new Vector3());
     }
+    this._leftTarget = left;
     if (left) ik(B.LeftArm, B.LeftForeArm, B.LeftHand, left, poleL, w);
   }
 

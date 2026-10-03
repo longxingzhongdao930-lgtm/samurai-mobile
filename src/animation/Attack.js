@@ -264,7 +264,8 @@ export class Attack {
 
     // How far to close: everything but the standoff, and never more than the
     // warp is allowed to move the body in one clip.
-    const step = MathUtils.clamp(distance - config.standoff, 0, config.maxWarp);
+    // `backstep` lets a long weapon give a little ground to get its length back.
+    const step = MathUtils.clamp(distance - config.standoff, -(config.backstep ?? 0), config.maxWarp);
     const k = distance > 1e-4 ? step / distance : 0;
     to.x = position.x + dx * k;
     to.z = position.z + dz * k;

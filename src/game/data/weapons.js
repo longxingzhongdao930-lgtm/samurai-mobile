@@ -165,7 +165,8 @@ WEAPONS.odachi = {
   trailColor: '#ffd6a0',
   ...derive(K, {
     scale: { timeScale: 0.8, damage: 1.45, posture: 1.5, hitStop: 1.3, shake: 1.3, knockback: 1.3 },
-    add: { reach: 0.9, arc: 30, standoff: 0.45 }
+    add: { reach: 0.9, arc: 30, standoff: 0.7 },
+    set: { backstep: 0.5 }
   }),
   dodge: { ...K.dodge, distance: 3.8, time: 0.46 },
   guard: { ...K.guard, chip: 0.08, moveScale: 0.36 }
@@ -180,7 +181,8 @@ WEAPONS.spear = {
   trailColor: '#e8e2ff',
   ...derive(K, {
     scale: { timeScale: 1.05, damage: 0.95 },
-    add: { reach: 1.3, standoff: 1.0, lunge: 0.5 },
+    add: { reach: 1.3, standoff: 1.6 },
+    set: { backstep: 0.9 },
     per: { k1: { arc: 70 }, k2: { arc: 60 }, k4: { arc: 70 }, counter: { arc: 70 } }
   })
 };
@@ -193,8 +195,9 @@ WEAPONS.naginata = {
   model: 'naginata',
   trailColor: '#ffc8e0',
   ...derive(K, {
-    scale: { timeScale: 0.9, damage: 1.1, posture: 1.1 },
-    add: { reach: 1.0, arc: 110, standoff: 0.6 }
+    scale: { timeScale: 0.9, damage: 1.25, posture: 1.2 },
+    add: { reach: 1.0, arc: 110, standoff: 1.2 },
+    set: { backstep: 0.8 }
   })
 };
 
@@ -206,7 +209,7 @@ WEAPONS.kusarigama = {
   model: 'kusarigama',
   trailColor: '#d0ffd8',
   ...derive(K, {
-    scale: { timeScale: 1.2, damage: 0.75 },
+    scale: { timeScale: 1.2, damage: 0.95 },
     add: { reach: -0.2 },
     per: {
       // The weight swung round on its chain.
@@ -229,7 +232,7 @@ WEAPONS.gauntlet = {
   model: 'gauntlet',
   mount: 'forearms',
   ...derive(K, {
-    scale: { timeScale: 1.35, damage: 0.7, posture: 1.7 },
+    scale: { timeScale: 1.35, damage: 0.95, posture: 2.0 },
     add: { reach: -0.45 },
     set: { slices: false, trail: false, sfx: 'kick', arc: 110 },
     per: { k5: { arc: 360, sfx: 'slam' }, execute: { sfx: 'execute' } }

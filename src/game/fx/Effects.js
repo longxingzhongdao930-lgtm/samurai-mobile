@@ -94,9 +94,10 @@ export class Effects {
 
   parry(point, dirX, dirZ) {
     this.parrySparks.burst(point.x, point.y, point.z, dirX, 0.3, dirZ, this.parryConfig, 1);
-    this.glow.spawn(point, '#ffffff', 2.4, 0.25, { grow: 1.5, star: true, intensity: 3 });
-    this.glow.burst(point, '#ffe9b0', 26, { speed: 9, size: 0.06, life: 0.6, up: 2.5, gravity: -12 });
-    this.flare(point, '#d8ecff', 60, 0.35);
+    // Bright but brief and small: the body behind it stays readable.
+    this.glow.spawn(point, '#ffffff', 1.1, 0.14, { grow: 1.2, star: true, intensity: 2.4 });
+    this.glow.burst(point, '#ffe9b0', 16, { speed: 8, size: 0.05, life: 0.45, up: 2.2, gravity: -12 });
+    this.flare(point, '#d8ecff', 30, 0.22);
   }
 
   block(point, dirX, dirZ) {

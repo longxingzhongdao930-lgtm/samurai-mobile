@@ -1,3 +1,4 @@
+import { EdoScenery } from './EdoScenery.js';
 import {
   AdditiveBlending,
   BoxGeometry,
@@ -127,6 +128,8 @@ export class Stage {
     };
     for (const m of Object.values(this.materials)) app.environment.excludeFromKeyLights?.(m);
 
+    this.edo = new EdoScenery(this);
+    await this.edo.load();
     const b = new Builder();
     this._town(b);
     this._shrine(b);
@@ -137,6 +140,7 @@ export class Stage {
       this.group.add(mesh);
     }
 
+    this.edo.decorate();
     this._puddles();
     this._lanternGlows();
     this._barrierMeshes();
@@ -213,7 +217,7 @@ export class Stage {
     this._barrel(b, 12.6, 137);
     this.spots.plazaB = new Vector3(0, 0, 127);
     // Lanterns strung across the street on lines.
-    for (let z = 6; z < 84; z += 9) this._streetLanterns(z);
+    for (let z = 15; z < 84; z += 27) this._streetLanterns(z);
   }
 
   /** A row of houses whose fronts face the street along Z. */
@@ -248,6 +252,7 @@ export class Stage {
    * One machiya. Local frame: front faces +Z (rotated by `ry`), width along X.
    */
   _house(b, cx, cz, w, d, ry, seed) {
+    if (this.edo.house(cx, cz, w, d, ry)) return;
     const cos = Math.cos(ry);
     const sin = Math.sin(ry);
     // local (lx, lz) → world
@@ -311,6 +316,10 @@ export class Stage {
   }
 
   _toro(b, x, z) {
+    if (z >= 188 && this.edo.place('t_joyato', x, z, .85, 2, .85)) {
+      this.lanterns.push(new Vector3(x, 1.5, z));
+      return;
+    }
     b.box('stone', x, 0, z, 0.9, 0.3, 0.9);
     b.cylinder('stone', x, 0.3, z, 0.14, 0.18, 0.9, { segments: 6 });
     b.box('stone', x, 1.2, z, 0.75, 0.2, 0.75);
@@ -348,6 +357,7 @@ export class Stage {
   }
 
   _watchtower(b, x, z) {
+    if (this.edo.place('es_hinomi', x, z, 2.4, 8, 2.4)) return;
     for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.box('darkwood', x + dx, 0, z + dz, 0.22, 7, 0.22);
     b.box('wood', x, 6.2, z, 2.6, 0.2, 2.6);
     b.gable('tiles', x, 7.6, z, 3.0, 3.0, 1.0);
@@ -782,6 +792,7 @@ export class Stage {
   }
 
   lateUpdate(dt, raw) {
+    this.edo?.update(this.game.playerPosition);
     const app = this.game.app;
     // Brazier flames in the castle court.
     if (this._brazier && Math.abs(this.game.playerPosition.z - 262) < 40) {

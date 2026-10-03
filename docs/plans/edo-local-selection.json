@@ -1,83 +1,93 @@
 {
-  "status": "local-preview-only",
-  "notDeployed": true,
+  "status": "nine-models-integrated",
   "models": [
     {
       "id": "es_shop01",
       "file": "es_shop01.glb",
       "height": 5.2,
       "triangles": 13136,
-      "bytes": 1135576
+      "bytes": 1135576,
+      "includedInGame": true
     },
     {
       "id": "es_shop02",
       "file": "es_shop02.glb",
       "height": 5.2,
       "triangles": 27285,
-      "bytes": 2352156
+      "bytes": 2352156,
+      "includedInGame": true
     },
     {
       "id": "es_hinomi",
       "file": "es_hinomi.glb",
       "height": 8,
       "triangles": 1066,
-      "bytes": 297296
+      "bytes": 297296,
+      "includedInGame": true
     },
     {
       "id": "pp_sobaya_yatai",
       "file": "pp_sobaya_yatai.glb",
       "height": 2.3,
       "triangles": 936,
-      "bytes": 155764
+      "bytes": 155764,
+      "includedInGame": true
     },
     {
       "id": "pp2_kakechaya",
       "file": "pp2_kakechaya.glb",
       "height": 3.1,
       "triangles": 1696,
-      "bytes": 677248
+      "bytes": 677248,
+      "includedInGame": true
     },
     {
       "id": "s_jizo",
       "file": "s_jizo.glb",
       "height": 1.4,
       "triangles": 19276,
-      "bytes": 1587476
+      "bytes": 1587476,
+      "includedInGame": true
     },
     {
       "id": "t_yukimi",
       "file": "t_yukimi.glb",
       "height": 1.1,
       "triangles": 2128,
-      "bytes": 468692
+      "bytes": 468692,
+      "includedInGame": true
     },
     {
       "id": "t_joyato",
       "file": "t_joyato.glb",
       "height": 2.0,
       "triangles": 7816,
-      "bytes": 784248
+      "bytes": 784248,
+      "includedInGame": true
     },
     {
       "id": "pp_hei_center",
       "file": "pp_hei_center.glb",
       "height": 2.2,
       "triangles": 1824,
-      "bytes": 184716
+      "bytes": 184716,
+      "includedInGame": true
     },
     {
       "id": "pp_koraimon",
       "file": "pp_koraimon.glb",
       "height": 6.0,
       "triangles": 22820,
-      "bytes": 1957816
+      "bytes": 1957816,
+      "includedInGame": false
     },
     {
       "id": "obj_nouka1",
       "file": "obj_nouka1.glb",
       "height": 4.5,
       "triangles": 9897,
-      "bytes": 2126232
+      "bytes": 2126232,
+      "includedInGame": false
     }
   ]
 }

@@ -1,3 +1,7 @@
+import { GamepadInput } from './GamepadInput.js';
+import { CombatCoach, defeatAdvice } from './combat/CombatCoach.js';
+import { Journey } from './progression/Journey.js';
+import { readRun, writeStored } from './progression/Storage.js';
 import { Blessings, BLESSINGS } from './progression/Blessings.js';
 import { lockFraming } from './LockFraming.js';
 import { MathUtils, Vector3 } from 'three';
@@ -110,6 +114,8 @@ export class Game {
     rotate.className = 'gs-rotate';
     rotate.innerHTML = '<div style="font-size:42px">⟲</div><div>端末を横向きにしてください</div>';
     document.body.appendChild(rotate);
+    this.journey = new Journey(this);
+    this.gamepad = new GamepadInput(this);
   }
 
   /* ------------------------------------------------------------------ */
@@ -140,6 +146,7 @@ export class Game {
     app.controller.combat = this.player;
     this.playerTarget = { position: app.character.position, alive: true };
     this.hud = new HUD(this);
+    this.coach = new CombatCoach(this);
     this.hud.setVisible(false);
     this.touch.setVisible(false);
 
@@ -161,11 +168,16 @@ export class Game {
     this.flow?.preview();
     this.screens.title({
       quality: { low: '軽量', mid: '標準', high: '高' }[quality.name],
-      onStart: () => this.start()
+      onStart: () => this.start(),
+      onContinue: readRun() ? () => this.journey.continueRun() : null,
+      onSettings: () => this.journey.settings(() => this.ready()),
+      onPractice: () => this.journey.menu(() => this.ready())
     });
   }
 
   start() {
+    this.journey.leavePractice();
+    this.journey.importPending = false;
     this.audio.unlock();
     this.form.load();
     // On a phone, take the whole screen and hold it sideways. Both are
@@ -188,11 +200,12 @@ export class Game {
     this.kills = 0;
     this.score = 0;
     this.retries = 0;
+    this.journey.bossSeen = false;
     this.blessings.restore();
     this.player.revive();
     this.player.stats = { parries: 0, perfectDodges: 0, maxCombo: 0, damageTaken: 0, executions: 0 };
     this.magic.reactionCount = 0;
-    if (this.flow) this.flow.start();
+    if (this.flow) { this.flow.start(); this.journey.save(); }
     else this._sandbox();
   }
 
@@ -233,8 +246,11 @@ export class Game {
 
   /** Before anything moves: input edges, pause, slow-motion clock. */
   preUpdate(raw) {
+    if (this.playerPosition) (this._beforeMove ??= new Vector3()).copy(this.playerPosition);
+    this.gamepad?.poll(raw);
     this.input.tick(raw);
     this.budget.sample(raw);
+    this.journey?.update(this.app.paused ? 0 : raw);
 
     if (this.input.consume('pause')) {
       if (this.state === 'playing') this.pause();
@@ -259,7 +275,12 @@ export class Game {
     }
 
     const position = this.app.character.position;
-    this.stage?.collide(position, 0.38);
+    if (this.stage && this._beforeMove) {
+      const blocked = this.stage.moveSafely(position, this._beforeMove, .38);
+      if (blocked && this.player.move?.warp.active) {
+        for (const at of [this.player.move._from,this.player.move._to,this.player.move._past,this.player.move.warp]) { at.x=position.x;at.z=position.z; }
+      }
+    } else this.stage?.collide(position, 0.38);
 
     this._updateLock(raw);
 
@@ -338,7 +359,7 @@ export class Game {
     const blend = 1 - Math.exp(-Math.max(0, raw) * 5);
     rig.framingOffset.lerp(_v.set(frame.x, frame.y, frame.z), blend);
     rig.distanceBonus += (frame.distance - rig.distanceBonus) * blend;
-    const sensitivity = TOUCH ? 0.0062 : 0.0028;
+    const sensitivity = (TOUCH ? 0.0062 : 0.0028) * (this.journey?.options.sensitivity ?? 1);
     if (_look.x || _look.y) rig.orbit(-_look.x * sensitivity, -_look.y * sensitivity * 0.7);
 
     if (this.state !== 'playing') {
@@ -362,6 +383,7 @@ export class Game {
       if (Math.abs(delta) < 2.6) rig.orbit(delta * Math.min(1, raw * 0.9), 0);
     }
     this.stage?.cameraCollide(rig, raw);
+    this.coach?.update(this.app.paused ? 0 : raw);
     rig.camera.lookAt(rig.controls.target);
   }
 
@@ -386,9 +408,16 @@ export class Game {
     }
     if (player.lockTarget && !player.lockTarget.alive) {
       // The locked body fell: slide to the next nearest one still in the fight.
-      player.lockTarget = this._nearest(10);
+      player.lockTarget = this._bestLock();
     }
-    if (player.lockTarget && player.lockTarget.position.distanceTo(this.playerPosition) > 26) player.lockTarget = null;
+    if (player.lockTarget && (!this.targetVisible(player.lockTarget) || player.lockTarget.position.distanceTo(this.playerPosition) > 26)) player.lockTarget = null;
+  }
+
+  targetVisible(enemy) {
+    if (!enemy?.alive) return false;
+    const from=this.playerPosition.clone();from.y+=1.3;
+    const to=enemy.position.clone();to.y+=Math.min(2.6,(enemy.agent?.type.height??1.8)*.6);
+    return (this.stage?.projectileFraction(from,to)??1)>=1;
   }
 
   _bestLock() {
@@ -402,8 +431,9 @@ export class Game {
       const dx = enemy.position.x - position.x;
       const dz = enemy.position.z - position.z;
       const d = Math.hypot(dx, dz);
-      if (d > 22) continue;
+      if (d > 22 || !this.targetVisible(enemy)) continue;
       const align = (dx * _v.x + dz * _v.z) / (d * Math.hypot(_v.x, _v.z) || 1);
+      if (align < -.1) continue;
       const score = d * (2.2 - align) * (enemy.agent.type.elite ? 0.6 : 1);
       if (score < bestScore) {
         bestScore = score;
@@ -433,6 +463,7 @@ export class Game {
     let bestD = 80;
     for (const enemy of this.enemies.enemies) {
       if (!enemy.alive || !enemy.agent) continue;
+      if (!this.targetVisible(enemy)) continue;
       _v.copy(enemy.position);
       _v.y += enemy.agent.type.height * 0.6;
       _v.project(this.app.camera);
@@ -581,10 +612,13 @@ export class Game {
       this.slowMo(0.5, 0.35);
     }
     this.flow?.onKill(agent);
+    this.journey.onKill(agent);
+    if (agent.type.elite && this.director.aliveCount === 0) { this.audio.setCombat(0); this.hud.notice('雨音が戻った — 刀を収め、先へ', 3); }
   }
 
   /** A body commits to a move: the anticipation, before the glint. */
   onEnemyWindup(agent, spec) {
+    this.coach?.warn(agent,spec);
     if (spec.unblockable) {
       this.hud.warn(agent, 1.4);
       this.audio.play('danger', { pos: agent.position });
@@ -614,6 +648,7 @@ export class Game {
     this.fx.parry(_v, -dx / d, -dz / d);
     // The blade snaps forward through the turn, the body with it.
     this.player.body.impulse(2.4, (Math.random() < 0.5 ? -1 : 1) * 2);
+    this.player.mp = Math.min(this.player.maxMp, this.player.mp + (this.blessings.parryMp ?? 0));
     this.audio.play('parry');
     this.hitStop(0.09, 0.02);
     this.slowMo(0.55, 0.28);
@@ -636,7 +671,8 @@ export class Game {
     this.rig.shake(0.06);
   }
 
-  onGuardBreak() {
+  onGuardBreak(hit) {
+    this.coach?.hurt(hit,true);
     this.player.body.impulse(-7, 4);
     this.audio.play('guardBreak');
     this.hud.bigText('崩', '#ff8a5a', 0.8);
@@ -644,6 +680,7 @@ export class Game {
   }
 
   onPlayerHurt(hit) {
+    this.coach?.hurt(hit);
     this.audio.play('hurt');
     this.hitStop(0.06, 0.1);
     this.rig.shake(hit.knockdown ? 0.3 : 0.14);
@@ -719,7 +756,8 @@ export class Game {
     }
   }
 
-  onPlayerDeath() {
+  onPlayerDeath(hit) {
+    this.coach?.hurt(hit, this.player.guardMeter <= 0);
     this.audio.play('death', { volume: 1 });
     this.slowMo(1.4, 0.3);
     this.hud.bigText('討死', '#c8321e', 1.6);
@@ -730,7 +768,7 @@ export class Game {
       this.input.unlockPointer();
       this.touch.setVisible(false);
       this.screens.defeat({
-        tip: this.flow?.tip() ?? '敵の刃が光った瞬間にガードで弾ける。',
+        tip: defeatAdvice(this.coach?.lastCause,this.coach?.lastEnemy),
         onRetry: () => this.retry(),
         onTitle: () => this.toTitle()
       });
@@ -752,6 +790,7 @@ export class Game {
       onChoose: (id) => {
         if (this.state !== 'blessing' || !this.blessings.choose(shrine, id)) return;
         if (this.flow) this.flow.checkpoint.blessings = this.blessings.snapshot();
+        this.journey.save();
         this.resume();
         this.player.invulnerable = Math.max(this.player.invulnerable, 1);
         this.audio.play('pickup');
@@ -768,12 +807,15 @@ export class Game {
     this.input.unlockPointer();
     this.touch.setVisible(false);
     this.input.reset();
+    this.player._guardLatched = false;
     this._showPause();
   }
 
   _showPause() {
     this.screens.pause({
       muted: this._muted,
+      onSettings: () => this.journey.settings(() => this._showPause()),
+      onPractice: () => this.journey.menu(() => this._showPause()),
       onResume: () => this.resume(),
       onRetry: () => {
         this.resume();
@@ -781,8 +823,11 @@ export class Game {
       },
       onTitle: () => this.toTitle(),
       onVolume: () => {
-        this._muted = !this._muted;
-        if (this.audio.master) this.audio.master.gain.value = this._muted ? 0 : this.audio.volume.master;
+        const o = this.journey.options;
+        if (o.volume > 0) { this._lastVolume = o.volume; o.volume = 0; }
+        else o.volume = this._lastVolume ?? .9;
+        this.journey.apply();
+        writeStored('preferences', o);
         this._showPause();
       }
     });
@@ -798,6 +843,8 @@ export class Game {
 
   _resetTransientCombat() {
     this.input.reset();
+    this.coach?.clear();
+    if (this.player) this.player._guardLatched = false;
     this._slowTimer = 0;
     this._slowScale = this.slowFactor = 1;
     this.app._hitStop = 0;
@@ -805,6 +852,7 @@ export class Game {
   }
 
   retry() {
+    if (this.journey.practice) return this.journey.startPractice(this.journey.practice.id, this.journey.practice.training);
     this._resetTransientCombat();
     this.retries++;
     this._timers.length = 0;
@@ -825,6 +873,8 @@ export class Game {
   }
 
   toTitle() {
+    if (!this.journey.practice && this.state !== 'result') this.journey.save();
+    this.journey.leavePractice();
     this._resetTransientCombat();
     this._timers.length = 0;
     this.screens.close();
@@ -844,6 +894,7 @@ export class Game {
   }
 
   finish() {
+    if (!this.journey.practice) writeStored('run', null);
     const stats = this.player.stats;
     const seconds = Math.round(this.playTime);
     const time = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;

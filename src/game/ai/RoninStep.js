@@ -28,9 +28,9 @@ export class RoninStep {
     const a = this.enemy.agent;
     a._setSpeed(0);
     a._turnToward(Math.atan2(ctx.player.x - this.enemy.position.x, ctx.player.z - this.enemy.position.z), dt, 5);
-    if (a.cooldown <= 0 && !ctx.playerDown && (a.token || ctx.director.requestToken(a, false))) {
+    if (a.cooldown <= 0 && !ctx.playerDown && ctx.director.requestToken(a, false)) {
       const spec = a._chooseAttack(distance);
-      if (spec) { this.windup = 0; a._startAttack(spec); return; }
+      if (spec && ctx.director.canStartAttack(a, spec)) { this.windup = 0; a._startAttack(spec); return; }
       ctx.director.releaseToken(a);
     }
     this.wait -= dt * slow;

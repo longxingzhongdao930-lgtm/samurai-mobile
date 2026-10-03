@@ -37,7 +37,7 @@ export class GlowPool {
     geometry.setAttribute('aShape', new BufferAttribute(this.shape, 1));
 
     this.material = new ShaderMaterial({
-      uniforms: { uScale: { value: 600 } },
+      uniforms: { uScale: { value: 600 }, uClarity: { value: 1 } },
       vertexShader: /* glsl */ `
         attribute float aSize;
         attribute float aAlpha;
@@ -56,6 +56,7 @@ export class GlowPool {
           gl_PointSize = aAlpha > 0.001 ? aSize * uScale / max(0.1, -mv.z) : 0.0;
         }`,
       fragmentShader: /* glsl */ `
+        uniform float uClarity;
         varying vec3 vColor;
         varying float vAlpha;
         varying float vShape;
@@ -64,7 +65,7 @@ export class GlowPool {
           float r = length(p);
           float core = exp(-r * r * 6.0);
           float halo = exp(-r * 2.6) * 0.5;
-          float g = core + halo;
+          float g = core + halo * uClarity;
           // Shape 1: a four-point star — the glint a blade throws before it swings.
           if (vShape > 0.5) {
             float star = max(exp(-abs(p.x) * 18.0) * exp(-abs(p.y) * 2.0), exp(-abs(p.y) * 18.0) * exp(-abs(p.x) * 2.0));

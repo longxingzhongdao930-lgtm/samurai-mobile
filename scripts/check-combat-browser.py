@@ -113,6 +113,7 @@ with sync_playwright() as p:
    app.simulate(.25);
  }
  if(g.state!=='result')throw Error('progression stuck '+f.beats[f.beat].id+' '+steps);
+ if(!g.journey.records.has('tarislandDragon'))throw Error('boss rematch not unlocked');
  if(visited.size!==12)throw Error('missing beats '+[...visited]);
  if(!p.unlocked.every(Boolean))throw Error('elements not unlocked');
  app.frame();return {visited:[...visited],retried:[...retried],result:g.state,simulationSteps:steps};

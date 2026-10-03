@@ -1,3 +1,4 @@
+import { recoverLoad } from '../../loaders/RecoverLoad.js';
 import { FlyingGauntlet } from './FlyingGauntlet.js';
 import { Color, Group, Quaternion, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -41,8 +42,7 @@ export class WeaponSet {
     if (this.models.has(id)) return Promise.resolve(this.models.get(id));
     if (this.pending.has(id)) return this.pending.get(id);
     const file = id === 'gauntlet' ? 'gauntlet_pair' : id;
-    const promise = this.loader
-      .loadAsync(`./models/weapons/${file}.glb`)
+    const promise = recoverLoad(file, () => this.loader.loadAsync(`./models/weapons/${file}.glb`))
       .then((gltf) => {
         gltf.scene.traverse((o) => {
           if (!o.isMesh) return;
@@ -57,6 +57,7 @@ export class WeaponSet {
       })
       .catch((error) => {
         console.warn(`[WeaponSet] ${id} failed to load`, error);
+        this.pending.delete(id);
         return null;
       });
     this.pending.set(id, promise);

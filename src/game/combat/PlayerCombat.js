@@ -1,3 +1,4 @@
+import { WEAPON_TIPS } from './CombatCoach.js';
 import { comboLifetime, canSwitchInRecovery } from './CombatRhythm.js';
 import { DualSpirit } from './DualSpirit.js';
 import { GauntletAir } from './GauntletAir.js';
@@ -157,6 +158,7 @@ export class PlayerCombat {
       if (i >= 0) overrides.splice(i, 1);
     }
     this.weapon = weapon;
+    this.game.hud?.notice(WEAPON_TIPS[id], 2.8);
     this._useSet(this._setFor(weapon));
     this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast];
     this._moveOverrides = [...this.moves];
@@ -296,7 +298,7 @@ export class PlayerCombat {
 
     // Defence first: a dodge cancels anything past its first frames, and the
     // guard can be raised out of a recovery.
-    if (input.pending('dodge') && this._canCancel()) {
+    if (input.pending('dodge') && this._canDodge()) {
       input.consume('dodge');
       return this._startDodge();
     }
@@ -342,6 +344,10 @@ export class PlayerCombat {
     // Every fresh press re-opens the parry window, even over a guard that is
     // already up — tapping guard in rhythm with the blows is the technique.
     const guardPressed = input.consume('guard');
+    if (this.game.journey?.options.guardToggle) {
+      if (guardPressed) this._guardLatched = !this._guardLatched;
+      input.held.guard = Boolean(this._guardLatched);
+    }
     if (guardPressed) this.guardTime = 0;
 
     if (this.state === 'free' && input.held.guard) {
@@ -382,7 +388,7 @@ export class PlayerCombat {
 
     if (this.weapon.id === 'gauntlet' && ['free', 'attack'].includes(this.state) && this.move !== this.heavy
       && input.held.attack && input.holdTime.attack >= 0.34 && this._canCancel(0.4)) {
-      if (!this._gauntletCharged) this.game.audio?.play('charge');
+      if (!this._gauntletCharged) { this.game.audio?.play('charge'); this.game.hud?.notice('溜め完了 — 離して引き寄せ', 1); }
       this._gauntletCharged = true;
       return this._hold();
     }
@@ -398,6 +404,7 @@ export class PlayerCombat {
       this._chargeTime += dt;
       if (this._chargeTime > 0.34 && this.move.phase >= Math.min(0.55, this.move.config.cancelAt)) {
         this._chargeTime = 0;
+        this.game.hud?.notice('溜め攻撃', .8);
         this._startMove(this.heavy, this.lockTarget ?? this._autoTarget(this.heavy.config, 9));
         this.game.audio?.play('charge');
         return this._held;
@@ -448,6 +455,13 @@ export class PlayerCombat {
   /* attacks                                                             */
   /* ------------------------------------------------------------------ */
 
+  _canDodge() {
+    if (this.move === this.execute && this.move?.locked) return false;
+    const hits=this.move?.config.hits??[this.move?.config.hitAt??.4];
+    const ready=this.move===this.heavy?Math.min(.7,Math.max(.4,hits[0])):.32;
+    return this._canCancel(ready);
+  }
+
   _canCancel(minPhase = 0.35) {
     if (this.state === 'free') return true;
     if (this.state === 'attack' || this.state === 'cast') {
@@ -471,7 +485,7 @@ export class PlayerCombat {
       (this.state === 'free' && this._comboGrace > 0 && this.comboIndex >= 0);
     this.comboIndex = continuing ? (this.comboIndex + 1) % this.combo.length : 0;
     const move = this.combo[this.comboIndex];
-    this._startMove(move, this.lockTarget ?? this._autoTarget(move.config));
+    this._startMove(move, (this.lockTarget?.alive && this.game.targetVisible?.(this.lockTarget) !== false ? this.lockTarget : this._autoTarget({ ...move.config, arc: Math.min(100, move.config.arc ?? 100) })));
   }
 
   _startMove(move, target) {
@@ -495,9 +509,12 @@ export class PlayerCombat {
     const radius = target?.agent?.radius ?? 0;
     move._config = radius > 0.6 ? { ...move.baseConfig, standoff: move.baseConfig.standoff + (radius - 0.45), reach: move.baseConfig.reach + (radius - 0.45) } : move.baseConfig;
     if (this._switchBoost > 0 && move !== this.execute && move !== this.cast) {
-      move._config = { ...move._config, posture: move._config.posture + 12 };
+      move._config = { ...move._config, posture: move._config.posture + 12 + (this.game.blessings?.linkBonus ?? 0) };
       this._switchBoost = 0;
     }
+    const id=this.weapon.id, gap=target?target.position.distanceTo(this.character.position):0;
+    const bonus=(id==='odachi'&&move===this.heavy)?10:(id==='spear'&&gap>2.5)?6:(id==='kusarigama'&&move===this.heavy)?8:0;
+    if(bonus)move._config={...move._config,posture:move._config.posture+bonus};
     move._config = this.spirit.empowerMove(move._config, move === this.heavy);
     move.start(target?.alive ? target : null);
     this.move = move;
@@ -521,10 +538,18 @@ export class PlayerCombat {
   _autoTarget(config, range = 0) {
     const position = this.character.position;
     const heading = this.game.stickHeading() ?? this.character.facing;
-    return this.game.enemies.findTarget(position, heading, {
-      range: range || Math.max(4.2, (config.reach ?? 2.6) + (config.maxWarp ?? 2) * 0.8),
-      cone: Math.max(100, config.arc ?? 120)
-    });
+    const reach = range || Math.max(4.2,(config.reach??2.6)+(config.maxWarp??2)*.8);
+    const halfCone = Math.min(120,config.arc??100)*Math.PI/360;
+    let best=null,nearest=reach;
+    for(const enemy of this.game.enemies.enemies){
+      if(!enemy.alive||!enemy.agent||this.game.targetVisible?.(enemy)===false)continue;
+      const dx=enemy.position.x-position.x,dz=enemy.position.z-position.z,d=Math.hypot(dx,dz);
+      if(d>=nearest)continue;
+      const dot=(dx*Math.sin(heading)+dz*Math.cos(heading))/(d||1);
+      if(dot<Math.cos(halfCone))continue;
+      best=enemy;nearest=d;
+    }
+    return best;
   }
 
   /** A contact frame of a move: sweep everything in its arc. */
@@ -612,6 +637,7 @@ export class PlayerCombat {
 
   _startDodge() {
     this._gauntletCharged = false;
+    this._guardLatched = false;
     const spec = this.weapon.dodge;
     for (const move of this.moves) if (move.locked) move.release();
     this._cancelPoses();
@@ -766,6 +792,7 @@ export class PlayerCombat {
     this.hp = Math.max(0, this.hp - damage);
     this.stats.damageTaken += damage;
     if (!chip) this.special = Math.min(1, this.special + 0.04);
+    if (this.game.journey?.practice?.training && this.hp <= 0) this.hp = 1;
     if (this.hp <= 0) this._die(hit);
   }
 
@@ -893,6 +920,7 @@ export class PlayerCombat {
   /** Back to full, standing — a retry from a checkpoint. */
   revive(hp = this.maxHp) {
     this.spirit?.reset();
+    this._guardLatched = false;
     this._weaponQueue = this._switchBoost = this._linkHitTimer = 0;
     this.hitCombo = this._hitComboTimer = this._comboGrace = 0;
     this.air?.reset();

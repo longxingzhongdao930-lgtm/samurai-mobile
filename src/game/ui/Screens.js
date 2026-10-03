@@ -28,7 +28,7 @@ export class Screens {
       if (!button) continue;
       button.addEventListener('click', (event) => {
         event.preventDefault();
-        fn();
+        fn?.();
       });
     }
   }
@@ -43,7 +43,7 @@ export class Screens {
     return this.current !== null;
   }
 
-  title({ onStart, quality }) {
+  title({ onStart, quality, onContinue, onSettings, onPractice }) {
     const controls = this.touch
       ? '<li><b>左</b> 移動スティック</li><li><b>右スワイプ</b> カメラ</li><li><b>斬</b> 攻撃（長押しで居合）</li><li><b>守</b> ガード / 直前で弾き</li><li><b>避</b> 回避</li><li><b>術</b> 魔法 · <b>奥義</b> 必殺</li><li><b>敵をタップ</b> ロックオン</li>'
       : '<li><b>WASD</b> 移動 · <b>Shift</b> 歩き</li><li><b>マウス</b> カメラ</li><li><b>左クリック</b> 攻撃（長押しで居合）</li><li><b>右クリック</b> ガード · 直前で弾き</li><li><b>Space</b> 回避</li><li><b>Q</b> 魔法 · <b>1 2 3</b> 属性</li><li><b>R</b> 奥義 · <b>Tab / ホイール押し</b> ロックオン</li><li><b>Esc</b> ポーズ</li>';
@@ -52,12 +52,14 @@ export class Screens {
       `<div class="gs-title__mark">影</div>
        <h1 class="gs-title__name">黒雨の城下町</h1>
        <p class="gs-title__sub">— 体験版 —</p>
-       <button class="gs-btn gs-btn--main" data-action="start">はじめる</button>
+       ${onContinue ? '<button class="gs-btn gs-btn--main" data-action="continue">続きから</button>' : ''}
+       <button class="gs-btn gs-btn--main" data-action="start">${onContinue ? 'はじめから' : 'はじめる'}</button>
+       <div class="gs-menu-row"><button class="gs-btn" data-action="settings">設定</button><button class="gs-btn" data-action="practice">稽古・再戦</button></div>
        <a class="gs-character-link" href="./characters.html">追加キャラクター6体を見る</a>
        <ul class="gs-controls">${controls}</ul>
        <p class="gs-fine">画質: ${quality} · ヘッドホン推奨${this.touch ? '' : ' · マウスで視点 · Escでカーソル解放'}</p>`
     );
-    this._bind(panel, { start: onStart });
+    this._bind(panel, { start: onStart, continue: onContinue, settings: onSettings, practice: onPractice });
   }
 
   blessing({ choices, onChoose }) {
@@ -85,16 +87,17 @@ export class Screens {
     });
   }
 
-  pause({ onResume, onRetry, onTitle, onVolume, muted }) {
+  pause({ onResume, onRetry, onTitle, onVolume, muted, onSettings, onPractice }) {
     const panel = this._panel(
       'gs-pause',
       `<h2 class="gs-h">一時停止</h2>
        <button class="gs-btn gs-btn--main" data-action="resume">再開</button>
        <button class="gs-btn" data-action="retry">チェックポイントから再開</button>
        <button class="gs-btn" data-action="volume">${muted ? '音: オフ' : '音: オン'}</button>
+       <button class="gs-btn" data-action="settings">設定・記録の移行</button><button class="gs-btn" data-action="practice">稽古・再戦</button>
        <button class="gs-btn gs-btn--quiet" data-action="title">タイトルへ</button>`
     );
-    this._bind(panel, { resume: onResume, retry: onRetry, title: onTitle, volume: onVolume });
+    this._bind(panel, { resume: onResume, retry: onRetry, title: onTitle, volume: onVolume, settings: onSettings, practice: onPractice });
   }
 
   defeat({ onRetry, onTitle, tip }) {

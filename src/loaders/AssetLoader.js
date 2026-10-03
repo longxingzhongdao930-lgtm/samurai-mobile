@@ -1,3 +1,4 @@
+import { recoverLoad } from './RecoverLoad.js';
 import { LoadingManager, TextureLoader } from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -98,7 +99,9 @@ export class AssetLoader {
    *
    * @returns {Promise<THREE.Group>}
    */
-  async loadFBX(url) {
+  loadFBX(url) { return recoverLoad(url, () => this._loadFBX(url)); }
+
+  async _loadFBX(url) {
     const resolved = encodeURI(url);
     this.manager.itemStart(resolved);
 
@@ -131,23 +134,23 @@ export class AssetLoader {
    * @returns {Promise<{scene: THREE.Group, animations: THREE.AnimationClip[]}>}
    */
   loadGLTF(url) {
-    return new Promise((resolve, reject) => {
+    return recoverLoad(url, () => new Promise((resolve, reject) => {
       this.gltf.load(encodeURI(url), resolve, undefined, reject);
-    });
+    }));
   }
 
   /** @returns {Promise<THREE.Texture>} */
   loadTexture(url) {
-    return new Promise((resolve, reject) => {
+    return recoverLoad(url, () => new Promise((resolve, reject) => {
       this.texture.load(encodeURI(url), resolve, undefined, reject);
-    });
+    }));
   }
 
   /** @returns {Promise<THREE.DataTexture>} */
   loadHDR(url) {
-    return new Promise((resolve, reject) => {
+    return recoverLoad(url, () => new Promise((resolve, reject) => {
       this.hdr.load(encodeURI(url), resolve, undefined, reject);
-    });
+    }));
   }
 
   /**

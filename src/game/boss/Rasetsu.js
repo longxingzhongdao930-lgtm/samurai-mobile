@@ -89,7 +89,7 @@ export class Rasetsu extends EnemyAgent {
   /* the entrance                                                        */
   /* ------------------------------------------------------------------ */
 
-  intro() {
+  intro(skip = false) {
     const game = this.game;
     game.cinematic = true;
     this.state = 'intro';
@@ -99,6 +99,7 @@ export class Rasetsu extends EnemyAgent {
     game.hud.setObjective('');
     game.player.lockTarget = null;
     settings.camera.distance = 6.4;
+    if (skip) { this.stateTime = 3.5; this._introUpdate(0); }
   }
 
   _introUpdate(dt) {
@@ -433,6 +434,7 @@ export class Rasetsu extends EnemyAgent {
     }
     game.stage?.clearBarriers();
     settings.camera.distance = 5.2;
+    game.journey?.onKill(this);
     this.onDefeated?.();
   }
 

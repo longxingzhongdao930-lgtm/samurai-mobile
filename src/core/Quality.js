@@ -1,3 +1,4 @@
+import { preferences } from '../game/progression/Storage.js';
 /**
  * Device tier and the runtime budget that follows from it.
  *
@@ -73,6 +74,7 @@ export function isTouchDevice() {
 function detectTier() {
   const forced = new URLSearchParams(window.location.search).get('q');
   if (forced && TIERS[forced]) return forced;
+  const saved = preferences().quality; if (TIERS[saved]) return saved;
 
   const touch = isTouchDevice();
   const cores = navigator.hardwareConcurrency || 4;

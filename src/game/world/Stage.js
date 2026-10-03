@@ -144,6 +144,8 @@ export class Stage {
     this._town(b);
     this._shrine(b);
     this._castle(b);
+    // Warm lights on the main route; cool pickup glows lead into optional yards.
+    for (const z of [35,68,112,145,218]) this._lantern(b,2.5,2.2,z,{size:.8});
     const meshes = b.build(this.materials);
     for (const mesh of meshes) {
       mesh.layers.set(LAYER.WORLD);
@@ -700,7 +702,8 @@ export class Stage {
       const dz = position.z - c.z;
       const min = c.r + radius;
       const d2 = dx * dx + dz * dz;
-      if (d2 >= min * min || d2 < 1e-8) continue;
+      if (d2 >= min * min) continue;
+      if (d2 < 1e-8) { position.x = c.x + min; continue; }
       const d = Math.sqrt(d2);
       position.x = c.x + (dx / d) * min;
       position.z = c.z + (dz / d) * min;
@@ -710,6 +713,34 @@ export class Stage {
       if (barrier.active) pushOutOfBox(position, barrier.rect, radius);
     }
     clampToUnion(position, radius);
+  }
+
+  /** Sweep movement in short steps so lunges cannot jump over narrow props. */
+  moveSafely(position, previous, radius) {
+    const dx=position.x-previous.x,dy=position.y-previous.y,dz=position.z-previous.z;
+    const count=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.15));
+    const next=this._movementPoint??=new Vector3();
+    for(let i=1;i<=count;i++){
+      const x=previous.x+dx*i/count,z=previous.z+dz*i/count;
+      next.set(x,previous.y+dy*i/count,z);
+      this.collide(next,radius);
+      if(Math.hypot(next.x-x,next.z-z)>.005){position.copy(next);return true}
+    }
+    position.copy(next);return false;
+  }
+
+  /** A short, collision-swept detour for an agent repeatedly pushing a prop. */
+  escapePoint(position, target, radius) {
+    let best=null,score=Infinity;
+    for(let i=0;i<16;i++){
+      const angle=i*Math.PI/8, next=position.clone();
+      next.x+=Math.sin(angle)*2;next.z+=Math.cos(angle)*2;
+      this.moveSafely(next,position,radius);
+      if(next.distanceTo(position)<.5||next.distanceTo(target)<radius+.8)continue;
+      const cost=next.distanceToSquared(target);
+      if(cost<score){score=cost;best=next}
+    }
+    return best;
   }
 
   /** Whether a point is inside a wall (for projectiles). */

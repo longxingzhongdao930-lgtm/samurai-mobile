@@ -86,6 +86,15 @@ export class Flow {
     for (const [id, spot] of [['road', this.stage.spots.hokora], ['sanctum', this.stage.spots.shrine]]) {
       if (spot && !game.blessings.choices.has(id)) this._pickup('blessing', spot, { onTake: () => game.offerBlessing(id) });
     }
+    for (const [id,name,text,x,z] of [
+      ['lore-well','井戸端の書付','剣を従える妖は、返された剣に怯む。',-16.5,31],
+      ['lore-yard','裏庭の覚書','魔術師の照準が止まったら、横へ逃れよ。',20.5,74],
+      ['lore-tea','茶屋の置手紙','赤い灯りの奥には強敵。淡い霊火は寄り道の目印。',-10,132]
+    ]) {
+      if (!game.journey?.records.has(id)) this._pickup('lore', new Vector3(x,0,z), { onTake: () => {
+        game.journey?.discover(id); game.hud.areaCard(name,text,4);
+      }});
+    }
     this.encounter = null;
     game.boss = null;
     game.hud.showBoss('', false);
@@ -125,6 +134,7 @@ export class Flow {
       special: this.player.special,
       blessings: this.game.blessings.snapshot()
     };
+    this.game.journey?.save();
   }
 
   /* ------------------------------------------------------------------ */
@@ -232,7 +242,7 @@ export class Flow {
   /* ------------------------------------------------------------------ */
 
   _pickup(kind, position, { auto = false, onTake = null } = {}) {
-    const colors = { potion: '#7aff9a', soul: '#ffb070', spirit: '#ffe8a0', thunder: '#cfe0ff', ice: '#9fefff', blessing: '#ffe2a1' };
+    const colors = { potion: '#7aff9a', soul: '#ffb070', spirit: '#ffe8a0', thunder: '#cfe0ff', ice: '#9fefff', blessing: '#ffe2a1', lore: '#a3e4e7' };
     const glow = this.game.fx.glow.hold(colors[kind] ?? '#ffffff', kind === 'soul' ? 0.45 : 0.9, { intensity: 2.2, star: kind !== 'soul' });
     const pickup = { kind, position: position.clone().setY(position.y + 1.0), glow, auto, onTake, t: Math.random() * 6, color: colors[kind] };
     this.pickups.push(pickup);
@@ -295,6 +305,7 @@ export class Flow {
         game.hud.notice('魂玉 — 体力上限上昇・奥義満ちる', 2.4);
         break;
       case 'blessing':
+      case 'lore':
         break;
       default:
         game.audio.play('pickup');
@@ -539,6 +550,7 @@ export class Flow {
       this._bossDone = true;
     };
     game.boss = agent.enemy;
-    agent.intro();
+    agent.intro(game.journey?.bossSeen === true);
+    if (game.journey) { game.journey.bossSeen = true; game.journey.save(); }
   }
 }

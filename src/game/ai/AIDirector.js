@@ -1,4 +1,5 @@
-import { TextureLoader, SRGBColorSpace } from 'three';
+import { recoverLoad } from '../../loaders/RecoverLoad.js';
+import { TextureLoader, SRGBColorSpace, Vector3 } from 'three';
 import { DRAGON_APPEARANCE } from '../boss/TarislandDragon.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { TOWN_CHARACTERS, TOWN_TYPES } from '../data/townCharacters.js';
@@ -71,13 +72,20 @@ export class AIDirector {
 
   async loadAppearances() {
     const loader = new GLTFLoader();
-    const magicRingTexture = await new TextureLoader().loadAsync('./textures/effects/magic-ring-blue.png');
+    const magicRingTexture = await recoverLoad('魔法陣', () => new TextureLoader().loadAsync('./textures/effects/magic-ring-blue.png'));
     magicRingTexture.colorSpace = SRGBColorSpace;
     // Load each shared source once; clones share geometry and textures.
-    for (const definition of [...TOWN_CHARACTERS, DRAGON_APPEARANCE]) {
-      const gltf = await loader.loadAsync(definition.url);
-      this.appearances.set(definition.id, { gltf, definition: definition.id === 'mage' ? { ...definition, magicRingTexture } : definition });
-    }
+    const queue = [...TOWN_CHARACTERS, DRAGON_APPEARANCE];
+    // Two concurrent downloads shorten boot without parsing every large model at once.
+    const worker = async () => {
+      while (queue.length) {
+        const definition = queue.shift();
+        if (this.appearances.has(definition.id)) continue;
+        const gltf = await recoverLoad(definition.name ?? definition.id, () => loader.loadAsync(definition.url));
+        this.appearances.set(definition.id, { gltf, definition: definition.id === 'mage' ? { ...definition, magicRingTexture } : definition });
+      }
+    };
+    await Promise.all([worker(), worker()]);
   }
 
   /** Register an extra type (the boss) and clone its move clips. */
@@ -119,6 +127,10 @@ export class AIDirector {
   /** May this body start a swing now? */
   requestToken(agent, ranged) {
     const pool = ranged ? this._ranged : this._melee;
+    // A major wind-up needs room to be read, across melee and ranged pools.
+    if (this.agents.some(other => other !== agent && other.alive &&
+      ((other.type.boss && other.state === 'transition') ||
+       (other.state === 'attack' && (other.moveSpec?.ultimate || (other.type.elite && other.moveSpec?.unblockable)))))) return false;
     if (pool.has(agent)) return true;
     // Fewer swingers when an elite is already mid-move: one big body's attack
     // is a whole event and deserves the stage.
@@ -134,6 +146,13 @@ export class AIDirector {
     pool.add(agent);
     agent.token = true;
     return true;
+  }
+
+  canStartAttack(agent, spec) {
+    // Do not layer a new major move over an already committed attack.
+    if (!(spec.ultimate || (agent.type.elite && spec.unblockable))) return true;
+    return !this.agents.some(other => other !== agent && other.alive &&
+      (other.state === 'attack' || other.state === 'transition'));
   }
 
   releaseToken(agent) {
@@ -207,7 +226,15 @@ export class AIDirector {
       const step = dt + (agent._skipped ?? 0);
       agent._skipped = 0;
       agent.update(step, ctx);
+      const wanted = (this._wantedPosition ??= new Vector3()).copy(agent.position);
       this.game.stage?.collide(agent.position, agent.radius);
+      const clipped = wanted.distanceTo(agent.position) > .0001;
+      agent._stuckTime = clipped && !agent.attacking ? (agent._stuckTime ?? 0) + step : 0;
+      if (agent._stuckTime > 1.5 && !agent.entrance && !agent.type.boss) {
+        const next = this.game.stage?.escapePoint(agent.position,this.game.playerPosition,agent.radius);
+        if (next) agent.position.copy(next);
+        agent._stuckTime = 0;
+      }
     }
   }
 

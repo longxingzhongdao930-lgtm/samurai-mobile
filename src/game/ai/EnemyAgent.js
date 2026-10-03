@@ -228,9 +228,9 @@ export class EnemyAgent {
     // Ready to swing: take a token first (the crowd's permission), then close
     // to range with it and commit. Without one, keep the ring.
     if (this.cooldown <= 0 && !ctx.playerDown) {
-      if (this.token || director.requestToken(this, type.ranged === true)) {
+      if (director.requestToken(this, type.ranged === true)) {
         const spec = this._chooseAttack(distance);
-        if (spec) {
+        if (spec && director.canStartAttack(this, spec)) {
           this._approach = 0;
           this._startAttack(spec);
           return;

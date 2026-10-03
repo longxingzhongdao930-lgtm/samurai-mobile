@@ -1,3 +1,4 @@
+import { ENEMY_TIPS } from '../game/combat/CombatCoach.js';
 import { ACESFilmicToneMapping, AmbientLight, Clock, DirectionalLight, HemisphereLight, Mesh, MeshBasicMaterial, Box3, Sphere, CircleGeometry, PerspectiveCamera, Scene, WebGLRenderer, LoopOnce, LoopRepeat } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -45,7 +46,7 @@ function play(name) {
 async function select(definition) {
   const token = ++request; selected = definition.id;
   for (const card of document.querySelectorAll('.card')) card.setAttribute('aria-pressed', String(card.dataset.id === selected));
-  for (const [id, value] of Object.entries({ name: definition.name, role: definition.role, original: definition.label, description: definition.description, location: definition.location, 'motion-note': definition.id === 'mage' ? '距離を取り、詠唱から魔弾を放つ。' : definition.procedural ? '間合いを詰め、予備動作から斬撃へつなぐ。' : '爪・翼・巨体を使った固有の攻撃。' })) document.getElementById(id).textContent = value;
+  for (const [id, value] of Object.entries({ name: definition.name, role: definition.role, original: definition.label, description: definition.description, location: definition.location, 'motion-note': ENEMY_TIPS[definition.id] ?? (definition.id === 'mage' ? '距離を取り、詠唱から魔弾を放つ。' : definition.procedural ? '間合いを詰め、予備動作から斬撃へつなぐ。' : '爪・翼・巨体を使った固有の攻撃。') })) document.getElementById(id).textContent = value;
   status.textContent = '姿を呼び出しています…'; motions.forEach(b => b.disabled = true);
   try {
     const gltf = await new GLTFLoader().loadAsync(definition.url);

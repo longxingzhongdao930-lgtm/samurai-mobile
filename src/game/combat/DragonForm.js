@@ -1,3 +1,4 @@
+import { recoverLoad } from '../../loaders/RecoverLoad.js';
 import { AnimationMixer, Box3, Group, LoopOnce, LoopRepeat, MathUtils, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { settings } from '../../config/settings.js';
@@ -74,8 +75,7 @@ export class DragonForm {
   /** Fetched once the run has begun, so the title screen never waits on it. */
   load() {
     if (this._loading) return this._loading;
-    this._loading = new GLTFLoader()
-      .loadAsync(URL)
+    this._loading = recoverLoad(URL, () => new GLTFLoader().loadAsync(URL))
       .then((gltf) => {
         const model = gltf.scene;
         model.traverse((o) => {
@@ -99,7 +99,7 @@ export class DragonForm {
         this.game.app.scene.add(this.group);
         this.ready = true;
       })
-      .catch((error) => console.warn('[DragonForm] model unavailable', error));
+      .catch((error) => { this._loading = null; console.warn('[DragonForm] model unavailable', error); });
     return this._loading;
   }
 

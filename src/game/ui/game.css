@@ -826,3 +826,32 @@ body.game .loader__status {
 .tc:not(.tc--desktop) .tc-elements { bottom: calc(202px * var(--u)); }
 .tc:not(.tc--desktop) .tc-pause,
 .tc:not(.tc--desktop) .tc-weapon { min-height: 44px; min-width: 44px; }
+
+.gs-settings { width: min(720px, 94vw); max-height: 90dvh; overflow-y: auto; gap: 10px; padding: 20px; }
+.gs-settings label { display: flex; justify-content: space-between; align-items: center; gap: 16px; width: 100%; color: var(--washi); }
+.gs-settings input[type=range] { width: 45%; min-height: 44px; }
+.gs-settings select, .gs-settings input[type=file] { max-width: 60%; min-height: 44px; font-size: 16px; }
+.gs-menu-row { display: flex; gap: 12px; }
+.gs-menu-row .gs-btn { min-width: 100px; padding: 8px 16px; font-size: 16px; }
+.gs-pause, .gs-title { max-height: 96dvh; overflow-y: auto; }
+.tc-cluster { transform: scale(var(--touch-size, 1)); transform-origin: bottom right; opacity: var(--touch-opacity, .9); }
+.tc--left .tc-cluster { right: auto; left: calc(18px + var(--safe-l)); transform: scale(var(--touch-size, 1)); transform-origin: bottom left; }
+.tc--left .tc-stick-zone { left: auto; right: 0; }
+.tc--left .tc-look-zone { left: 0; right: auto; }
+.clear-effects .gh-num { font-size: 16px; opacity: .65; }
+.combat-coach { position: fixed; inset: 0; pointer-events: none; z-index: 18; }
+.combat-warning { position: absolute; transform: translate(-50%,-50%); color: #fff1c7; background: #17100de8; border: 2px solid #ffc275; padding: 4px 8px; font-size: 15px; white-space: nowrap; }
+.combat-warning.is-edge { border-style: dashed; }
+.combat-warning.is-edge::before { content: '！'; }
+.combat-reason { position: absolute; top: 24%; left: 50%; transform: translateX(-50%); color: #ffe0d0; text-shadow: 0 2px 4px #000; font-size: 16px; }
+.tc:not(.tc--desktop) .tc-btn,
+.tc:not(.tc--desktop) .tc-chip { min-width: calc(44px / var(--touch-size, 1)); min-height: calc(44px / var(--touch-size, 1)); }
+.gs-blessing { max-height: 94dvh; overflow-y: auto; }
+.gs-blessing__choices { grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); }
+@media (max-height: 450px) { .gs-title__name { font-size: 34px; } .gs-title__mark { display:none; } .gs-controls { font-size: 11px; } .gs-pause { gap: 6px; padding:12px; } .gs-pause .gs-btn { padding:8px 16px; min-height:44px; } }
+
+.gs-settings { background: #100e0cf5; border: 1px solid #786447; border-radius: 8px; box-sizing: border-box; overscroll-behavior: contain; }
+.gs-settings > * { flex-shrink: 0; }
+.gs-settings select { background: #211b16; color: var(--washi); border: 1px solid #786447; border-radius: 4px; padding: 4px; }
+.gs-settings input[type=file] { max-width: 100%; color: var(--washi); }
+.gs-settings input::file-selector-button { background: #211b16; color: var(--washi); border: 1px solid #786447; min-height: 44px; }

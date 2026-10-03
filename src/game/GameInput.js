@@ -246,6 +246,8 @@ export class GameInput {
       if (this.stick.active) {
         x = this.stick.x;
         y = this.stick.y;
+      } else if (this.padAxis && ![...this.keys].some(code => MOVE_KEYS[code])) {
+        x=this.padAxis.x;y=this.padAxis.y;
       } else {
         for (const code of this.keys) {
           const move = MOVE_KEYS[code];
@@ -297,6 +299,7 @@ export class GameInput {
 
   reset() {
     this.tap = null;
+    this.padAxis = null;
     this.axis.x = 0;
     this.axis.y = 0;
     this.running = false;

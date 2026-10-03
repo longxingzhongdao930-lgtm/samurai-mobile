@@ -76,6 +76,7 @@ export class TouchControls {
     this.pause = document.createElement('button');
     this.pause.type = 'button';
     this.pause.className = 'tc-pause';
+    this.pause.setAttribute('aria-label', '一時停止');
     this.pause.innerHTML = '<i></i><i></i>';
     this.root.appendChild(this.pause);
     this._bindButton(this.pause, 'pause');
@@ -189,7 +190,7 @@ export class TouchControls {
       if (!look) return;
       this._looks.delete(event.pointerId);
       const moved = Math.hypot(event.clientX - look.sx, event.clientY - look.sy);
-      if (moved < 10 && performance.now() - look.t < 280) {
+      if (event.type === 'pointerup' && moved < 10 && performance.now() - look.t < 280) {
         this.input.tap = { x: event.clientX, y: event.clientY };
       }
     };
@@ -211,7 +212,13 @@ export class TouchControls {
     this.buttons.magic.classList.toggle('is-off', mp < mpCost);
     setRing(this.buttons.magic, Math.min(1, mp / 100));
     setRing(this.buttons.special, special);
-    this.buttons.special.classList.toggle('is-ready', special >= 1);
+    this.buttons.special.classList.toggle('is-ready', state.transformed ? state.skillReady : special >= 1);
+    const specialLabel = state.transformed ? '竜技' : '必殺';
+    if (this._specialLabel !== specialLabel) {
+      this._specialLabel = specialLabel;
+      this.buttons.special.querySelector('.tc-btn__label').textContent = specialLabel;
+      this.buttons.special.querySelector('.tc-btn__glyph').textContent = state.transformed ? '竜技' : '奥義';
+    }
     this.buttons.attack.classList.toggle('is-execute', Boolean(execute));
     const glyph = execute ? '処' : state.attackGlyph ?? '斬';
     const label = execute ? '処刑' : state.attackLabel ?? '攻撃';
@@ -231,7 +238,9 @@ export class TouchControls {
   setVisible(visible) {
     this.root.classList.toggle('is-hidden', !visible);
     if (!visible) {
-      this.input.stick.active = false;
+      this.input.reset();
+      this._looks.clear();
+      for (const button of this.root.querySelectorAll('.is-down')) button.classList.remove('is-down');
       this._stickId = null;
       this.base.classList.remove('is-active');
     }

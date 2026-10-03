@@ -7,6 +7,28 @@ const HEIGHT = 2.7;
 const DURATION = 16;
 const _v = new Vector3();
 
+// This FBX rig is Z-up locally. Pelvis X/Y contain travel; Z is height.
+export function prepareDragonClips(animations) {
+  const idle = animations.find((clip) => clip.name.endsWith('Btl_Std01'));
+  const reference = idle?.tracks.find((track) => track.name === 'Pelvis_02.position')?.values;
+  return animations.map((source) => {
+    const clip = source.clone();
+    clip.tracks = clip.tracks.filter((track) => !/^(_rootJoint|Root_01)\.position$/.test(track.name));
+    for (const track of clip.tracks) {
+      if (reference && track.name === 'Pelvis_02.position') {
+        for (let i = 0; i < track.values.length; i += 3) {
+          track.values[i] = reference[0];
+          track.values[i + 1] = reference[1];
+        }
+      }
+    }
+    const start = Math.min(...clip.tracks.filter((track) => track.times.length > 1).map((track) => track.times[0]));
+    if (Number.isFinite(start) && start > 0) for (const track of clip.tracks) track.shift(-start);
+    clip.resetDuration();
+    return clip;
+  });
+}
+
 /**
  * 奥義 · 竜化 — the special turns the player into the silver dragonkin.
  *
@@ -70,14 +92,7 @@ export class DragonForm {
         this.group.add(model);
         this.mixer = new AnimationMixer(model);
         this.actions = {};
-        for (const clip of gltf.animations) {
-          // The clips carry their travel on the root: the body owns that here.
-          clip.tracks = clip.tracks.filter((t) => !/^(_rootJoint|Root_01)\.position$/.test(t.name));
-          // Each clip sits somewhere along one long shared timeline: start it at 0.
-          let start = Infinity;
-          for (const t of clip.tracks) if (t.times.length > 1) start = Math.min(start, t.times[0]);
-          if (Number.isFinite(start) && start > 0) for (const t of clip.tracks) t.shift(-start);
-          clip.resetDuration();
+        for (const clip of prepareDragonClips(gltf.animations)) {
           const name = clip.name.replace(/^Mon_BlackDragon31_/, '');
           this.actions[name] = this.mixer.clipAction(clip);
         }
@@ -97,6 +112,11 @@ export class DragonForm {
     this.time = DURATION;
     this.attack = null;
     this.combo = 0;
+    this.skill = 0;
+    this._skillCd = 0;
+    this._comboIdle = 0;
+    this.mixer.stopAllAction();
+    this._current = null;
     this.character.tilt.visible = false;
     this.group.visible = true;
     this._place();
@@ -122,6 +142,8 @@ export class DragonForm {
     if (!this.active) return;
     const game = this.game;
     this.active = false;
+    this.mixer.stopAllAction();
+    this._current = null;
     this.attack = null;
     this.group.visible = false;
     this.character.tilt.visible = true;
@@ -200,7 +222,7 @@ export class DragonForm {
     const action = this.actions[spec.clip];
     if (!action) return;
     this._faceTarget(spec.reach + 2);
-    for (const a of Object.values(this.actions)) if (a !== action) a.fadeOut(0.12);
+    this._fadePrevious(action, 0.12);
     action.reset();
     action.setLoop(LoopOnce, 1);
     action.clampWhenFinished = true;
@@ -215,13 +237,23 @@ export class DragonForm {
     if (this._current === name) return;
     const action = this.actions[name];
     if (!action) return;
-    for (const a of Object.values(this.actions)) if (a !== action) a.fadeOut(fade);
+    this._fadePrevious(action, fade);
     action.reset();
     action.setLoop(LoopRepeat, Infinity);
+    action.clampWhenFinished = false;
     action.timeScale = 1;
     action.setEffectiveWeight(1);
     action.fadeIn(fade).play();
     this._current = name;
+  }
+
+  _fadePrevious(next, duration) {
+    for (const [name, action] of Object.entries(this.actions)) {
+      if (action === next) continue;
+      // Never restart an older fade: that gives an old attack weight again.
+      if (name === this._current) action.fadeOut(duration);
+      else action.stop();
+    }
   }
 
   _faceTarget(range) {
@@ -289,8 +321,8 @@ export class DragonForm {
 
   _place() {
     this.group.position.copy(this.character.position);
-    // The model faces -Z: turned round to look where the body is going.
-    this.group.rotation.y = this.character.facing + Math.PI;
+    // The animated rig faces +Z, matching the controller and hit cone.
+    this.group.rotation.y = this.character.facing;
   }
 
   update(dt) {

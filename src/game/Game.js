@@ -75,6 +75,7 @@ export class Game {
     this.input.canLock = () => !TOUCH && this.state === 'playing';
     // Esc releases the pointer before the page sees the key: treat that as
     // asking for the pause menu.
+    this.input.onSuspend = () => this.pause();
     this.input.onUnlock = () => {
       if (this.state === 'playing') this.pause();
     };
@@ -296,13 +297,15 @@ export class Game {
       special: p.special,
       mp: p.mp,
       mpCost: p.spell.cost,
-      execute: this.executionTarget() !== null,
+      execute: !this.form.active && this.executionTarget() !== null,
+      transformed: this.form.active,
+      skillReady: this.form._skillCd <= 0,
       locked: p.lockTarget?.alive,
       guard: p.guarding,
       available: p.unlocked,
-      weapon: p.weapon.name,
-      attackGlyph: p.weapon.glyph,
-      attackLabel: p.weapon.verb
+      weapon: this.form.active ? '銀竜' : p.weapon.name,
+      attackGlyph: this.form.active ? '爪' : p.weapon.glyph,
+      attackLabel: this.form.active ? '連撃' : p.weapon.verb
     });
 
     this.audio.setListener(app.camera);

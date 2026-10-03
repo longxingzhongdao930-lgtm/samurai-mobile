@@ -81,7 +81,13 @@ export class GameInput {
       const button = KEY_BUTTONS[event.code];
       if (button) this.release(button);
     };
-    this._onBlur = () => this.reset();
+    this._onBlur = () => {
+      this.reset();
+      this.onSuspend?.();
+    };
+    this._onVisibility = () => {
+      if (document.hidden) this._onBlur();
+    };
 
     // Mouse, the way a PC action game plays: the camera follows the mouse
     // (no button needed), the left button attacks (held, it charges the dash
@@ -143,6 +149,7 @@ export class GameInput {
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('keyup', this._onKeyUp);
     window.addEventListener('blur', this._onBlur);
+    document.addEventListener('visibilitychange', this._onVisibility);
     canvas.addEventListener('pointerdown', this._onPointerDown);
     canvas.addEventListener('wheel', this._onWheel, { passive: true });
     window.addEventListener('pointerup', this._onPointerUp);
@@ -289,6 +296,10 @@ export class GameInput {
   }
 
   reset() {
+    this.tap = null;
+    this.axis.x = 0;
+    this.axis.y = 0;
+    this.running = false;
     this.keys.clear();
     for (const button of BUTTONS) {
       this.held[button] = false;
@@ -307,6 +318,7 @@ export class GameInput {
     window.removeEventListener('keydown', this._onKeyDown);
     window.removeEventListener('keyup', this._onKeyUp);
     window.removeEventListener('blur', this._onBlur);
+    document.removeEventListener('visibilitychange', this._onVisibility);
     this.canvas.removeEventListener('pointerdown', this._onPointerDown);
     this.canvas.removeEventListener('wheel', this._onWheel);
     window.removeEventListener('pointerup', this._onPointerUp);

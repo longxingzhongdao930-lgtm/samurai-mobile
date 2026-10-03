@@ -788,3 +788,15 @@ body.game .loader__status {
 
 .gs-character-link { color: #c6ac7b; font-size: 12px; padding: 6px 12px; text-underline-offset: 3px; }
 .gs-character-link:hover, .gs-character-link:focus-visible { color: #fff0c5; }
+
+/* Shrine choices remain reachable on short landscape phone screens. */
+.gs-blessing { max-width: 900px; width: 100%; }
+.gs-blessing .gs-h { font-size: clamp(18px, 3vw, 26px); letter-spacing: .12em; }
+.gs-blessing__choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; width: 100%; }
+.gs-blessing__choice { width: 100%; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 22px 12px; white-space: normal; }
+.gs-blessing__glyph { color: var(--kin); font-size: 32px; }
+.gs-blessing__choice strong { font-size: 17px; }
+.gs-blessing__choice small { font-size: 12px; letter-spacing: 0; line-height: 1.6; }
+.gs-blessing__choice:focus-visible { outline: 2px solid var(--kin-pale); outline-offset: 3px; }
+@media (max-width: 500px) and (orientation: portrait) { .gs-blessing__choices { grid-template-columns: 1fr; } .gs-blessing__choice { padding: 12px; gap: 5px; } }
+@media (max-height: 450px) { .gs-blessing { padding: 12px; gap: 5px; } .gs-blessing__choice { padding: 12px 8px; gap: 6px; } }

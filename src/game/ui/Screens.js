@@ -60,6 +60,31 @@ export class Screens {
     this._bind(panel, { start: onStart });
   }
 
+  blessing({ choices, onChoose }) {
+    const panel = this._panel('gs-blessing', `
+      <p class="gs-title__sub">祠の加護</p>
+      <h2 class="gs-h" id="blessing-title">力をひとつ授かる</h2>
+      <p class="gs-tip">この旅の間、効果が続く。同じ加護は重ねられる。<br>選択中は戦闘が止まります。</p>
+      <div class="gs-blessing__choices">${choices.map(choice => `
+        <button class="gs-btn gs-blessing__choice" data-action="${choice.id}">
+          <span class="gs-blessing__glyph">${choice.glyph}</span>
+          <strong>${choice.name}</strong><small>${choice.detail}</small>
+        </button>`).join('')}</div>`);
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-labelledby', 'blessing-title');
+    this._bind(panel, Object.fromEntries(choices.map(choice => [choice.id, () => onChoose(choice.id)])));
+    const buttons = [...panel.querySelectorAll('button')];
+    buttons[0].focus();
+    panel.addEventListener('keydown', event => {
+      event.stopPropagation();
+      if (event.key !== 'Tab') return;
+      event.preventDefault();
+      const index = buttons.indexOf(document.activeElement);
+      buttons[(index + (event.shiftKey ? buttons.length - 1 : 1)) % buttons.length].focus();
+    });
+  }
+
   pause({ onResume, onRetry, onTitle, onVolume, muted }) {
     const panel = this._panel(
       'gs-pause',
@@ -100,7 +125,7 @@ export class Screens {
       .join('');
     const panel = this._panel(
       'gs-result',
-      `<p class="gs-result__over">黒角鬼・羅刹 討伐</p>
+      `<p class="gs-result__over">薪の王・グウィン 討伐</p>
        <div class="gs-rank gs-rank--${stats.rank}">${stats.rank}</div>
        <div class="gs-rows">${rows}</div>
        <p class="gs-tip">${stats.comment}</p>

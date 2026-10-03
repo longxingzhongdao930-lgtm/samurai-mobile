@@ -1,3 +1,4 @@
+import { GWYN, GWYN_APPEARANCE } from '../src/game/boss/Gwyn.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Vector3 } from 'three';
@@ -6,9 +7,9 @@ import { TownEnemy } from '../src/game/ai/TownEnemy.js';
 import { EnemyAgent } from '../src/game/ai/EnemyAgent.js';
 import { loadRig } from './helpers/load-rig.js';
 
-for (const def of TOWN_CHARACTERS) test(`${def.id}: real rig moves, attacks, takes damage and completes death`, async () => {
+for (const def of [...TOWN_CHARACTERS, GWYN_APPEARANCE]) test(`${def.id}: real rig moves, attacks, takes damage and completes death`, async () => {
   const gltf = await loadRig(new URL(`../public/${def.url.slice(2)}`, import.meta.url));
-  const type = TOWN_TYPES[def.id];
+  const type = def.id === 'gwyn' ? GWYN : TOWN_TYPES[def.id];
   const enemy = new TownEnemy(gltf, def, type, { heightAt: () => 0 });
   enemy.place(0, 0, 0);
   let hits = 0, shots = 0;

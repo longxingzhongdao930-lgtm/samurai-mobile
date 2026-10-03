@@ -1,3 +1,5 @@
+import { Blessings, BLESSINGS } from './progression/Blessings.js';
+import { lockFraming } from './LockFraming.js';
 import { MathUtils, Vector3 } from 'three';
 import { settings } from '../config/settings.js';
 import { quality, TOUCH, DynamicBudget } from '../core/Quality.js';
@@ -41,6 +43,7 @@ export class Game {
     this.screens = new Screens({ touch: TOUCH });
     this.hud = null;
     this.state = 'loading';
+    this.blessings = new Blessings();
     this.cinematic = false;
     this.elapsed = 0;
     this.playTime = 0;
@@ -180,6 +183,7 @@ export class Game {
     this.kills = 0;
     this.score = 0;
     this.retries = 0;
+    this.blessings.restore();
     this.player.revive();
     this.player.stats = { parries: 0, perfectDodges: 0, maxCombo: 0, damageTaken: 0, executions: 0 };
     this.magic.reactionCount = 0;
@@ -322,6 +326,10 @@ export class Game {
   _camera(raw) {
     const rig = this.app.rig;
     this.input.consumeLook(_look);
+    const frame = lockFraming(this.playerPosition, this.state === 'playing' ? this.player.lockTarget : null, this.app.camera.aspect);
+    const blend = 1 - Math.exp(-Math.max(0, raw) * 5);
+    rig.framingOffset.lerp(_v.set(frame.x, frame.y, frame.z), blend);
+    rig.distanceBonus += (frame.distance - rig.distanceBonus) * blend;
     const sensitivity = TOUCH ? 0.0062 : 0.0028;
     if (_look.x || _look.y) rig.orbit(-_look.x * sensitivity, -_look.y * sensitivity * 0.7);
 
@@ -336,7 +344,9 @@ export class Game {
       const wanted = Math.atan2(position.x - lock.position.x, position.z - lock.position.z);
       const delta = MathUtils.euclideanModulo(wanted - rig.azimuth + Math.PI, Math.PI * 2) - Math.PI;
       const hand = this.input.lookIdle < 0.6 ? 0.15 : 1;
-      rig.orbit(delta * Math.min(1, raw * 4.5) * hand, 0);
+      const desiredPolar = lockFraming(position, lock).y > 0 ? 1.12 : 1.28;
+      const pitch = this.input.lookIdle < 1.2 ? 0 : (desiredPolar - rig.polar) * Math.min(1, raw * 1.5);
+      rig.orbit(delta * Math.min(1, raw * 4.5) * hand, pitch);
     } else if (this.input.lookIdle > 1.4 && this.app.controller.speed > 2.5 && this.player.state === 'free') {
       // Drift in behind a running body, gently, once the thumb is off the pad.
       const wanted = this.app.character.facing + Math.PI;
@@ -344,6 +354,7 @@ export class Game {
       if (Math.abs(delta) < 2.6) rig.orbit(delta * Math.min(1, raw * 0.9), 0);
     }
     this.stage?.cameraCollide(rig, raw);
+    rig.camera.lookAt(rig.controls.target);
   }
 
   /* ------------------------------------------------------------------ */
@@ -501,6 +512,7 @@ export class Game {
   damageEnemy(enemy, hit) {
     const agent = enemy.agent;
     if (!agent || !enemy.alive) return null;
+    if (hit.source === 'melee') hit = { ...hit, damage: hit.damage * this.blessings.damageMultiplier };
     const result = agent.takeHit(hit);
     if (!result) return null;
     const height = agent.type.height;
@@ -703,6 +715,26 @@ export class Game {
   /* ------------------------------------------------------------------ */
   /* flow                                                                */
   /* ------------------------------------------------------------------ */
+
+  offerBlessing(shrine) {
+    if (this.state !== 'playing' || this.blessings.choices.has(shrine)) return false;
+    this.state = 'blessing';
+    this.app.paused = true;
+    this.touch.setVisible(false);
+    this.input.unlockPointer();
+    this.screens.blessing({
+      choices: BLESSINGS,
+      onChoose: (id) => {
+        if (this.state !== 'blessing' || !this.blessings.choose(shrine, id)) return;
+        if (this.flow) this.flow.checkpoint.blessings = this.blessings.snapshot();
+        this.resume();
+        this.player.invulnerable = Math.max(this.player.invulnerable, 1);
+        this.audio.play('pickup');
+        this.hud.notice(`${BLESSINGS.find(b => b.id === id).name}を授かった`, 2.5);
+      }
+    });
+    return true;
+  }
 
   pause() {
     if (this.state !== 'playing') return;

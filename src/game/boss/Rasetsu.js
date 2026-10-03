@@ -82,7 +82,7 @@ export class Rasetsu extends EnemyAgent {
     // Damage taken is scaled down a little while he is fresh: the fight should
     // run two to three minutes for a first-timer.
     this.damageTaken = 1;
-    this.dressing = new BossDressing(this);
+    this.dressing = enemy.customAppearance ? null : new BossDressing(this);
   }
 
   /* ------------------------------------------------------------------ */
@@ -120,12 +120,12 @@ export class Rasetsu extends EnemyAgent {
     }
     if (t > 1.4 && !this._named) {
       this._named = true;
-      game.hud.areaCard('黒角鬼・羅刹', '城門の主');
+      game.hud.areaCard(this.type.name, '城門の主');
     }
     if (t > 3.4) {
       game.cinematic = false;
-      game.hud.showBoss('黒角鬼・羅刹', true);
-      game.hud.setObjective('黒角鬼・羅刹を討て');
+      game.hud.showBoss(this.type.name, true);
+      game.hud.setObjective(`${this.type.name}を討て`);
       game.audio.setCombat(2);
       game.player.lockTarget = this.enemy;
       this.alert = true;
@@ -139,7 +139,7 @@ export class Rasetsu extends EnemyAgent {
   /* ------------------------------------------------------------------ */
 
   update(dt, ctx) {
-    this.dressing.update(dt, this.phase, this.alive && !this.finalDown);
+    this.dressing?.update(dt, this.phase, this.alive && !this.finalDown);
     if (!this.alive) return;
     this._updateZones(dt);
     this._auraFx(dt);
@@ -192,7 +192,7 @@ export class Rasetsu extends EnemyAgent {
     this._lastAttack = spec.id;
     if (spec.ultimate) {
       this._ultimateTimer = 22;
-      this.game.hud.bigText('羅刹天', '#ff3a1a', 1.6);
+      this.game.hud.bigText(this.type.ultimateName ?? '羅刹天', '#ff3a1a', 1.6);
       this.game.audio.play('roar');
       // He leaps back to the middle of the court first.
       this.enemy.position.lerp(_v.set(0, 0, 262), 0.85);
@@ -317,7 +317,7 @@ export class Rasetsu extends EnemyAgent {
       this.game.hud.bigText('痛撃', '#ffd890', 1);
     }
     const result = super.takeHit(hit);
-    if (!result) return result;
+    if (!result || this.finalDown) return result;
     const fraction = this.hp / this.maxHp;
     if (this.phase === 1 && fraction < 0.66) this._enterPhase(2);
     else if (this.phase === 2 && fraction < 0.33) this._enterPhase(3);
@@ -355,7 +355,7 @@ export class Rasetsu extends EnemyAgent {
     this.kneel.hold(0.4);
     const game = this.game;
     game.slowMo(0.8, 0.35);
-    game.hud.bigText(phase === 2 ? '妖気解放' : '暴走', phase === 2 ? '#ff8a3a' : '#ff2a10', 1.8);
+    game.hud.bigText(this.type.phaseNames?.[phase - 2] ?? (phase === 2 ? '妖気解放' : '暴走'), phase === 2 ? '#ff8a3a' : '#ff2a10', 1.8);
     game.audio.play('roar', { volume: 1 });
   }
 
@@ -427,7 +427,7 @@ export class Rasetsu extends EnemyAgent {
     game.kills++;
     game.score += this.score;
     game.hud.showBoss('', false);
-    game.after(0.9, () => game.hud.areaCard('討伐', '黒角鬼・羅刹'));
+    game.after(0.9, () => game.hud.areaCard('討伐', this.type.name));
     for (const agent of game.director.agents) {
       if (agent !== this && agent.alive) game.damageEnemy(agent.enemy, { damage: 9999, posture: 0, dirX: 0, dirZ: 1, source: 'special', force: { impulse: 4, lift: 5, spin: 1, slices: false } });
     }
@@ -438,7 +438,7 @@ export class Rasetsu extends EnemyAgent {
 
   dispose() {
     this.zones.length = 0;
-    this.dressing.dispose();
+    this.dressing?.dispose();
     super.dispose();
   }
 }

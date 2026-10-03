@@ -50,6 +50,8 @@ export class CameraRig {
 
     /** The point the rig orbits around — the character's feet. */
     this.anchor = new Vector3(0, 0, 0);
+    this.framingOffset = new Vector3();
+    this.distanceBonus = 0;
 
     /**
      * Impact shake: how much is left of it, and where it put the lens last
@@ -196,7 +198,7 @@ export class CameraRig {
     this.controls.minPolarAngle = cam.minPolar;
     this.controls.maxPolarAngle = cam.maxPolar;
 
-    _desiredTarget.copy(this.anchor);
+    _desiredTarget.copy(this.anchor).add(this.framingOffset);
     _desiredTarget.y += cam.targetHeight;
 
     const target = this.controls.target;
@@ -229,7 +231,7 @@ export class CameraRig {
 
     // Enforce the orbit distance (the wheel and any code writing the setting
     // both land here).
-    this.distance = damp(this.distance, cam.distance, cam.zoomDamping, dt);
+    this.distance = damp(this.distance, clamp(cam.distance + this.distanceBonus, cam.minDistance, cam.maxDistance), cam.zoomDamping, dt);
     _dir.copy(this.camera.position).sub(this.controls.target);
     const len = _dir.length() || 1;
     _dir.multiplyScalar(1 / len);

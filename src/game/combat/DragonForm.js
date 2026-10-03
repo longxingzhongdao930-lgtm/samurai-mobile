@@ -109,7 +109,8 @@ export class DragonForm {
     const game = this.game;
     const p = game.player;
     this.active = true;
-    this.time = DURATION;
+    this.duration = DURATION + (game.blessings?.dragonBonus ?? 0);
+    this.time = this.duration;
     this.attack = null;
     this.combo = 0;
     this.skill = 0;
@@ -163,7 +164,7 @@ export class DragonForm {
   control(dt, input) {
     const p = this.game.player;
     this.time -= dt;
-    p.special = Math.max(0, this.time / DURATION);
+    p.special = Math.max(0, this.time / (this.duration ?? DURATION));
     this._skillCd -= dt;
     this._comboIdle += dt;
     if (this._comboIdle > 1.1) this.combo = 0;

@@ -16,6 +16,7 @@ URLオプション: `?q=low|mid|high`（画質固定）· `?touch=1`（PCでタ�
 
 通常画面はClaudeブランチ `claude/confident-goldberg-8tk9be` の体験版です。
 タイトルの「追加キャラクター6体を見る」から、[6体の紹介ページ](characters.html)へ移動できます。
+最終ボスは「薪の王・グウィン」。祠の加護とカメラ改善の詳細は [最新の変更](docs/gwyn-and-recommendations.md) に記載しています。
 城下町の敵としても6体が登場します。配置と動きの詳細は [敵キャラクター](docs/town-enemies.md) を参照してください。
 
 ### 操作

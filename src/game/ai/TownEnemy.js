@@ -37,6 +37,10 @@ export class TownEnemy {
       const materials = original.map(m => { const copy = m.clone(); this.materials.push(copy); return copy; });
       node.material = Array.isArray(node.material) ? materials : materials[0];
     });
+    for (const [alias, name] of Object.entries(definition.boneAliases ?? {})) {
+      const bone = this.bones.get(name);
+      if (bone) this.bones.set(alias, bone);
+    }
     this._colors = this.materials.map(m => ({ emissive: m.emissive?.clone(), intensity: m.emissiveIntensity ?? 0, opacity: m.opacity }));
     this.parts = []; // no Mixamo slicing/ragdoll on these rigs
     this.state = 'alive';
@@ -81,6 +85,7 @@ export class TownEnemy {
   }
   die() {
     if (!this.alive) return false;
+    if (this.agent?.entrance) { this.model.position.y = this.agent.entrance.baseY; this.agent.entrance = null; }
     this.state = 'dead'; this.timer = 0; this.flash = 0;
     this.mixer.stopAllAction();
     const clip = this.clips.get('death');

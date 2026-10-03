@@ -1,6 +1,8 @@
+import { GWYN } from './boss/Gwyn.js';
+import { beginEntrance } from './ai/EnemyEntrance.js';
 import { Vector3 } from 'three';
 import { settings } from '../config/settings.js';
-import { Rasetsu, RASETSU } from './boss/Rasetsu.js';
+import { Rasetsu } from './boss/Rasetsu.js';
 
 const _v = new Vector3();
 
@@ -31,7 +33,7 @@ export class Flow {
     this.beats = this._script();
     this.encounter = null;
     this.pickups = [];
-    this.checkpoint = { beat: 0, position: new Vector3(0, 0, 0), facing: 0, unlocked: [true, false, false] };
+    this.checkpoint = { beat: 0, position: new Vector3(0, 0, 0), facing: 0, unlocked: [true, false, false], blessings: [] };
     this._tutorial = new Set();
     this._tipIndex = 0;
   }
@@ -57,7 +59,7 @@ export class Flow {
   start() {
     this.beat = 0;
     this._tutorial.clear();
-    this.checkpoint = { beat: 0, position: new Vector3(0, 0, 0), facing: 0, unlocked: [true, false, false] };
+    this.checkpoint = { beat: 0, position: new Vector3(0, 0, 0), facing: 0, unlocked: [true, false, false], blessings: [] };
     this._reset();
     this._enter();
   }
@@ -74,12 +76,16 @@ export class Flow {
   _reset() {
     const game = this.game;
     game.director.clear();
+    game.blessings.restore(this.checkpoint.blessings);
     game.magic.clear();
     game.weapons?.clear();
     game.form?.clear();
     this.stage.clearBarriers();
     for (const pickup of this.pickups) game.fx.glow.free(pickup.glow);
     this.pickups.length = 0;
+    for (const [id, spot] of [['road', this.stage.spots.hokora], ['sanctum', this.stage.spots.shrine]]) {
+      if (spot && !game.blessings.choices.has(id)) this._pickup('blessing', spot, { onTake: () => game.offerBlessing(id) });
+    }
     this.encounter = null;
     game.boss = null;
     game.hud.showBoss('', false);
@@ -111,7 +117,8 @@ export class Flow {
       beat: this.beat + 1,
       position: position.clone(),
       facing,
-      unlocked: [...this.player.unlocked]
+      unlocked: [...this.player.unlocked],
+      blessings: this.game.blessings.snapshot()
     };
   }
 
@@ -123,6 +130,7 @@ export class Flow {
     if (this.game.state !== 'playing') return;
     this._updateEncounter(dt);
     this._updatePickups(dt);
+    if (this.game.state !== 'playing') return;
 
     const beat = this.beats[this.beat];
     if (!beat) return;
@@ -210,6 +218,7 @@ export class Flow {
     game.fx.glow.spawn(_v, '#ff3a1a', 2.2, 0.6, { grow: 0.6, intensity: 1.6 });
     game.fx.glow.burst(_v, '#3a0a14', 10, { speed: 2, size: 0.5, life: 0.9, up: 1.5, gravity: 0 });
     game.fx.dust(_v, 0.6);
+    if (agent) beginEntrance(game, agent);
     return agent;
   }
 
@@ -218,7 +227,7 @@ export class Flow {
   /* ------------------------------------------------------------------ */
 
   _pickup(kind, position, { auto = false, onTake = null } = {}) {
-    const colors = { potion: '#7aff9a', soul: '#ffb070', spirit: '#ffe8a0', thunder: '#cfe0ff', ice: '#9fefff' };
+    const colors = { potion: '#7aff9a', soul: '#ffb070', spirit: '#ffe8a0', thunder: '#cfe0ff', ice: '#9fefff', blessing: '#ffe2a1' };
     const glow = this.game.fx.glow.hold(colors[kind] ?? '#ffffff', kind === 'soul' ? 0.45 : 0.9, { intensity: 2.2, star: kind !== 'soul' });
     const pickup = { kind, position: position.clone().setY(position.y + 1.0), glow, auto, onTake, t: Math.random() * 6, color: colors[kind] };
     this.pickups.push(pickup);
@@ -228,6 +237,7 @@ export class Flow {
   _updatePickups(dt) {
     const game = this.game;
     const p = game.playerPosition;
+    if (this.player.dead) return;
     for (let i = this.pickups.length - 1; i >= 0; i--) {
       const pickup = this.pickups[i];
       pickup.t += dt;
@@ -246,9 +256,14 @@ export class Flow {
         game.fx.glow.spawn(_v, pickup.color, 0.12, 0.8, { vy: 0.8, intensity: 1.5 });
       }
       if (d > 1.3) continue;
+      if (pickup.kind === 'blessing' && (game.form.active || game.director.agents.some(agent => agent.alive && agent.position.distanceTo(p) < 14))) {
+        if (!pickup.warned) { game.hud.notice('周囲の敵を退け、人の姿で祠に祈ろう', 2.5); pickup.warned = true; }
+        continue;
+      }
       game.fx.glow.free(pickup.glow);
       this.pickups.splice(i, 1);
       this._take(pickup);
+      if (game.state !== 'playing') break;
     }
   }
 
@@ -273,6 +288,8 @@ export class Flow {
         player.special = 1;
         game.audio.play('pickup');
         game.hud.notice('魂玉 — 体力上限上昇・奥義満ちる', 2.4);
+        break;
+      case 'blessing':
         break;
       default:
         game.audio.play('pickup');
@@ -433,6 +450,7 @@ export class Flow {
         objective: '鳥居の道を進め',
         start: () => {
           hud().areaCard('弐 · 廃神社', '千本鳥居');
+          game.after(2.5, () => hud().notice('脇道の祠で、この旅の加護をひとつ授かれる', 3.5));
           this._pickup('potion', stage().spots.hokora);
           this._ambush = false;
         },
@@ -482,7 +500,7 @@ export class Flow {
         trigger: crossed(218),
         objective: '城門へ',
         start: () => {
-          hud().areaCard('参 · 城門', '黒角鬼の座');
+          hud().areaCard('参 · 城門', '薪の王の座');
           this._fight([['ashigaru', -1.5, 230], ['ashigaru', 1.5, 231], ['mage', -2, 238], ['archer', 2, 238]], { cap: 4 });
         },
         done: () => this.fightOver,
@@ -491,7 +509,7 @@ export class Flow {
       {
         id: 'boss',
         trigger: crossed(246),
-        objective: '黒角鬼・羅刹を討て',
+        objective: '薪の王・グウィンを討て',
         start: () => this._startBoss(),
         done: () => this._bossDone === true
       },
@@ -510,8 +528,8 @@ export class Flow {
     const game = this.game;
     this._bossDone = false;
     this.stage.setBarrier('bossIn', true);
-    game.director.registerType(RASETSU);
-    const agent = game.director.spawn(RASETSU, 0, 274, Math.PI, { alert: false, Agent: Rasetsu });
+    game.director.registerType(GWYN);
+    const agent = game.director.spawn(GWYN, 0, 274, Math.PI, { alert: false, Agent: Rasetsu });
     agent.onDefeated = () => {
       this._bossDone = true;
     };

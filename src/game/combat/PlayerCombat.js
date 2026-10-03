@@ -204,6 +204,7 @@ export class PlayerCombat {
    *   the body's transform when a move has it, or null to let the stick move it
    */
   control(dt) {
+    if (this.game.state !== 'playing') return this._hold();
     const input = this.input;
     this.stateTime += dt;
     this.guardTime += dt;
@@ -580,7 +581,7 @@ export class PlayerCombat {
     dodge.roll = !back;
     this.state = 'dodge';
     this.stateTime = 0;
-    this.invulnerable = spec.iframes;
+    this.invulnerable = spec.iframes + (this.game.blessings?.dodgeBonus ?? 0);
     this.dodgePose.hold(0.45);
     // A backstep is a hop: the body rocks back on its heels as it goes.
     if (back) this.body.impulse(-4.5, 0);

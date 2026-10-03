@@ -1,3 +1,4 @@
+import { updateEntrance } from './EnemyEntrance.js';
 import { MathUtils } from 'three';
 import { Attack } from '../../animation/Attack.js';
 import { Locomotion } from '../../animation/Locomotion.js';
@@ -119,6 +120,7 @@ export class EnemyAgent {
   update(dt, ctx) {
     const enemy = this.enemy;
     if (!enemy.alive) return;
+    if (updateEntrance(this, dt)) { this._setSpeed(0); return; }
     this.stateTime += dt;
     this.cooldown -= dt;
     this.hitFlash = Math.max(0, this.hitFlash - dt * 5);

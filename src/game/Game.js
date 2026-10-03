@@ -7,7 +7,6 @@ import { PlayerCombat } from './combat/PlayerCombat.js';
 import { BowRig } from './combat/BowRig.js';
 import { WeaponSet } from './combat/WeaponSet.js';
 import { WeaponMotion } from './combat/WeaponMotion.js';
-import { WEAPON_ORDER } from './data/weapons.js';
 import { Effects } from './fx/Effects.js';
 import { Ribbons } from './fx/Ribbons.js';
 import { Magic } from './magic/Magic.js';
@@ -125,7 +124,7 @@ export class Game {
     this.player = new PlayerCombat(this);
     this.bow = new BowRig(this);
     this.weapons = new WeaponSet(this);
-    this.weapons.preload(WEAPON_ORDER);
+    // Weapon models load on first use: nothing extra on a phone at start-up.
     this.motion = new WeaponMotion(this);
     app.controller.combat = this.player;
     this.playerTarget = { position: app.character.position, alive: true };

@@ -1,6 +1,6 @@
 import { canLaunch } from './GauntletAir.js';
 import { Quaternion, Vector3 } from 'three';
-import { segmentDistanceSq } from './FlightPath.js';
+import { clipFlight, segmentSphereHit } from './FlightPath.js';
 
 /** The existing Daedric gauntlet, unmodified, flying independently of the wrist. */
 export class FlyingGauntlet {
@@ -45,12 +45,19 @@ export class FlyingGauntlet {
       if (d < dt * 24 || f.time > 1.6) { this.flight = null; return; }
       f.pos.addScaledVector(delta, dt * 24 / d); return;
     }
-    const old = f.pos.clone(); f.pos.addScaledVector(f.direction, dt * 22); f.distance += dt * 22;
-    if (g.stage?.blocks(f.pos.x, f.pos.z) || f.distance > 12) { f.returning = true; return; }
+    const old = f.pos.clone(), step = Math.min(dt * 22, Math.max(0, 12 - f.distance));
+    f.pos.addScaledVector(f.direction, step); f.distance += step;
+    const blocked = clipFlight(g.stage, old, f.pos);
+    let victim = null, first = Infinity;
     for (const enemy of g.enemies.enemies) {
       if (!enemy.alive || !enemy.agent) continue;
       const center = enemy.position.clone(); center.y += Math.min(2.6, (enemy.agent.type.height ?? 1.8) * 0.55);
-      if (segmentDistanceSq(center, old, f.pos) > ((enemy.agent.radius ?? 0.4) + 0.25) ** 2) continue;
+      const t = segmentSphereHit(center, (enemy.agent.radius ?? 0.4) + 0.25, old, f.pos);
+      if (t < first) { first = t; victim = enemy; }
+    }
+    if (victim) {
+      const enemy = victim;
+      f.pos.lerpVectors(old, f.pos, first);
       const opening = ['broken', 'recoil'].includes(enemy.agent.state);
       const result = g.damageEnemy(enemy, { damage: f.config.damage, posture: f.config.posture + (f.config.gripPull && (enemy.agent.type.elite || enemy.agent.type.boss) ? 20 : 0), knockback: f.config.knockback ?? 0,
         dirX: f.direction.x, dirZ: f.direction.z, source: 'thrown', force: null, slice: false, launch: false });
@@ -60,8 +67,9 @@ export class FlyingGauntlet {
           this._grab(enemy, opening || result.broke);
         } else if (f.config.airLauncher && !result.killed && enemy.position.distanceTo(g.playerPosition) < 3.8) p.air.launch(enemy, opening || result.broke);
       }
-      f.returning = true; break;
+      f.returning = true;
     }
+    if (blocked || f.distance >= 12) f.returning = true;
     g.fx?.glow?.spawn(f.pos, '#d59363', 0.1, 0.12, { intensity: 0.8 });
   }
   _grab(enemy, opening) {

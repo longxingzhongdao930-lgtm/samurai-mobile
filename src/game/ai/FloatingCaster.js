@@ -1,3 +1,4 @@
+import { clipFlight } from '../combat/FlightPath.js';
 import { SwordVolley } from './SwordVolley.js';
 import { Group, Mesh, MeshBasicMaterial, SphereGeometry, CylinderGeometry, Vector3, PlaneGeometry, DoubleSide, AdditiveBlending, Quaternion } from 'three';
 
@@ -39,6 +40,13 @@ export class FloatingCaster {
     const target = this.hasAim ? this.aim : this.enemy.agent?.game.playerPosition?.clone().add(new Vector3(0, 1.1, 0));
     return target ? hand.addScaledVector(target.clone().sub(hand).normalize(), 0.09) : hand;
   }
+  beamEnd(origin) {
+    const delta = this.aim.clone().sub(origin);
+    const length = Math.min(22, delta.length() + 0.6);
+    const end = origin.clone().addScaledVector(delta.normalize(), length);
+    clipFlight(this.enemy.agent?.game.stage, origin, end);
+    return end;
+  }
   cast(spec, index) {
     if (spec.magicSequence && index < 3) {
       this.enemy.agent.game.magic.enemyShot(this.enemy.agent, { ...spec, damage: 6, originCaster: true,
@@ -76,7 +84,7 @@ export class FloatingCaster {
       }
       this.beam.visible = e.alive && (charging || this.beamTime > 0);
       if (this.beam.visible) {
-        const from = e.root.worldToLocal(origin.clone()), to = e.root.worldToLocal(this.aim.clone());
+        const from = e.root.worldToLocal(origin.clone()), to = e.root.worldToLocal(this.beamEnd(origin));
         const delta = to.sub(from), length = delta.length();
         this.beam.position.copy(from).addScaledVector(delta, 0.5);
         this.beam.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), delta.normalize());
@@ -91,10 +99,10 @@ export class FloatingCaster {
     const a = this.enemy.agent, origin = this.muzzlePosition();
     if (!this.hasAim) this.aim.copy(a.game.playerPosition).y += 1.1;
     this.beamTime = 0.22;
-    const delta = this.aim.clone().sub(origin), length = delta.length(); delta.normalize();
+    const delta = this.beamEnd(origin).sub(origin), length = delta.length(); delta.normalize();
     const target = a.game.playerPosition.clone(); target.y += 1.1;
     const offset = target.sub(origin), along = offset.dot(delta);
-    if (along >= 0 && along <= Math.min(22, length + 0.6) && offset.addScaledVector(delta, -along).length() < 0.5) {
+    if (length > 0 && along >= 0 && along <= length && offset.addScaledVector(delta, -along).length() < 0.5) {
       const result = a.game.player.receiveHit({ damage: spec.damage, posture: spec.posture, knockback: spec.knockback,
         from: origin, attacker: this.enemy, kind: 'shadowLaser', unparryable: true });
       if (result === 'block') a._recoil(0.25);

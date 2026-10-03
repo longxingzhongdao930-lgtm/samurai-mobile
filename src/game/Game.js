@@ -100,6 +100,8 @@ export class Game {
     const scaleUI = () => {
       const u = Math.max(0.78, Math.min(1.3, window.innerHeight / 430));
       document.documentElement.style.setProperty('--u', u.toFixed(3));
+      // The portrait cover hides the battle: never let enemies keep attacking beneath it.
+      if (window.matchMedia('(orientation: portrait) and (max-width: 700px)').matches && this.state === 'playing') this.pause();
     };
     scaleUI();
     window.addEventListener('resize', scaleUI);

@@ -34,6 +34,58 @@ with sync_playwright() as p:
  app.simulate(.5);if(p.state!=='free')throw Error('retry automatic action');
  return {weapons:results,lethalGuardBreak:true,retryClean:true};
  }'''),flush=True)
+ print(page.evaluate("""() => {
+ const g=app.game,p=g.player;g.input.reset();g.director.clear();g.magic.clear();p.revive();
+ g.flow._place(g.playerPosition.clone().set(0,0,95),0);
+ p.special=1;g.input.press('special');app.simulate(1/60);g.input.release('special');app.simulate(3);
+ if(!g.form.active||!g.form.group.visible)throw Error('transformation failed');
+ g.input.press('attack');app.simulate(1/60);g.input.release('attack');
+ if(!g.form.attack)throw Error('dragon attack failed');app.simulate(2);
+ g.form.end();if(!app.character.tilt.visible||g.form.group.visible)throw Error('transform cleanup');
+ g.director.clear();g.flow._place(g.playerPosition.clone().set(0,0,80),0);p.invulnerable=0;
+ const a=g.director.spawn('mage',0,92,Math.PI),c=a.enemy.caster;a.cooldown=999;
+ a.enemy.root.updateMatrixWorld(true);c.aim.copy(g.playerPosition).y+=1.1;c.hasAim=true;
+ g.stage.setBarrier('plazaA',true);const hp=p.hp;c.fire({damage:10});
+ if(p.hp!==hp)throw Error('laser crossed barrier');
+ const end=c.beamEnd(c.muzzlePosition());if(end.z<85)throw Error('beam crossed barrier visually');
+ g.stage.setBarrier('plazaA',false);c.fire({damage:10});if(p.hp!==hp-10)throw Error('open barrier laser missed');
+ g.director.clear();p.revive();g.flow._place(g.playerPosition.clone().set(0,0,0),0);g.input.reset();
+ app.frame();return {dragonAttack:true,transformCleanup:true,barrierLaser:true};
+ }"""),flush=True)
+ for width,height in [(844,390),(568,320),(667,375)]:
+  page.set_viewport_size({'width':width,'height':height})
+  page.wait_for_timeout(80)
+  print(page.evaluate("""() => {
+   const buttons=[...document.querySelectorAll('.tc button')].filter(e=>e.getBoundingClientRect().width>0);
+   const boxes=buttons.map(e=>({name:e.getAttribute('aria-label')||e.textContent.trim(),r:e.getBoundingClientRect(),e}));
+   for(const {name,r,e} of boxes){
+    if(r.width<43.9||r.height<43.9)throw Error('small target '+name+' '+r.width+' '+r.height);
+    if(r.left<0||r.top<0||r.right>innerWidth||r.bottom>innerHeight)throw Error('offscreen '+name);
+    if(!e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)))throw Error('covered button '+name);
+   }
+   // Advance the normal render pipeline after the viewport change.
+   for(let i=0;i<4;i++)app.frame();
+   const gl=app.renderer.gl.getContext(),pixels=new Uint8Array(gl.drawingBufferWidth*gl.drawingBufferHeight*4);
+   gl.readPixels(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
+   let visible=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]+pixels[i+1]+pixels[i+2]>15)visible++;
+   if(visible<1000||gl.getError()!==0)throw Error('scene not rendered after resize');
+   return {viewport:[innerWidth,innerHeight],touchButtons:boxes.length,reachable:true};
+  }"""),flush=True)
+ page.screenshot(path='/tmp/samurai-mobile-controls.png')
+ page.evaluate("app.game.input.press('attack');app.game.input.stick.active=true;app.game.input.stick.y=1")
+ page.set_viewport_size({'width':390,'height':844})
+ page.wait_for_function("app.game.state==='paused'",timeout=5000)
+ print(page.evaluate("""() => {
+ const g=app.game,before=g.playTime;app.simulate(2);
+ if(g.playTime!==before||g.input.held.attack||g.input.stick.active)throw Error('portrait battle continued');
+ if(getComputedStyle(document.querySelector('.gs-rotate')).display==='none')throw Error('rotation cover missing');
+ return {portraitPaused:true,heldInputCleared:true};
+ }"""),flush=True)
+ page.screenshot(path='/tmp/samurai-mobile-portrait.png')
+ page.set_viewport_size({'width':844,'height':390})
+ page.wait_for_timeout(80)
+ page.locator('[data-action="resume"]').click()
+ page.wait_for_function("app.game.state==='playing'")
  print(page.evaluate('''() => {
  const g=app.game,p=g.player,f=g.flow;f.update=window.flowUpdate;g._timers.length=0;f.start();
  const visited=new Set(),retried=new Set();let steps=0;

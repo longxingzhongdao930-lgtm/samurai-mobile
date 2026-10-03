@@ -1,3 +1,4 @@
+import { obstructionFraction } from '../combat/FlightPath.js';
 import { EdoScenery } from './EdoScenery.js';
 import {
   AdditiveBlending,
@@ -61,6 +62,9 @@ const WALKABLE = [
   [-18, 18, 240, 283] // castle court — 羅刹
 ];
 
+const CAMERA_VOLUMES = WALKABLE.map(([x0, x1, z0, z1]) => [x0 + .2, x1 - .2, z0 + .2, z1 - .2]);
+CAMERA_VOLUMES.push([-Infinity, Infinity, -Infinity, Infinity, 9, Infinity]);
+
 /** Barriers the flow can raise: [x0, x1, z0, z1]. */
 const BARRIERS = {
   plazaA: [-4.6, 4.6, 85, 86.2],
@@ -81,6 +85,8 @@ export class Stage {
     this.circles = [];
     /** Box obstacles: [x0, x1, z0, z1]. */
     this.boxes = [];
+    // Finite height bounds for projectiles; movement bounds remain two-dimensional.
+    this.projectileBoxes = [];
     this.lanterns = [];
     this.barriers = {};
     this.flash = 0;
@@ -458,7 +464,9 @@ export class Stage {
     b.box('gold', x, 1.0, z - 3.2, 1.6, 0.9, 0.8);
     this._lantern(b, x - 2.6, 3.6, z - 4.6, { size: 1.6 });
     this._lantern(b, x + 2.6, 3.6, z - 4.6, { size: 1.6 });
+    this.projectileBoxes.push([x - 6.6, x + 6.6, z - 4.6, z + 4.6, 0, 7]);
     this.boxes.push([x - 6.6, x + 6.6, z - 4.6, z + 4.6]);
+    this.projectileBoxes.push([x - 2.2, x + 2.2, z - 6.2, z - 4.4, 0, 0.9]);
     this.boxes.push([x - 2.2, x + 2.2, z - 6.2, z - 4.4]);
   }
 
@@ -712,21 +720,29 @@ export class Stage {
     return true;
   }
 
+  /** Continuous projectile path through streets, scenery and active spirit walls. */
+  projectileFraction(from, to) {
+    const blockers = this.projectileBoxes.slice();
+    for (const barrier of Object.values(this.barriers)) {
+      if (barrier.active) blockers.push([...barrier.rect, 0, 4.5]);
+    }
+    return obstructionFraction(from, to, WALKABLE, blockers);
+  }
+
   /** Pull the camera in front of any wall between it and the player. */
   cameraCollide(rig, dt = 1 / 60) {
     const camera = rig.camera;
     const target = rig.controls.target;
-    const steps = 12;
-    let free = 1;
-    for (let i = 1; i <= steps; i++) {
-      const t = i / steps;
-      _v.lerpVectors(target, camera.position, t);
-      if (_v.y > 9) break; // above the roofs
-      if (!insideUnion(_v.x, _v.z, 0.2)) {
-        free = Math.max(0.2, ((i - 1) / steps) * 0.95);
-        break;
-      }
+    // A continuous trace also catches a thin facade or a lantern between samples.
+    // Above the roofs, the camera may leave the street's ground footprint.
+    // Scenery bounds are static after loading; do not rebuild them every frame.
+    if (this._cameraBoxCount !== this.projectileBoxes.length) {
+      this._cameraBoxCount = this.projectileBoxes.length;
+      this._cameraBoxes = this.projectileBoxes.map(([x0, x1, z0, z1, y0, y1]) =>
+        [x0 - .15, x1 + .15, z0 - .15, z1 + .15, y0 - .15, y1 + .15]);
     }
+    let free = obstructionFraction(target, camera.position, CAMERA_VOLUMES, this._cameraBoxes);
+    if (free < 1) free = Math.max(0, free - .05 / Math.max(.001, target.distanceTo(camera.position)));
     // In at once (a wall must never be looked through), out gently.
     const current = this._pull ?? 1;
     this._pull = free < current ? free : current + (free - current) * Math.min(1, dt * 2.5);

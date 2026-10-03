@@ -1,3 +1,4 @@
+import { clipFlight, segmentCylinderHit } from '../combat/FlightPath.js';
 import { Vector3 } from 'three';
 import { ELEMENTS, REACTIONS, SPELLS, reactionKey } from '../data/elements.js';
 
@@ -151,7 +152,65 @@ export class Magic {
         _p.set(p.target.position.x - p.pos.x, ty - p.pos.y, p.target.position.z - p.pos.z).normalize().multiplyScalar(p.spell.speed);
         p.vel.lerp(_p, Math.min(1, dt * p.spell.homing));
       }
+      const old = p.pos.clone();
       p.pos.addScaledVector(p.vel, dt);
+      const blocked = clipFlight(this.game.stage, old, p.pos);
+      const ground = this.game.app.terrain.heightAt(p.pos.x, p.pos.z);
+      let done = p.life <= 0 || p.pos.y < ground + 0.05;
+
+      if (!done && p.owner === 'player') {
+        let victim = null, first = Infinity;
+        for (const enemy of this.game.enemies.enemies) {
+          if (!enemy.alive || !enemy.agent) continue;
+          const t = segmentCylinderHit(enemy.position, p.radius + enemy.agent.radius + 0.15,
+            enemy.position.y - 0.2, enemy.position.y + enemy.agent.type.height + 0.2, old, p.pos);
+          if (t < first) { victim = enemy; first = t; }
+        }
+        if (victim) {
+          p.pos.lerpVectors(old, p.pos, first);
+          this._spellHit(victim, p.spell, p.element, p.vel, p.pos);
+          done = true;
+          if (p.spell.splash) this._splash(p);
+        }
+      } else if (!done && p.owner === 'enemy') {
+        const player = this.game.playerPosition;
+
+        const hitR = Math.max(0.55, p.radius + 0.35);
+        const contact = segmentCylinderHit(player, hitR, player.y - 0.2, player.y + 2.2, old, p.pos);
+        if (contact !== Infinity) {
+          const result = this.game.player.receiveHit({
+            damage: p.spec.damage,
+            knockback: 0.4,
+            from: p.agent.enemy.position,
+            attacker: p.agent.enemy,
+            kind: 'arrow'
+          });
+          if (result === 'evade') {
+            // Passed straight through a dodging body.
+          } else if (result === 'parry') {
+            // Turned back on the archer.
+            p.pos.lerpVectors(old, p.pos, contact);
+            this.fx.glow.move(p.glow, p.pos.x, p.pos.y, p.pos.z);
+            if (p.shard >= 0) this.fx.shards.move(p.shard, p.pos, p.vel);
+            p.owner = 'deflected';
+            p.vel.multiplyScalar(-1.2);
+            p.life = 1.5;
+            continue;
+          } else {
+            p.pos.lerpVectors(old, p.pos, contact);
+            done = true;
+          }
+        }
+      } else if (!done && p.owner === 'deflected') {
+        const enemy = p.agent.enemy;
+        const contact = segmentCylinderHit(enemy.position, 0.8, enemy.position.y - 0.2, enemy.position.y + (enemy.agent?.type.height ?? 1.8) + 0.2, old, p.pos);
+        if (enemy.alive && contact !== Infinity) {
+          p.pos.lerpVectors(old, p.pos, contact);
+          this.game.damageEnemy(enemy, { damage: 40, posture: 30, dirX: p.vel.x / 20, dirZ: p.vel.z / 20, knockback: 1, source: 'deflect', force: null });
+          done = true;
+        }
+      }
+
       this.fx.glow.move(p.glow, p.pos.x, p.pos.y, p.pos.z);
       if (p.shard >= 0) this.fx.shards.move(p.shard, p.pos, p.vel);
       p.trailAcc += dt;
@@ -168,57 +227,7 @@ export class Magic {
         }
       }
 
-      const ground = this.game.app.terrain.heightAt(p.pos.x, p.pos.z);
-      const blocked = this.game.stage?.blocks(p.pos.x, p.pos.z) ?? false;
-      let done = p.life <= 0 || p.pos.y < ground + 0.05 || blocked;
-
-      if (!done && p.owner === 'player') {
-        for (const enemy of this.game.enemies.enemies) {
-          if (!enemy.alive || !enemy.agent) continue;
-          const dx = enemy.position.x - p.pos.x;
-          const dz = enemy.position.z - p.pos.z;
-          const reach = p.radius + enemy.agent.radius + 0.15;
-          const h = enemy.agent.type.height;
-          if (dx * dx + dz * dz > reach * reach) continue;
-          if (p.pos.y < enemy.position.y - 0.2 || p.pos.y > enemy.position.y + h + 0.2) continue;
-          this._spellHit(enemy, p.spell, p.element, p.vel, p.pos);
-          done = true;
-          break;
-        }
-        if (done && p.spell.splash) this._splash(p);
-      } else if (!done && p.owner === 'enemy') {
-        const player = this.game.playerPosition;
-        const dx = player.x - p.pos.x;
-        const dz = player.z - p.pos.z;
-        const hitR = Math.max(0.55, p.radius + 0.35);
-        if (dx * dx + dz * dz < hitR * hitR && p.pos.y > player.y - 0.2 && p.pos.y < player.y + 2.2) {
-          const result = this.game.player.receiveHit({
-            damage: p.spec.damage,
-            knockback: 0.4,
-            from: p.agent.enemy.position,
-            attacker: p.agent.enemy,
-            kind: 'arrow'
-          });
-          if (result === 'evade') {
-            // Passed straight through a dodging body.
-          } else if (result === 'parry') {
-            // Turned back on the archer.
-            p.owner = 'deflected';
-            p.vel.multiplyScalar(-1.2);
-            p.life = 1.5;
-            continue;
-          } else {
-            done = true;
-          }
-        }
-      } else if (!done && p.owner === 'deflected') {
-        const enemy = p.agent.enemy;
-        if (enemy.alive && enemy.position.distanceTo(_q.set(p.pos.x, enemy.position.y, p.pos.z)) < 0.8) {
-          this.game.damageEnemy(enemy, { damage: 40, posture: 30, dirX: p.vel.x / 20, dirZ: p.vel.z / 20, knockback: 1, source: 'deflect', force: null });
-          done = true;
-        }
-      }
-
+      done ||= blocked;
       if (done) {
         if (p.owner === 'player' && p.element.id === 'fire') {
           this.fx.explosion(p.pos, p.spell.splash ?? 1.6, p.element.color);
@@ -298,6 +307,8 @@ export class Magic {
     for (const enemy of this.game.enemies.enemies) {
       if (!enemy.alive || !enemy.agent) continue;
       if (enemy.position.distanceTo(_q.set(p.pos.x, enemy.position.y, p.pos.z)) > spell.splash) continue;
+      _q.copy(enemy.position).y += (enemy.agent.type.height ?? 1.8) * 0.55;
+      if ((this.game.stage?.projectileFraction?.(p.pos, _q) ?? 1) < 1) continue;
       this.game.damageEnemy(enemy, { damage: spell.splashDamage, posture: 2, dirX: 0, dirZ: 0, knockback: 0.3, source: 'spell', quiet: true, force: null });
     }
   }

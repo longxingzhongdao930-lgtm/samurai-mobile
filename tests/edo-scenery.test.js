@@ -5,7 +5,7 @@ import { EdoScenery, EDO_MODELS } from '../src/game/world/EdoScenery.js';
 import { loadRig } from './helpers/load-rig.js';
 
 test('real Edo assets fit replacement frontages, leave the combat lane clear and share geometry', async () => {
-  const stage = { group: new Group(), boxes: [], lanterns: [] };
+  const stage = { group: new Group(), boxes: [], projectileBoxes: [], lanterns: [] };
   const edo = new EdoScenery(stage);
   for (const id of EDO_MODELS) edo.models.set(id, (await loadRig(new URL(`../public/models/edo/${id}.glb`, import.meta.url))).scene);
   assert.equal(edo.house(-8.3, 14, 6, 7, Math.PI / 2), true);
@@ -18,6 +18,8 @@ test('real Edo assets fit replacement frontages, leave the combat lane clear and
   }
   edo.decorate();
   assert.ok(stage.boxes.length >= 5);
+  assert.equal(stage.projectileBoxes.length, stage.boxes.length);
+  assert.ok(stage.projectileBoxes.every(box => box.length === 6 && box[5] > box[4]));
   for (const [x0,x1,z0,z1] of stage.boxes) {
     assert.ok(x1 < -3.2 || x0 > 3.2, 'decorations must not obstruct central travel');
     assert.ok([x0,x1,z0,z1].every(Number.isFinite));
@@ -36,7 +38,7 @@ test('real Edo assets fit replacement frontages, leave the combat lane clear and
   edo.update(new Vector3(0,0,0));assert.equal(edo.instances[0].visible,true);assert.equal(castle.visible,true);
 });
 test('missing imported assets retain the procedural fallback', () => {
-  const edo = new EdoScenery({ group:new Group(), boxes:[], lanterns:[] });
+  const edo = new EdoScenery({ group:new Group(), boxes:[], projectileBoxes:[], lanterns:[] });
   assert.equal(edo.house(-8.3,14,6,7,Math.PI/2),false);
   assert.equal(edo.place('es_hinomi',0,0,2,8,2),null);
   edo.decorate();assert.equal(edo.instances.length,0);

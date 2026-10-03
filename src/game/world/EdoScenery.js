@@ -35,7 +35,11 @@ export class EdoScenery {
     const group = new Group(); group.name = `Edo:${id}`; group.add(model); group.position.set(x, 0, z); group.rotation.y = yaw;
     this.stage.group.add(group); group.updateMatrixWorld(true);
     const worldBox = new Box3().setFromObject(group);
-    if (solid) this.stage.boxes.push([worldBox.min.x, worldBox.max.x, worldBox.min.z, worldBox.max.z]);
+    if (solid) {
+      const bounds = [worldBox.min.x, worldBox.max.x, worldBox.min.z, worldBox.max.z];
+      this.stage.boxes.push(bounds);
+      this.stage.projectileBoxes.push([...bounds, worldBox.min.y, worldBox.max.y]);
+    }
     this.instances.push(group);
     return group;
   }

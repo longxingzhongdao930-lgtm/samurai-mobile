@@ -1,5 +1,5 @@
 import { Quaternion, Vector3 } from 'three';
-import { segmentDistanceSq } from '../combat/FlightPath.js';
+import { clipFlight, segmentSphereHit } from '../combat/FlightPath.js';
 
 /** A single authored sword leaves the formation, then returns before the next. */
 export class SwordVolley {
@@ -29,22 +29,28 @@ export class SwordVolley {
       if (f.time >= 0.24) { f.state = 'out'; f.time = 0; a.game.audio?.play('whoosh', { pos: f.pos }); }
     } else if (f.state === 'out') {
       const old = f.pos.clone(); f.pos.addScaledVector(f.direction, dt * 13);
+      const blocked = clipFlight(a.game.stage, old, f.pos);
       a.game.fx?.glow?.spawn(f.pos, '#badaff', 0.08, 0.18, { intensity: 1.2 });
       const player = a.game.playerPosition.clone(); player.y += 1.1;
-      if (!f.hit && segmentDistanceSq(player, old, f.pos) < 0.6 ** 2) {
+      const contact = segmentSphereHit(player, 0.6, old, f.pos);
+      if (!f.hit && contact !== Infinity) {
+        f.pos.lerpVectors(old, f.pos, contact);
         f.hit = true;
         const result = a.game.player.receiveHit({ damage: f.spec.damage, posture: f.spec.posture, knockback: 0.6, from: f.from, attacker: e, kind: 'flyingSword' });
         if (result === 'parry') {
           f.state = 'reflected'; f.time = 0; this.queue.length = 0;
           a.game.hud?.notice('飛剣を返した', 0.8);
         } else this._return();
-      } else if (f.time > 1.35 || a.game.stage?.blocks(f.pos.x, f.pos.z)) this._return();
+      } else if (f.time > 1.35 || blocked) this._return();
     } else if (f.state === 'reflected') {
       const target = e.position.clone(); target.y += (a.type?.height ?? 1.9) * 0.55;
       const old = f.pos.clone(); f.direction.copy(target).sub(f.pos).normalize();
       f.pos.addScaledVector(f.direction, dt * 18);
+      const blocked = clipFlight(a.game.stage, old, f.pos);
       a.game.fx?.glow?.spawn(f.pos, '#ffe6ad', 0.12, 0.16, { intensity: 1.4 });
-      if (segmentDistanceSq(target, old, f.pos) < ((a.radius ?? 0.43) + 0.3) ** 2) {
+      const contact = segmentSphereHit(target, (a.radius ?? 0.43) + 0.3, old, f.pos);
+      if (contact !== Infinity) {
+        f.pos.lerpVectors(old, f.pos, contact);
         this.reflections++;
         const broken = this.reflections >= 3;
         if (broken) this.reflections = 0;
@@ -54,7 +60,7 @@ export class SwordVolley {
         a.game.hud?.notice(broken ? '剣の支配を崩した — 反撃の好機' : `剣返し ${this.reflections}/3`, 1.3);
         return;
       }
-      if (f.time > 1.8 || a.game.stage?.blocks(f.pos.x, f.pos.z)) this._return();
+      if (f.time > 1.8 || blocked) this._return();
     } else {
       const u = Math.min(1, f.time / 0.42);
       f.pos.lerpVectors(f.returnFrom, home, u);

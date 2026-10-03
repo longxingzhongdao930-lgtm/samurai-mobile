@@ -815,3 +815,14 @@ body.game .loader__status {
 .gh-combat-hint:empty { display: none; }
 .gh-bar--guard.is-low { border-color: #ff9975; }
 .gh-bar--guard.is-low .gh-bar__fill { background: #ff9975; }
+
+/* Small landscape phones keep secondary actions large enough for a thumb. */
+.tc:not(.tc--desktop) .tc-chip,
+.tc:not(.tc--desktop) .tc-btn--lock,
+.tc:not(.tc--desktop) .tc-btn--special {
+  min-width: 44px;
+  min-height: 44px;
+}
+.tc:not(.tc--desktop) .tc-elements { bottom: calc(202px * var(--u)); }
+.tc:not(.tc--desktop) .tc-pause,
+.tc:not(.tc--desktop) .tc-weapon { min-height: 44px; min-width: 44px; }

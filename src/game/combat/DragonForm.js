@@ -289,7 +289,8 @@ export class DragonForm {
 
   _place() {
     this.group.position.copy(this.character.position);
-    this.group.rotation.y = this.character.facing;
+    // The model faces -Z: turned round to look where the body is going.
+    this.group.rotation.y = this.character.facing + Math.PI;
   }
 
   update(dt) {

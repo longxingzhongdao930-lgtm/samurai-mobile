@@ -1,4 +1,4 @@
-import { GWYN_APPEARANCE } from '../boss/Gwyn.js';
+import { DRAGON_APPEARANCE } from '../boss/TarislandDragon.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { TOWN_CHARACTERS, TOWN_TYPES } from '../data/townCharacters.js';
 import { TownEnemy } from './TownEnemy.js';
@@ -70,7 +70,7 @@ export class AIDirector {
   async loadAppearances() {
     const loader = new GLTFLoader();
     // Load each shared source once; clones share geometry and textures.
-    for (const definition of [...TOWN_CHARACTERS, GWYN_APPEARANCE]) {
+    for (const definition of [...TOWN_CHARACTERS, DRAGON_APPEARANCE]) {
       const gltf = await loader.loadAsync(definition.url);
       this.appearances.set(definition.id, { gltf, definition });
     }

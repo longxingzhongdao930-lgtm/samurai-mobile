@@ -165,7 +165,7 @@ export class PlayerCombat {
     const order = WEAPON_ORDER.filter((id) => WEAPONS[id]?.available);
     const next = order[(order.indexOf(this.weapon.id) + 1) % order.length];
     if (this.setWeapon(next)) {
-      this.game.hud?.notice(this.weapon.id === 'gauntlet' ? '手甲 — 長押しして離すと打ち上げ・攻撃で追撃' : this.weapon.name, this.weapon.id === 'gauntlet' ? 3.5 : 1.6);
+      this.game.hud?.notice(this.weapon.id === 'gauntlet' ? '飛ぶ手甲 — 攻撃で射出・長押しして離すと強打' : this.weapon.name, this.weapon.id === 'gauntlet' ? 3.5 : 1.6);
       this.game.audio?.play('select');
     }
   }
@@ -502,6 +502,10 @@ export class PlayerCombat {
       return;
     }
     if (this.state === 'cast' && move === this.combo[1]) return; // the special's pose only
+    if (this.weapon.id === 'gauntlet' && move !== this.execute && this.game.weapons.fist) {
+      this.game.weapons.fist.launch(config, move.target ?? this.lockTarget ?? this._autoTarget({ reach: 12, arc: 90 }));
+      return;
+    }
     if (config.throw) {
       this.game.weapons.throwStars(config, move.target ?? this.lockTarget ?? this._autoTarget({ range: 18, arc: 70 }));
       return;

@@ -125,7 +125,7 @@ export class Screens {
       .join('');
     const panel = this._panel(
       'gs-result',
-      `<p class="gs-result__over">薪の王・グウィン 討伐</p>
+      `<p class="gs-result__over">黒雨の古竜 討伐</p>
        <div class="gs-rank gs-rank--${stats.rank}">${stats.rank}</div>
        <div class="gs-rows">${rows}</div>
        <p class="gs-tip">${stats.comment}</p>

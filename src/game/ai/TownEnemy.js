@@ -65,6 +65,7 @@ export class TownEnemy {
     this.root.rotation.y = yaw - this.forwardYaw;
   }
   update(dt) {
+    this.caster?.beforeAnimate();
     if (this.alive) {
       this.onAnimate?.(dt);
       this.mixer.update(dt * this.timeScale);

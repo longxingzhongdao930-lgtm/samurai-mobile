@@ -146,7 +146,7 @@ export const MOTIONS = {
   gauntlet: {
     // Fists: both hands placed, no weapon to aim.
     gap: null,
-    stance: { r: [0.12, 1.38, 0.28], l: [-0.12, 1.42, 0.32], tw: -10, ln: 0 },
+    stance: { r: [0.38, 0.85, 0.06], l: [-0.28, 1.05, 0.18], tw: 0, ln: 0 },
     guard: { r: [0.07, 1.5, 0.3], l: [-0.07, 1.52, 0.3], tw: 0, ln: 5 },
     moves: {
       // 刻み突き — the lead (left) jab.

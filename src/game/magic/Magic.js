@@ -101,7 +101,7 @@ export class Magic {
   /** An archer looses. */
   enemyShot(agent, spec, yaw = null) {
     const enemy = agent.enemy;
-    const hand = enemy.bones.get('LeftHand');
+    const hand = enemy.bones.get(spec.originBone ?? 'LeftHand');
     const origin = new Vector3();
     if (hand) hand.getWorldPosition(origin);
     else origin.copy(enemy.position).setY(enemy.position.y + 1.4);

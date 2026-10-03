@@ -1,3 +1,4 @@
+import { FlyingGauntlet } from './FlyingGauntlet.js';
 import { Color, Group, Quaternion, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
@@ -90,18 +91,9 @@ export class WeaponSet {
     slot.model.visible = false;
     const objects = [];
     if (spec.mount === 'forearms') {
-      for (const side of ['Right', 'Left']) {
-        const bone = this.character.getBone(`${side}ForeArm`);
-        const hand = this.character.getBone(`${side}Hand`);
-        if (!bone || !hand) continue;
-        const model = template.clone(true);
-        // Along the forearm, fingers toward the hand; the left one mirrored.
-        const holder = new Group();
-        holder.add(model);
-        bone.add(holder);
-        this._alongBone(holder, bone, hand, side === 'Left');
-        objects.push(holder);
-      }
+      const model = template.clone(true);
+      this.fist = new FlyingGauntlet(this.game, model);
+      objects.push(model);
     } else {
       const model = template.clone(true);
       model.position.copy(slot.model.position);
@@ -132,6 +124,7 @@ export class WeaponSet {
   }
 
   _clear() {
+    this.fist?.dispose(); this.fist = null;
     if (!this.shown) return;
     for (const o of this.shown.objects) o.removeFromParent();
     this.shown = null;
@@ -199,6 +192,7 @@ export class WeaponSet {
   }
 
   update(dt) {
+    this.fist?.update(dt);
     const enemies = this.game.enemies.enemies;
     for (let i = this.stars.length - 1; i >= 0; i--) {
       const s = this.stars[i];
@@ -246,6 +240,7 @@ export class WeaponSet {
   }
 
   clear() {
+    this.fist?.clear();
     for (const s of this.stars) s.mesh.removeFromParent();
     this.stars.length = 0;
   }

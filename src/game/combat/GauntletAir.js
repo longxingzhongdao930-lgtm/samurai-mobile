@@ -49,6 +49,10 @@ export class GauntletAir {
     if (!target?.alive) return;
     const dx = target.position.x - origin.x, dz = target.position.z - origin.z;
     const d = Math.hypot(dx, dz);
+    if (this.game.weapons?.fist) {
+      this.game.weapons.fist.launch({ damage: slam ? 24 : 8, posture: slam ? 28 : 7, knockback: 0 }, target);
+      return;
+    }
     if (d > 3 || (!slam && Math.abs((target.airHeight ?? 0) - (origin.y - this.game.app.terrain.heightAt(origin.x, origin.z))) > 1.7)) return;
     const result = this.game.damageEnemy(target, { damage: slam ? 24 : 8, posture: slam ? 28 : 7,
       dirX: dx / (d || 1), dirZ: dz / (d || 1), knockback: 0, heavy: slam, source: 'melee',

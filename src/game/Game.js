@@ -288,8 +288,10 @@ export class Game {
   lateUpdate(dt, raw) {
     const app = this.app;
     // First: the bow's IK re-poses the arms the effects and camera follow.
+    this.weapons.fist?.restoreHand();
     this.form.update(dt);
     this.motion.update(dt);
+    this.weapons.fist?.lateUpdate();
     this.bow.update(dt, this.player.castTarget);
     this.fx.update(dt, this.elapsed);
     this.fx.ribbons.update(dt);

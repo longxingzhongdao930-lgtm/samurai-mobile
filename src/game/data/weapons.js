@@ -260,6 +260,11 @@ WEAPONS.gauntlet.heavy = { ...WEAPONS.gauntlet.heavy, clip: 'slashHit', clipFrom
   hits: [0.62], timeScale: 1.3, maxWarp: 1.8, passThrough: 0, lunge: 0.5, standoff: 1.1,
   reach: 2.3, damage: 14, posture: 38, knockback: 0, launch: false, airLauncher: true };
 WEAPONS.gauntlet.counter = { ...WEAPONS.gauntlet.counter, airLauncher: true, knockback: 0, launch: false };
+for (const spec of [...WEAPONS.gauntlet.combo, WEAPONS.gauntlet.heavy, WEAPONS.gauntlet.counter]) {
+  spec.maxWarp = 0; spec.lunge = 0; spec.passThrough = 0; spec.standoff = 99;
+}
+WEAPONS.gauntlet.glyph = '拳'; WEAPONS.gauntlet.verb = '飛拳';
+
 
 /** 手裏剣 — throwing stars: the attack throws, from wherever you stand. */
 const THROW = {

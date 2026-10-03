@@ -2,13 +2,11 @@ import { roninMotion } from './RoninMotion.js';
 import { AnimationClip, AnimationMixer, Quaternion, QuaternionKeyframeTrack, VectorKeyframeTrack, Vector3 } from 'three';
 
 const FEET = {
-  gwyn: [['L_Foot_0149', 'L_Toe0_0150'], ['R_Foot_0158', 'R_Toe0_0159']],
   queen: [['foot_l_0103', 'ball_l_0104'], ['foot_r_0107', 'ball_r_0108']],
   samurai: [['CATRigLLegAnkle_04', 'CATRigLLegDigit11_05'], ['CATRigRLegAnkle_08', 'CATRigRLegDigit11_09']],
   mage: [['CC_Base_L_Foot_07', 'CC_Base_L_ToeBase_09'], ['CC_Base_R_Foot_023', 'CC_Base_R_ToeBase_024']]
 };
 const SHOULDERS = {
-  gwyn: ['L_UpperArm_017', 'R_UpperArm_052'],
   queen: ['upperarm_l_09', 'upperarm_r_056'],
   samurai: ['CATRigLArm1_023', 'CATRigRArm1_043'],
   mage: ['CC_Base_L_Upperarm_052', 'CC_Base_R_Upperarm_080']
@@ -52,12 +50,14 @@ export function townMotions(model, animations, definition) {
     // Use complete standalone moves, never the opening of a multipart move.
     const moves = [...definition.clips.attacks, ...definition.clips.skills].filter(name => typeof name === 'string');
     const get = name => prepared.get(Array.isArray(name) ? name[0] : name)?.clone();
-    return new Map([
+    const mapped = new Map([
       ['idle', get(definition.clips.idle)], ['walk', get(definition.clips.walk)], ['run', get(definition.clips.run)],
       ['attack0', get(moves[0])], ['attack1', get(moves[1] ?? moves[0])],
       ['land', get(definition.clips.hits[0] ?? definition.clips.idle)],
       ['crouch', get(definition.clips.stuns[0] ?? definition.clips.idle)], ['death', get(definition.clips.deaths[0])]
     ]);
+    for (const [key, source] of Object.entries(definition.motionMap ?? {})) mapped.set(key, get(source));
+    return mapped;
   }
   const pose = animations.find(c => c.name === definition.clip);
   const mixer = new AnimationMixer(model);
@@ -80,6 +80,7 @@ export function townMotions(model, animations, definition) {
   }
   const clips = new Map();
   const durations = { idle: 2.4, walk: 1.1, run: 0.72, attack0: 1.3, attack1: 1.5, land: 0.7, crouch: 1.2, death: 1.4 };
+  if (definition.id === 'queen') { durations.attack0 = 2.2; durations.attack1 = 3.2; }
   for (const profile of definition.attackProfiles ?? []) durations[profile.name] = profile.duration;
   for (const [name, duration] of Object.entries(durations)) {
     const profile = definition.attackProfiles?.find(p => p.name === name);

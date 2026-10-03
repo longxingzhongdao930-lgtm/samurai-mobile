@@ -1,4 +1,4 @@
-import { GWYN } from './boss/Gwyn.js';
+import { TARISLAND_DRAGON } from './boss/TarislandDragon.js';
 import { beginEntrance } from './ai/EnemyEntrance.js';
 import { Vector3 } from 'three';
 import { settings } from '../config/settings.js';
@@ -509,7 +509,7 @@ export class Flow {
       {
         id: 'boss',
         trigger: crossed(246),
-        objective: '薪の王・グウィンを討て',
+        objective: '黒雨の古竜を討て',
         start: () => this._startBoss(),
         done: () => this._bossDone === true
       },
@@ -528,8 +528,8 @@ export class Flow {
     const game = this.game;
     this._bossDone = false;
     this.stage.setBarrier('bossIn', true);
-    game.director.registerType(GWYN);
-    const agent = game.director.spawn(GWYN, 0, 274, Math.PI, { alert: false, Agent: Rasetsu });
+    game.director.registerType(TARISLAND_DRAGON);
+    const agent = game.director.spawn(TARISLAND_DRAGON, 0, 274, Math.PI, { alert: false, Agent: Rasetsu });
     agent.onDefeated = () => {
       this._bossDone = true;
     };

@@ -65,6 +65,7 @@ export class WeaponMotion {
     const p = this.player;
     const spec = MOTIONS[p.weapon.id];
     if (!spec || this.game.form?.active || this.game.weapons?.shown?.id !== p.weapon.id) return null;
+    if (p.weapon.id === 'gauntlet' && this.game.weapons.fist) return { spec, keys: null, t: 0, guard: p.guarding };
     if (p.air?.airborne) return { spec, keys: spec.moves[p.air.pose] ?? null, t: p.air.phase, id: p.air.pose };
     if (p.state === 'attack' && p.move) {
       const id = p.move.config.id;

@@ -1,3 +1,4 @@
+import { SwordVolley } from './SwordVolley.js';
 import { Group, Mesh, MeshBasicMaterial, SphereGeometry, CylinderGeometry, Vector3 } from 'three';
 
 /** Local, disposable effects: no global timers or persistent projectile ownership. */
@@ -13,6 +14,7 @@ export class FloatingCaster {
     this.group.add(this.beam); this.beam.visible = false;
     this.swords = [];
     if (enemy.kind === 'queen') this.swords = [...new Set(enemy.bones.values())].filter(b => /^Bone00[1-6]_\d+$/.test(b.name));
+    if (this.swords.length) this.volley = new SwordVolley(enemy, this.swords);
     this.aim = new Vector3(); this.hasAim = false;
   }
   handPosition() {
@@ -45,15 +47,9 @@ export class FloatingCaster {
         this.beam.scale.set(this.beamTime > 0 ? 0.16 : 0.012, length, this.beamTime > 0 ? 0.16 : 0.012);
       }
     }
-    this.swords.forEach(bone => {
-      if (!e.alive || !attacking) return;
-      const hits = a?.moveSpec?.hits ?? [];
-      const thrust = Math.max(0, ...hits.map(hit => 1 - Math.abs(phase - hit) / 0.14));
-      const world = bone.getWorldPosition(new Vector3());
-      world.addScaledVector(new Vector3(Math.sin(e.facing), 0, Math.cos(e.facing)), thrust * 1.5);
-      bone.position.copy(bone.parent.worldToLocal(world));
-    });
+    this.volley?.update(dt);
   }
+  beforeAnimate() { this.volley?.beforeAnimate(); }
 
   fire(spec) {
     const a = this.enemy.agent, origin = this.handPosition();
@@ -70,6 +66,7 @@ export class FloatingCaster {
     a.game.audio?.play('thunder', { pos: origin, volume: 0.6 });
   }
   dispose() {
+    this.volley?.clear();
     this.group.traverse(node => node.geometry?.dispose());
     this.material.dispose(); this.group.removeFromParent();
   }

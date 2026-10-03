@@ -1,4 +1,4 @@
-import { GWYN, GWYN_APPEARANCE } from '../src/game/boss/Gwyn.js';
+import { TARISLAND_DRAGON, DRAGON_APPEARANCE } from '../src/game/boss/TarislandDragon.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Vector3 } from 'three';
@@ -7,9 +7,9 @@ import { TownEnemy } from '../src/game/ai/TownEnemy.js';
 import { EnemyAgent } from '../src/game/ai/EnemyAgent.js';
 import { loadRig } from './helpers/load-rig.js';
 
-for (const def of [...TOWN_CHARACTERS, GWYN_APPEARANCE]) test(`${def.id}: real rig moves, attacks, takes damage and completes death`, async () => {
+for (const def of [...TOWN_CHARACTERS, DRAGON_APPEARANCE]) test(`${def.id}: real rig moves, attacks, takes damage and completes death`, async () => {
   const gltf = await loadRig(new URL(`../public/${def.url.slice(2)}`, import.meta.url));
-  const type = def.id === 'gwyn' ? GWYN : TOWN_TYPES[def.id];
+  const type = def.id === 'tarislandDragon' ? TARISLAND_DRAGON : TOWN_TYPES[def.id];
   const enemy = new TownEnemy(gltf, def, type, { heightAt: () => 0 });
   enemy.place(0, 0, 0);
   let hits = 0, shots = 0;
@@ -21,15 +21,27 @@ for (const def of [...TOWN_CHARACTERS, GWYN_APPEARANCE]) test(`${def.id}: real r
     magic: { enemyShot: () => shots++ }, fx: { slam: () => {} }
   };
   const agent = new EnemyAgent(game, enemy, type, enemy.clips);
+  if (def.id === 'queen') { const original = enemy.caster.volley.enqueue.bind(enemy.caster.volley); enemy.caster.volley.enqueue = spec => { shots++; original(spec); }; }
   const ctx = { player: game.playerPosition, director: game.director, playerDown: false };
   for (const spec of type.attacks) {
-    const before = hits + shots;
+    const before = def.id === 'queen' ? shots : hits + shots;
     agent._startAttack(spec);
     for (let frame = 0; frame < 1800 && agent.attacking; frame++) {
       agent.update(1 / 60, ctx); enemy.update(1 / 60);
     }
     assert.ok(!agent.attacking, 'attack must finish');
-    assert.equal(hits + shots - before, spec.hits.length, 'one contact or projectile per authored strike');
+    assert.equal((def.id === 'queen' ? shots : hits + shots) - before, spec.hits.length, 'one contact or projectile per authored strike');
+  }
+  if (def.id === 'tarislandDragon') {
+    assert.equal(gltf.animations.length, 27, 'all authored dragon clips retained');
+    for (const clip of enemy.clips.values()) {
+      assert.ok(clip.duration > 0 && clip.duration < 40, 'absolute timeline rebased');
+      const track = clip.tracks.find(t => t.name === 'Bip001_03.position');
+      if (track) for (let i = 3; i < track.values.length; i += 3) {
+        assert.equal(track.values[i], track.values[0], 'horizontal root x fixed');
+        assert.equal(track.values[i + 1], track.values[1], 'horizontal root y fixed');
+      }
+    }
   }
   if (def.id === 'dragon') {
     const pelvis = enemy.clips.get('attack0').tracks.find(t => t.name === 'Pelvis.position');

@@ -395,6 +395,7 @@ export class EnemyAgent {
   _onStrike(move, index) {
     const spec = move.spec;
     if (this.enemy.ronin) this.game.fx?.slam?.(this.enemy.position, 1.5, '#dce8ff');
+    if (spec.flyingSword) { this.enemy.caster.volley.enqueue(spec); return; }
     if (spec.laser) { this.enemy.caster.fire(spec); return; }
     if (spec.projectile) {
       this.game.magic.enemyShot(this, spec);

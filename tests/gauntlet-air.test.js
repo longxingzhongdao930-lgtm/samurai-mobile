@@ -22,7 +22,7 @@ function fixture() {
   return { air, enemy, player, pending, input, hits, step, press };
 }
 
-test('hand-to-hand chain has three strikes and a release-to-launch uppercut without dash-through', () => {
+test('gauntlet chain has three strikes and a release-to-launch uppercut without body dash', () => {
   assert.equal(WEAPONS.gauntlet.combo.length, 3);
   assert.ok(WEAPONS.gauntlet.heavy.airLauncher);
   assert.equal(WEAPONS.gauntlet.heavy.passThrough, 0);
@@ -51,7 +51,7 @@ test('missed follow-up, dead target and air dodge all settle with no stranded bo
   }
 });
 test('elites and bosses never lift, queen requires an opening, dead enemies cannot start a combo', () => {
-  for (const type of [{ id: 'dragon', elite: true }, { id: 'gwyn', boss: true }, { id: 'queen' }]) assert.equal(canLaunch({ alive: true, type }), false);
+  for (const type of [{ id: 'dragon', elite: true }, { id: 'tarislandDragon', boss: true }, { id: 'queen' }]) assert.equal(canLaunch({ alive: true, type }), false);
   assert.ok(canLaunch({ alive: true, type: { id: 'queen' } }, true));
   assert.equal(canLaunch({ alive: false, type: { id: 'samurai' } }), false);
 });

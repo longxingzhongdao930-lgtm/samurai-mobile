@@ -165,7 +165,7 @@ export class PlayerCombat {
     const order = WEAPON_ORDER.filter((id) => WEAPONS[id]?.available);
     const next = order[(order.indexOf(this.weapon.id) + 1) % order.length];
     if (this.setWeapon(next)) {
-      this.game.hud?.notice(this.weapon.id === 'gauntlet' ? '飛ぶ手甲 — 攻撃で射出・長押しして離すと強打' : this.weapon.name, this.weapon.id === 'gauntlet' ? 3.5 : 1.6);
+      this.game.hud?.notice(this.weapon.id === 'gauntlet' ? '飛ぶ手甲 — 攻撃で射出・長押しして離すと引き寄せ' : this.weapon.name, this.weapon.id === 'gauntlet' ? 3.5 : 1.6);
       this.game.audio?.play('select');
     }
   }

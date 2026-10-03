@@ -3,7 +3,7 @@ import { segmentDistanceSq } from '../combat/FlightPath.js';
 
 /** A single authored sword leaves the formation, then returns before the next. */
 export class SwordVolley {
-  constructor(enemy, bones) { this.enemy = enemy; this.bones = bones; this.queue = []; this.index = 0; this.flight = null; }
+  constructor(enemy, bones) { this.enemy = enemy; this.bones = bones; this.queue = []; this.index = 0; this.flight = null; this.reflections = 0; }
   enqueue(spec) { if (this.queue.length < 3) this.queue.push(spec); }
   beforeAnimate() {
     if (!this.restore) return;
@@ -14,7 +14,7 @@ export class SwordVolley {
     const e = this.enemy, a = e.agent;
     if (!e.alive) { this.clear(); return; }
     const interrupted = ['hurt', 'down', 'broken', 'recoil', 'frozen'].includes(a?.state) || a?.airControlled;
-    if (interrupted) { this.queue.length = 0; if (this.flight && this.flight.state !== 'return') this._return(); }
+    if (interrupted) { this.queue.length = 0; if (this.flight && !['return', 'reflected'].includes(this.flight.state)) this._return(); }
     if (!this.flight && this.queue.length && a) {
       const bone = this.bones[this.index++ % this.bones.length];
       const from = bone.getWorldPosition(new Vector3()), aim = a.game.playerPosition.clone(); aim.y += 1.1;
@@ -33,9 +33,28 @@ export class SwordVolley {
       const player = a.game.playerPosition.clone(); player.y += 1.1;
       if (!f.hit && segmentDistanceSq(player, old, f.pos) < 0.6 ** 2) {
         f.hit = true;
-        a.game.player.receiveHit({ damage: f.spec.damage, posture: f.spec.posture, knockback: 0.6, from: f.from, attacker: e, kind: 'flyingSword' });
-        this._return();
+        const result = a.game.player.receiveHit({ damage: f.spec.damage, posture: f.spec.posture, knockback: 0.6, from: f.from, attacker: e, kind: 'flyingSword' });
+        if (result === 'parry') {
+          f.state = 'reflected'; f.time = 0; this.queue.length = 0;
+          a.game.hud?.notice('飛剣を返した', 0.8);
+        } else this._return();
       } else if (f.time > 1.35 || a.game.stage?.blocks(f.pos.x, f.pos.z)) this._return();
+    } else if (f.state === 'reflected') {
+      const target = e.position.clone(); target.y += (a.type?.height ?? 1.9) * 0.55;
+      const old = f.pos.clone(); f.direction.copy(target).sub(f.pos).normalize();
+      f.pos.addScaledVector(f.direction, dt * 18);
+      a.game.fx?.glow?.spawn(f.pos, '#ffe6ad', 0.12, 0.16, { intensity: 1.4 });
+      if (segmentDistanceSq(target, old, f.pos) < ((a.radius ?? 0.43) + 0.3) ** 2) {
+        this.reflections++;
+        const broken = this.reflections >= 3;
+        if (broken) this.reflections = 0;
+        this.flight = null; this.queue.length = 0; this.beforeAnimate();
+        a.game.damageEnemy(e, { damage: 8, posture: broken ? a.maxPosture : 0, knockback: 0,
+          dirX: f.direction.x, dirZ: f.direction.z, source: 'deflect', force: null });
+        a.game.hud?.notice(broken ? '剣の支配を崩した — 反撃の好機' : `剣返し ${this.reflections}/3`, 1.3);
+        return;
+      }
+      if (f.time > 1.8 || a.game.stage?.blocks(f.pos.x, f.pos.z)) this._return();
     } else {
       const u = Math.min(1, f.time / 0.42);
       f.pos.lerpVectors(f.returnFrom, home, u);

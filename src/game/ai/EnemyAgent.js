@@ -121,7 +121,7 @@ export class EnemyAgent {
     const enemy = this.enemy;
     if (!enemy.alive) return;
     this.airRecovery = Math.max(0, (this.airRecovery ?? 0) - dt);
-    if (this.airControlled) { this._setSpeed(0); return; }
+    if (this.airControlled || this.grabbed) { this._setSpeed(0); return; }
     if (updateEntrance(this, dt)) { this._setSpeed(0); return; }
     this.stateTime += dt;
     this.cooldown -= dt;

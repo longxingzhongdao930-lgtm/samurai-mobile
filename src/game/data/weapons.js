@@ -258,7 +258,7 @@ WEAPONS.gauntlet.combo = WEAPONS.gauntlet.combo.slice(0, 3).map((spec, index) =>
 }));
 WEAPONS.gauntlet.heavy = { ...WEAPONS.gauntlet.heavy, clip: 'slashHit', clipFrom: 0.07, clipTo: 0.66,
   hits: [0.62], timeScale: 1.3, maxWarp: 1.8, passThrough: 0, lunge: 0.5, standoff: 1.1,
-  reach: 2.3, damage: 14, posture: 38, knockback: 0, launch: false, airLauncher: true };
+  gripPull: true, reach: 2.3, damage: 14, posture: 38, knockback: 0, launch: false, airLauncher: true };
 WEAPONS.gauntlet.counter = { ...WEAPONS.gauntlet.counter, airLauncher: true, knockback: 0, launch: false };
 for (const spec of [...WEAPONS.gauntlet.combo, WEAPONS.gauntlet.heavy, WEAPONS.gauntlet.counter]) {
   spec.maxWarp = 0; spec.lunge = 0; spec.passThrough = 0; spec.standoff = 99;

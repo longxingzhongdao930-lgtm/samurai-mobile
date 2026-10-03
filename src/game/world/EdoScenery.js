@@ -1,7 +1,7 @@
 import { Box3, Group, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-export const EDO_MODELS = ['es_shop01', 'es_shop02', 'es_hinomi', 'pp_sobaya_yatai', 'pp2_kakechaya', 's_jizo', 't_yukimi', 't_joyato', 'pp_hei_center'];
+export const EDO_MODELS = ['es_shop01', 'es_shop02', 'es_hinomi', 'pp_sobaya_yatai', 'pp2_kakechaya', 's_jizo', 't_yukimi', 't_joyato', 'pp_hei_center', 'tsuyama-castle', 'pp_teoke', 'pp_daihachi', 'pp_endai2'];
 
 /** Authored scenery occupies existing frontage and bounded edge pockets. */
 export class EdoScenery {
@@ -13,8 +13,11 @@ export class EdoScenery {
         const { scene } = await loader.loadAsync(`/models/edo/${id}.glb`);
         scene.traverse(node => {
           if (!node.isMesh) return;
-          node.castShadow = true; node.receiveShadow = true;
+          node.castShadow = id !== 'tsuyama-castle'; node.receiveShadow = true;
           for (const m of Array.isArray(node.material) ? node.material : [node.material]) {
+            if (id === 'tsuyama-castle') {
+              m.emissive.set('#9aafc7'); m.emissiveMap = m.map; m.emissiveIntensity = .2;
+            }
             m.roughness = Math.max(m.roughness ?? 0.8, 0.65);
             this.stage.game.app.environment.excludeFromKeyLights?.(m);
           }
@@ -48,7 +51,26 @@ export class EdoScenery {
     this.stage.lanterns.push(front.add(new Vector3(x, 0, z)));
     return true;
   }
+  castle() {
+    const source = this.models.get('tsuyama-castle');
+    if (!source) return null;
+    const bounds = new Box3().setFromObject(source);
+    const size = bounds.getSize(new Vector3());
+    const scale = 160 / size.x;
+    // Preserve the castle's proportions. Its nearest edge starts beyond the closed gate.
+    const group = this.place('tsuyama-castle', -55, 300 + size.z * scale / 2, 160, size.y * scale, size.z * scale, 0, false);
+    // The source terrain is at Y=0; foundations extend below it. Aligning
+    // the lowest foundation to ground would leave the broad terrain floating.
+    group.position.y = bounds.min.y * scale;
+    group.userData.distant = true;
+    group.updateMatrixWorld(true);
+    return group;
+  }
   decorate() {
+    this.castle();
+    this.place('pp_teoke', -18.1, 42, .42, .42, .42);
+    this.place('pp_daihachi', 21, 65, 1.8, 1.2, 3);
+    this.place('pp_endai2', -10.5, 133, 2.5, .5, .65, Math.PI / 2);
     // Small working pockets, never in alley mouths or the central combat lane.
     this.place('pp_sobaya_yatai', -10.5, 95, 2.4, 2.3, 1.5, Math.PI / 2);
     this.place('pp2_kakechaya', -13, 133, 4, 3.1, 3, Math.PI / 2);
@@ -61,6 +83,6 @@ export class EdoScenery {
     }
   }
   update(position) {
-    for (const group of this.instances) group.visible = Math.abs(group.position.z - position.z) < 92;
+    for (const group of this.instances) group.visible = group.userData.distant || Math.abs(group.position.z - position.z) < 92;
   }
 }

@@ -130,6 +130,10 @@ export class Stage {
 
     this.edo = new EdoScenery(this);
     await this.edo.load();
+    if (this.edo.models.has('tsuyama-castle')) {
+      app.camera.far = Math.max(app.camera.far, 500);
+      app.camera.updateProjectionMatrix();
+    }
     const b = new Builder();
     this._town(b);
     this._shrine(b);
@@ -350,6 +354,7 @@ export class Stage {
   }
 
   _cart(b, x, z) {
+    if (this.edo.place('pp_daihachi', x, z, 1.8, 1.2, 3)) return;
     b.box('wood', x, 0.6, z, 1.6, 0.25, 2.6);
     b.cylinder('darkwood', x - 0.9, 0.0, z, 0.55, 0.55, 0.12, { segments: 12 }).rotateZ(Math.PI / 2);
     b.box('darkwood', x, 0.55, z + 1.8, 0.1, 0.1, 1.6);

@@ -1,5 +1,5 @@
 {
-  "status": "nine-models-integrated",
+  "status": "thirteen-models-integrated",
   "models": [
     {
       "id": "es_shop01",
@@ -88,6 +88,47 @@
       "triangles": 9897,
       "bytes": 2126232,
       "includedInGame": false
+    },
+    {
+      "id": "pp_teoke",
+      "file": "pp_teoke.glb",
+      "height": 0.42,
+      "triangles": 1524,
+      "bytes": 164080,
+      "includedInGame": true
+    },
+    {
+      "id": "pp_daihachi",
+      "file": "pp_daihachi.glb",
+      "height": 1.2,
+      "triangles": 1764,
+      "bytes": 230124,
+      "includedInGame": true
+    },
+    {
+      "id": "pp_endai2",
+      "file": "pp_endai2.glb",
+      "height": 0.5,
+      "triangles": 15896,
+      "bytes": 1234240,
+      "includedInGame": true
+    },
+    {
+      "id": "tsuyama-castle",
+      "file": "tsuyama-castle.glb",
+      "includedInGame": true,
+      "triangles": 57338,
+      "materials": 1,
+      "atlas": [
+        2048,
+        2048
+      ],
+      "bytes": 5659500,
+      "width": 160,
+      "nearEdgeZ": 300,
+      "collidable": false,
+      "sourceTerrainY": 0,
+      "centerX": -55
     }
   ]
 }

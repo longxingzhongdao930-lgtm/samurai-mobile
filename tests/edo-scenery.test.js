@@ -22,12 +22,18 @@ test('real Edo assets fit replacement frontages, leave the combat lane clear and
     assert.ok(x1 < -3.2 || x0 > 3.2, 'decorations must not obstruct central travel');
     assert.ok([x0,x1,z0,z1].every(Number.isFinite));
   }
-  const box = stage.boxes[0]; assert.ok(box[2] > 89, 'food stall must clear existing entrance lantern');
+  assert.ok(stage.boxes.some(box => box[2] > 93 && box[3] < 97), 'food stall must clear existing entrance lantern');
+  const castle = edo.instances.find(n => n.name === 'Edo:tsuyama-castle');
+  const castleBounds = new Box3().setFromObject(castle);
+  assert.ok(castleBounds.min.z >= 299.99);
+  assert.ok(castleBounds.min.y < 0, 'foundation must stay underground');
+  assert.ok(castleBounds.max.y > 25 && castleBounds.max.y < 35);
+  assert.ok(Math.abs(castleBounds.max.x - castleBounds.min.x - 160) < .001);
   const source = edo.models.get('es_shop01'); let original;
   source.traverse(n => { if(n.isMesh && !original) original = n.geometry; });
   let shared=false;edo.instances[0].traverse(n=>{if(n.geometry===original)shared=true;});assert.ok(shared);
   edo.update(new Vector3(0,0,270));assert.equal(edo.instances[0].visible,false);
-  edo.update(new Vector3(0,0,0));assert.equal(edo.instances[0].visible,true);
+  edo.update(new Vector3(0,0,0));assert.equal(edo.instances[0].visible,true);assert.equal(castle.visible,true);
 });
 test('missing imported assets retain the procedural fallback', () => {
   const edo = new EdoScenery({ group:new Group(), boxes:[], lanterns:[] });

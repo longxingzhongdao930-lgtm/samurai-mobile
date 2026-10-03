@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1040" viewBox="0 0 1200 1040">
+<rect width="1200" height="1040" fill="#14191e"/>
+<style>text{font-family: sans-serif;fill:#e7e4da}.title{font-size:30px;font-weight:bold}.sub{font-size:15px;fill:#b7b8b4}.name{font-size:21px;font-weight:bold}.body{font-size:16px}.tiny{font-size:13px;fill:#b7b8b4}</style>
+<text x="45" y="55" class="title">黒雨の城下町｜江戸を参考にした配置案</text>
+<text x="45" y="88" class="sub">表通り → 門前 → 参道 → 屋敷門。暮らしの空間は脇道へ。</text>
+<text x="45" y="113" class="tiny">創作ゲームの模式図。歴史的な復元図ではなく、横方向を広げて表示。</text>
+<rect x="807.4" y="662.5" width="55.199999999999996" height="237.5" fill="#697b80" opacity="1"/>
+<rect x="760.0" y="781.25" width="53.400000000000006" height="16.25" fill="#697b80" opacity="1"/>
+<rect x="703" y="760.0" width="66" height="55.0" fill="#697b80" opacity="1"/>
+<rect x="856.6" y="700.0" width="53.400000000000006" height="16.25" fill="#697b80" opacity="1"/>
+<rect x="901" y="677.5" width="78" height="60.0" fill="#697b80" opacity="1"/>
+<rect x="757" y="607.5" width="156" height="60.0" fill="#697b80" opacity="1"/>
+<rect x="809.8" y="595.0" width="50.400000000000006" height="17.5" fill="#697b80" opacity="1"/>
+<rect x="739" y="525.0" width="192" height="75.0" fill="#697b80" opacity="1"/>
+<rect x="815.8" y="405.0" width="38.400000000000006" height="125.0" fill="#697b80" opacity="1"/>
+<rect x="848.2" y="456.25" width="52.800000000000004" height="15.0" fill="#697b80" opacity="1"/>
+<rect x="895" y="442.5" width="48" height="40.0" fill="#697b80" opacity="1"/>
+<rect x="751" y="345.0" width="168" height="65.0" fill="#697b80" opacity="1"/>
+<rect x="813.4" y="275.0" width="43.2" height="75.0" fill="#697b80" opacity="1"/>
+<rect x="727" y="172.5" width="216" height="107.5" fill="#697b80" opacity="1"/>
+<rect x="727" y="172.5" width="216" height="102.5" fill="#83665a" opacity="1"/>
+<rect x="751" y="345.0" width="168" height="65.0" fill="#526e62" opacity="1"/>
+<rect x="739" y="525.0" width="192" height="75.0" fill="#9a8559" opacity="1"/>
+<rect x="757" y="607.5" width="156" height="60.0" fill="#8a7658" opacity="1"/>
+<rect x="769" y="857.5" width="36" height="20.0" fill="#a79176" opacity="1"/>
+<rect x="865" y="857.5" width="36" height="20.0" fill="#a79176" opacity="1"/>
+<rect x="769" y="827.5" width="36" height="20.0" fill="#a79176" opacity="1"/>
+<rect x="865" y="827.5" width="36" height="20.0" fill="#a79176" opacity="1"/>
+<rect x="769" y="752.5" width="36" height="20.0" fill="#a79176" opacity="1"/>
+<rect x="865" y="752.5" width="36" height="20.0" fill="#a79176" opacity="1"/>
+<rect x="769" y="725.0" width="36" height="20.0" fill="#a79176" opacity="1"/>
+<rect x="865" y="725.0" width="36" height="20.0" fill="#a79176" opacity="1"/>
+<rect x="769" y="680.0" width="36" height="20.0" fill="#a79176" opacity="1"/>
+<rect x="865" y="680.0" width="36" height="20.0" fill="#a79176" opacity="1"/>
+<rect x="805" y="325.0" width="6" height="10.0" fill="#b1aaa0" opacity="1"/>
+<rect x="859" y="325.0" width="6" height="10.0" fill="#b1aaa0" opacity="1"/>
+<rect x="805" y="312.5" width="6" height="10.0" fill="#b1aaa0" opacity="1"/>
+<rect x="859" y="312.5" width="6" height="10.0" fill="#b1aaa0" opacity="1"/>
+<rect x="805" y="300.0" width="6" height="10.0" fill="#b1aaa0" opacity="1"/>
+<rect x="859" y="300.0" width="6" height="10.0" fill="#b1aaa0" opacity="1"/>
+<rect x="805" y="287.5" width="6" height="10.0" fill="#b1aaa0" opacity="1"/>
+<rect x="859" y="287.5" width="6" height="10.0" fill="#b1aaa0" opacity="1"/>
+<rect x="805" y="275.0" width="6" height="10.0" fill="#b1aaa0" opacity="1"/>
+<rect x="859" y="275.0" width="6" height="10.0" fill="#b1aaa0" opacity="1"/>
+<circle cx="806.2" cy="497.5" r="5" fill="#e1b968"/>
+<circle cx="863.8" cy="440.0" r="5" fill="#e1b968"/>
+<circle cx="775" cy="377.5" r="5" fill="#e1b968"/>
+<circle cx="895" cy="377.5" r="5" fill="#e1b968"/>
+<circle cx="736.0" cy="775.0" r="6" fill="#e8c783"/>
+<text x="746.0" y="780.0" class="tiny">井戸</text>
+<circle cx="892.0" cy="618.75" r="6" fill="#e8c783"/>
+<text x="902.0" y="623.75" class="tiny">火の見</text>
+<circle cx="769" cy="555.0" r="6" fill="#e8c783"/>
+<text x="779" y="560.0" class="tiny">茶屋</text>
+<circle cx="919" cy="460.0" r="6" fill="#e8c783"/>
+<text x="929" y="465.0" class="tiny">小祠</text>
+<text x="792" y="165" class="body">最終ボス</text>
+<text x="789" y="930" class="name">START</text>
+<rect x="45" y="155" width="550" height="100" rx="8" fill="#202830" stroke="#b5907d"/>
+<text x="63" y="185" class="name">⑥ 屋敷・城郭の領域</text>
+<text x="63" y="212" class="body">長い塀と高麗門。店の看板は置かない。</text>
+<text x="63" y="236" class="body">古竜の広場は中央を空ける。</text>
+<path d="M 605 205 L 660 205 L 690 230.0 L 717 230.0" fill="none" stroke="#b5907d" stroke-width="1.5" opacity=".7"/>
+<rect x="45" y="275" width="550" height="100" rx="8" fill="#202830" stroke="#7da18d"/>
+<text x="63" y="305" class="name">⑤ 参道と境内</text>
+<text x="63" y="332" class="body">常夜灯は入口、地蔵は路傍の小さな場所へ。</text>
+<text x="63" y="356" class="body">石仏を街中へ無作為に散らさない。</text>
+<path d="M 605 325 L 660 325 L 690 382.5 L 717 382.5" fill="none" stroke="#7da18d" stroke-width="1.5" opacity=".7"/>
+<rect x="45" y="395" width="550" height="100" rx="8" fill="#202830" stroke="#c7b071"/>
+<text x="63" y="425" class="name">④ 門前の広場</text>
+<text x="63" y="452" class="body">端に掛茶屋と縁台。明かりで分岐を示す。</text>
+<text x="63" y="476" class="body">中央は飛剣やレーザーを避ける空間。</text>
+<path d="M 605 445 L 660 445 L 690 562.5 L 717 562.5" fill="none" stroke="#c7b071" stroke-width="1.5" opacity=".7"/>
+<rect x="45" y="515" width="550" height="100" rx="8" fill="#202830" stroke="#bca16e"/>
+<text x="63" y="545" class="name">③ 火除地を思わせる広場</text>
+<text x="63" y="572" class="body">火の見櫓と番屋を外周へ。屋台は入口脇。</text>
+<text x="63" y="596" class="body">広場を荷物や店で埋めない。</text>
+<path d="M 605 565 L 660 565 L 690 637.5 L 717 637.5" fill="none" stroke="#bca16e" stroke-width="1.5" opacity=".7"/>
+<rect x="45" y="635" width="550" height="100" rx="8" fill="#202830" stroke="#92a9a9"/>
+<text x="63" y="665" class="name">② 裏長屋・店裏の荷捌き場</text>
+<text x="63" y="692" class="body">左は共同井戸と生活道具、右は蔵と荷車。</text>
+<text x="63" y="716" class="body">農家を裏長屋の代わりに並べない。</text>
+<path d="M 605 685 L 660 685 L 690 737.5 L 717 737.5" fill="none" stroke="#92a9a9" stroke-width="1.5" opacity=".7"/>
+<rect x="45" y="755" width="550" height="100" rx="8" fill="#202830" stroke="#c5ae8d"/>
+<text x="63" y="785" class="name">① 酒屋・呉服屋の表通り</text>
+<text x="63" y="812" class="body">軒下に樽や提灯、中央は幅9.2mを確保。</text>
+<text x="63" y="836" class="body">土の道を主体に、石や灯りは要所だけ。</text>
+<path d="M 605 805 L 660 805 L 690 835.0 L 717 835.0" fill="none" stroke="#c5ae8d" stroke-width="1.5" opacity=".7"/>
+<text x="45" y="942" class="sub">既存の通行範囲を活用。配置時はモデルの幅・扉の開閉・カメラとの衝突を確認。</text>
+<text x="45" y="973" class="tiny">添付素材のローカル変換・配置見本を作成済み。公開配信の利用条件は確認が必要。</text>
+<text x="45" y="1000" class="tiny">参照：Stage.js / 添付OBJ・PP2とREADME。外部資料本文は接続制限により未取得。</text>
+</svg>

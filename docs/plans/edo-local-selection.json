@@ -1,0 +1,83 @@
+{
+  "status": "local-preview-only",
+  "notDeployed": true,
+  "models": [
+    {
+      "id": "es_shop01",
+      "file": "es_shop01.glb",
+      "height": 5.2,
+      "triangles": 13136,
+      "bytes": 1135576
+    },
+    {
+      "id": "es_shop02",
+      "file": "es_shop02.glb",
+      "height": 5.2,
+      "triangles": 27285,
+      "bytes": 2352156
+    },
+    {
+      "id": "es_hinomi",
+      "file": "es_hinomi.glb",
+      "height": 8,
+      "triangles": 1066,
+      "bytes": 297296
+    },
+    {
+      "id": "pp_sobaya_yatai",
+      "file": "pp_sobaya_yatai.glb",
+      "height": 2.3,
+      "triangles": 936,
+      "bytes": 155764
+    },
+    {
+      "id": "pp2_kakechaya",
+      "file": "pp2_kakechaya.glb",
+      "height": 3.1,
+      "triangles": 1696,
+      "bytes": 677248
+    },
+    {
+      "id": "s_jizo",
+      "file": "s_jizo.glb",
+      "height": 1.4,
+      "triangles": 19276,
+      "bytes": 1587476
+    },
+    {
+      "id": "t_yukimi",
+      "file": "t_yukimi.glb",
+      "height": 1.1,
+      "triangles": 2128,
+      "bytes": 468692
+    },
+    {
+      "id": "t_joyato",
+      "file": "t_joyato.glb",
+      "height": 2.0,
+      "triangles": 7816,
+      "bytes": 784248
+    },
+    {
+      "id": "pp_hei_center",
+      "file": "pp_hei_center.glb",
+      "height": 2.2,
+      "triangles": 1824,
+      "bytes": 184716
+    },
+    {
+      "id": "pp_koraimon",
+      "file": "pp_koraimon.glb",
+      "height": 6.0,
+      "triangles": 22820,
+      "bytes": 1957816
+    },
+    {
+      "id": "obj_nouka1",
+      "file": "obj_nouka1.glb",
+      "height": 4.5,
+      "triangles": 9897,
+      "bytes": 2126232
+    }
+  ]
+}

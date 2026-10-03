@@ -9,6 +9,7 @@ export default defineConfig({
   },
   build: {
     target: 'es2022',
+    rollupOptions: { input: { game: 'index.html', characters: 'characters.html' } },
     sourcemap: true,
     chunkSizeWarningLimit: 2000
   },

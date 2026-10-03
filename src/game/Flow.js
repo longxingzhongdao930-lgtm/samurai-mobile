@@ -21,7 +21,7 @@ const TIPS = [
   '火と雷で「爆雷」、氷と雷で「凍雷」、火と氷で「蒸破」。属性を重ねよ。',
   '「斬」を長押しすると踏み込みの居合になる。離れた敵へ一気に届く。',
   '攻撃の直前に避けると「見切り」。時が緩み、奥義ゲージが溜まる。',
-  '奥義ゲージが満ちたら「奥義」。天からの拳が周囲を薙ぎ払う。'
+  '奥義ゲージが満ちたら「奥義」。銀竜に変身し、爪と竜技で戦える。'
 ];
 
 export class Flow {
@@ -312,7 +312,7 @@ export class Flow {
         trigger: crossed(16),
         objective: '妖を斬り伏せよ',
         start: () => {
-          this._fight([['ashigaru', -2, 30], ['ashigaru', 2.5, 31], ['ashigaru', 0, 34]], { cap: 3 });
+          this._fight([['ashigaru', -2, 30], ['ashigaru', 2.5, 31], ['samurai', 0, 34]], { cap: 3 });
           // The first fight is a lesson: one blade at a time.
           game.director.maxMelee = 1;
           hud().notice(touch() ? '「斬」で攻撃 · 連打で五連撃' : '左クリックで攻撃 · 連打で五連撃', 3.2);
@@ -337,7 +337,7 @@ export class Flow {
         trigger: crossed(48),
         objective: '大通りを抜けよ',
         start: () => {
-          this._fight([['ashigaru', -2, 60], ['shinobi', 2, 63], ['ashigaru', 1, 66], ['archer', 0, 80]], { cap: 4 });
+          this._fight([['ashigaru', -2, 60], ['queen', 2, 63], ['ashigaru', 1, 66], ['mage', 0, 80]], { cap: 4 });
           // The side yards: optional, rewarded.
           this._pickup('potion', stage().spots.courtyard);
           game.director.spawn('ashigaru', -18, 36, Math.PI / 2);
@@ -352,16 +352,16 @@ export class Flow {
       {
         id: 'oni',
         trigger: crossed(89),
-        objective: '赤鬼を討て',
+        objective: '白翼獣アカテスを討て',
         start: () => {
           this._setCheckpoint(new Vector3(0, 0, 80), 0);
           stage().setBarrier('plazaA', true);
           stage().setBarrier('gateAB', true);
-          const oni = this._emerge('oni', 0, 101, true);
+          const oni = this._emerge('achates', 0, 101, true);
           this._oni = oni;
           this._fight([['ashigaru', -6, 98], ['ashigaru', 6, 98]], { cap: 4, barriers: [], combat: 1.4 });
           game.audio.play('roar', { pos: oni.position, volume: 0.8 });
-          hud().showBoss('赤鬼', true);
+          hud().showBoss('白翼獣アカテス', true);
           game.boss = oni.enemy;
           game.rig.shake(0.3);
           game.after(1.5, () => hud().notice('赤い「危」は防げない — 避けよ', 3));
@@ -414,7 +414,7 @@ export class Flow {
           list.push(['archer', -12, 138], ['archer', 12, 138]);
           ring('ashigaru', 4, 9, 126);
           ring('shinobi', 3, 9, 130);
-          list.push(['oni', 0, 136]);
+          list.push(['dragon', 0, 136]);
           ring('ashigaru', 3, 8, 128);
           this._fight(list, { cap: 14, barriers: ['plazaBIn', 'plazaBOut'], combat: 1.4 });
           hud().areaCard('百鬼夜行', '退けよ');
@@ -453,7 +453,7 @@ export class Flow {
         start: () => {
           this._setCheckpoint(new Vector3(0, 0, 184), 0);
           this._fight(
-            [['archer', -11, 210], ['archer', 11, 210], ['ashigaru', -4, 200], ['ashigaru', 4, 200], ['shinobi', 0, 205], ['ashigaru', -7, 196], ['shinobi', 7, 196], ['oni', 0, 206]],
+            [['archer', -11, 210], ['archer', 11, 210], ['ashigaru', -4, 200], ['ashigaru', 4, 200], ['shinobi', 0, 205], ['ashigaru', -7, 196], ['shinobi', 7, 196], ['infinian', 0, 206]],
             { cap: 7, barriers: ['shrineIn', 'shrineOut'], combat: 1.3 }
           );
         },
@@ -483,7 +483,7 @@ export class Flow {
         objective: '城門へ',
         start: () => {
           hud().areaCard('参 · 城門', '黒角鬼の座');
-          this._fight([['ashigaru', -1.5, 230], ['ashigaru', 1.5, 231], ['archer', -2, 238], ['archer', 2, 238]], { cap: 4 });
+          this._fight([['ashigaru', -1.5, 230], ['ashigaru', 1.5, 231], ['mage', -2, 238], ['archer', 2, 238]], { cap: 4 });
         },
         done: () => this.fightOver,
         finish: () => this._setCheckpoint(new Vector3(0, 0, 236), 0)

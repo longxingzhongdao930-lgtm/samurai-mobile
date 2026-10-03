@@ -13,7 +13,7 @@ export const CREATURES = Object.freeze([
   {
     id: 'dragon', label: 'Silver Dragon', url: './models/dragon/silver-dragon.glb',
     clips: DRAGON_CLIPS,
-    rootTracks: [{ name: 'Root.position', axes: [0, 2] }],
+    rootTracks: [{ name: 'Root.position', axes: [0, 2] }, { name: 'Pelvis.position', axes: [0, 1] }],
     facingBones: [['Foot_L', 'ball_l'], ['Foot_R', 'ball_r']],
     height: 4.2, bodyRadius: 1.0, hitsToDefeat: 4,
     walkSpeed: 1.2, runSpeed: 3.6, attackRange: 2.7, attackCooldown: 3.2

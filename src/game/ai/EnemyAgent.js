@@ -90,6 +90,7 @@ export class EnemyAgent {
     enemy.onAnimate = (dt) => this._animate(dt);
     // Armour first, while the skeleton is still in its bind pose — every piece
     // is measured off it (see `EnemyArmor.js`).
+    if (enemy.customAppearance) return;
     this.armor = dressArmor(enemy, ARMOR_STYLES[type.id] ?? null);
     this.gear = equipEnemy(enemy, type.gear, { horns: type.horns ?? (type.id === 'oni' ? 'horns' : null), hat: type.hat ?? null });
   }

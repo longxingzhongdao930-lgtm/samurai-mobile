@@ -1,3 +1,6 @@
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { TOWN_CHARACTERS, TOWN_TYPES } from '../data/townCharacters.js';
+import { TownEnemy } from './TownEnemy.js';
 import { retargetClip } from '../../animation/retarget.js';
 import { ENEMY_TYPES } from '../data/enemies.js';
 import { EnemyAgent } from './EnemyAgent.js';
@@ -20,6 +23,7 @@ export class AIDirector {
     this.game = game;
     this.agents = [];
     this.clips = new Map();
+    this.appearances = new Map();
     this.maxMelee = 2;
     this.maxRanged = 2;
     this._melee = new Set();
@@ -62,6 +66,15 @@ export class AIDirector {
     }
   }
 
+  async loadAppearances() {
+    const loader = new GLTFLoader();
+    // Load each shared source once; clones share geometry and textures.
+    for (const definition of TOWN_CHARACTERS) {
+      const gltf = await loader.loadAsync(definition.url);
+      this.appearances.set(definition.id, { gltf, definition });
+    }
+  }
+
   /** Register an extra type (the boss) and clone its move clips. */
   registerType(type) {
     for (const spec of type.attacks) {
@@ -75,10 +88,18 @@ export class AIDirector {
    * @returns {EnemyAgent|null}
    */
   spawn(type, x, z, yaw, { alert = false, Agent = EnemyAgent } = {}) {
-    const spec = typeof type === 'string' ? ENEMY_TYPES[type] : type;
-    const enemy = this.game.enemies.spawnAt(x, z, yaw, { height: spec.height });
+    const spec = typeof type === 'string' ? (TOWN_TYPES[type] ?? ENEMY_TYPES[type]) : type;
+    const source = this.appearances.get(spec.appearance);
+    if (spec.appearance && !source) throw new Error(`Enemy model not loaded: ${spec.appearance}`);
+    const enemy = source ? new TownEnemy(source.gltf, source.definition, spec, this.game.enemies.terrain)
+      : this.game.enemies.spawnAt(x, z, yaw, { height: spec.height });
+    if (source) {
+      enemy.place(x, z, yaw);
+      this.game.enemies.group.add(enemy.root);
+      this.game.enemies.enemies.push(enemy);
+    }
     if (!enemy) return null;
-    const agent = new Agent(this.game, enemy, spec, this.clips);
+    const agent = new Agent(this.game, enemy, spec, enemy.clips ?? this.clips);
     agent.alert = alert;
     this.agents.push(agent);
     return agent;

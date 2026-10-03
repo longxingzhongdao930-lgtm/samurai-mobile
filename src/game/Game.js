@@ -139,7 +139,10 @@ export class Game {
       this.stage = new Stage(this);
       await this.stage.build();
     }
-    if (Flow) this.flow = new Flow(this);
+    if (Flow) {
+      await this.director.loadAppearances();
+      this.flow = new Flow(this);
+    }
     this.audio.onThunder = () => this.stage?.lightning();
   }
 

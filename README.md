@@ -15,7 +15,8 @@ npm run build
 URLオプション: `?q=low|mid|high`（画質固定）· `?touch=1`（PCでタッチUI表示）· `?dyn=0`（動的解像度オフ）· `?sandbox`（全敵種の試遊場）· `?debug`（Gでエディタ）
 
 通常画面はClaudeブランチ `claude/confident-goldberg-8tk9be` の体験版です。
-タイトルの「追加キャラクター6体を見る」から、別途追加したモデルの確認画面へ移動できます。
+タイトルの「追加キャラクター6体を見る」から、[6体の紹介ページ](characters.html)へ移動できます。
+城下町の敵としても6体が登場します。配置と動きの詳細は [敵キャラクター](docs/town-enemies.md) を参照してください。
 
 ### 操作
 

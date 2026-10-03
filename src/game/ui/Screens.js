@@ -53,7 +53,7 @@ export class Screens {
        <h1 class="gs-title__name">黒雨の城下町</h1>
        <p class="gs-title__sub">— 体験版 —</p>
        <button class="gs-btn gs-btn--main" data-action="start">はじめる</button>
-       <a class="gs-character-link" href="?dev">追加キャラクター6体を見る</a>
+       <a class="gs-character-link" href="./characters.html">追加キャラクター6体を見る</a>
        <ul class="gs-controls">${controls}</ul>
        <p class="gs-fine">画質: ${quality} · ヘッドホン推奨${this.touch ? '' : ' · マウスで視点 · Escでカーソル解放'}</p>`
     );

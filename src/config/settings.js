@@ -1,3 +1,5 @@
+import { CREATURES } from './creatures.js';
+
 /**
  * settings.js — the single source of truth for every tweakable value on the stage.
  *
@@ -714,6 +716,22 @@ export const settings = {
    * burn-away. A slot that empties is refilled `respawnDelay` later, around
    * wherever the player has walked to, so there are always `count` of them.
    */
+  /** One slot per enabled creature; remaining slots use the original enemies. */
+  creatures: Object.fromEntries(CREATURES.map((definition) => [definition.id, {
+    enabled: true,
+    height: definition.height,
+    bodyRadius: definition.bodyRadius,
+    hitsToDefeat: definition.hitsToDefeat,
+    noticeRadius: 22,
+    attackRange: definition.attackRange,
+    runDistance: 7,
+    walkSpeed: definition.walkSpeed,
+    runSpeed: definition.runSpeed,
+    attackCooldown: definition.attackCooldown,
+    useSkills: true,
+    blend: 0.2
+  }])),
+
   enemies: {
     enabled: true,
     /** How many are standing at any moment. */

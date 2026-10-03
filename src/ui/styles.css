@@ -1150,3 +1150,34 @@ body.cs-open .hint {
     animation: none;
   }
 }
+
+.character-roster {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  width: min(240px, calc(100vw - 32px));
+  color: #e4eff7;
+  background: rgba(9, 19, 29, 0.94);
+  border: 1px solid #40586c;
+  border-radius: 8px;
+  font: 13px/1.4 system-ui, sans-serif;
+  box-shadow: 0 6px 24px #0006;
+}
+.character-roster summary { cursor: pointer; padding: 10px 14px; }
+.character-roster button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-top: 1px solid #263849;
+  padding: 9px 14px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+.character-roster button:hover, .character-roster button:focus-visible { background: #20364a; }
+.character-roster small { display: block; color: #98adbd; font-size: 11px; }
+.character-roster a { display: block; padding: 8px 14px; color: #addcf4; font-size: 11px; }

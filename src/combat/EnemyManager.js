@@ -3,6 +3,8 @@ import { Box3, Group, MathUtils, Vector3 } from 'three';
 import { settings } from '../config/settings.js';
 import { disposeObject } from '../utils/dispose.js';
 import { Enemy } from './Enemy.js';
+import { CreatureEnemy } from './CreatureEnemy.js';
+import { CREATURES } from '../config/creatures.js';
 
 /** The body, with its idle baked in — one file, cloned per enemy. */
 const ENEMY_URL = './models/enemyidle.fbx';
@@ -50,6 +52,7 @@ export class EnemyManager {
     this._pending = [];
 
     this.source = null;
+    this.creatures = new Map();
     this.clip = null;
     this._scale = 1;
     this._offset = new Vector3();
@@ -93,6 +96,10 @@ export class EnemyManager {
 
     this.source = fbx;
     this._measureFacing(fbx);
+    await Promise.all(CREATURES.map(async (definition) => {
+      this.creatures.set(definition.id, await assets.loadGLTF(definition.url));
+    }));
+    await assets.settled();
     return this;
   }
 
@@ -201,6 +208,10 @@ export class EnemyManager {
   spawn() {
     if (!this.source) return null;
     const config = settings.enemies;
+    const definition = CREATURES.find((candidate) =>
+      settings.creatures[candidate.id].enabled && this.creatures.has(candidate.id) &&
+      !this.enemies.some((enemy) => enemy.kind === candidate.id && enemy.alive));
+    const creature = definition && this.creatures.get(definition.id);
 
     const inner = Math.max(0.5, Math.min(config.minRadius, config.radius));
     const outer = Math.max(inner + 0.5, config.radius);
@@ -208,8 +219,10 @@ export class EnemyManager {
     let x = this._player.x;
     let z = this._player.z;
     for (let attempt = 0; attempt < 24; attempt++) {
-      const angle = Math.random() * Math.PI * 2;
-      const t = Math.sqrt(Math.random());
+      // Introduce the dragon in front of the initial camera when that patch
+      // is free; retries still respect the usual population spacing.
+      const angle = creature && attempt === 0 ? CREATURES.indexOf(definition) * 1.3 : Math.random() * Math.PI * 2;
+      const t = creature && attempt === 0 ? 0.4 : Math.sqrt(Math.random());
       const distance = inner + (outer - inner) * t;
       x = this._player.x + Math.sin(angle) * distance;
       z = this._player.z + Math.cos(angle) * distance;
@@ -223,7 +236,12 @@ export class EnemyManager {
       -this._base.cz * this._scale
     );
 
-    const enemy = new Enemy({
+    const enemy = creature ? new CreatureEnemy({
+      source: creature.scene,
+      clips: creature.animations,
+      definition,
+      terrain: this.terrain
+    }) : new Enemy({
       source: this.source,
       clip: this.clip,
       scale: this._scale,
@@ -317,12 +335,15 @@ export class EnemyManager {
    * @param {number} z
    * @param {{impulse: number, lift: number, spin: number, slices?: boolean}} [force]
    *   defaults to the kick's
-   * @returns {boolean} whether this was the blow that put it down
+   * @returns {boolean} whether the hit was accepted (dragons take multiple hits)
    */
   kill(enemy, x, z, force = settings.kick) {
     if (!enemy?.alive) return false;
-    if (!enemy.die(x, z, force, force.slices === true)) return false;
-    this.kills++;
+    const hit = enemy.receiveHit
+      ? enemy.receiveHit(x, z, force)
+      : enemy.die(x, z, force, force.slices === true);
+    if (!hit) return false;
+    if (!enemy.alive) this.kills++;
     return true;
   }
 
@@ -339,22 +360,21 @@ export class EnemyManager {
    */
   pushOut(position, radius) {
     if (radius <= 0) return;
-    const min = radius * radius;
-
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
       const dx = position.x - enemy.position.x;
       const dz = position.z - enemy.position.z;
+      const clearance = Math.max(radius, enemy.bodyRadius ?? radius);
       const squared = dx * dx + dz * dz;
-      if (squared >= min) continue;
+      if (squared >= clearance * clearance) continue;
 
       const distance = Math.sqrt(squared);
       if (distance < 1e-4) {
         // Dead centre: no direction to be pushed along, so pick one.
-        position.x += radius;
+        position.x += clearance;
         continue;
       }
-      const push = (radius - distance) / distance;
+      const push = (clearance - distance) / distance;
       position.x += dx * push;
       position.z += dz * push;
     }
@@ -382,6 +402,8 @@ export class EnemyManager {
     // Geometry and the imported materials belong to the source, which every
     // clone was sharing — so it goes last, and only here.
     if (this.source) disposeObject(this.source);
+    for (const creature of this.creatures.values()) disposeObject(creature.scene);
+    this.creatures.clear();
     this.source = null;
     this.clip = null;
   }

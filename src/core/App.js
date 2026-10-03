@@ -11,6 +11,8 @@ import { Moon } from '../world/Moon.js';
 import { Ground } from '../world/Ground.js';
 import { Terrain } from '../world/Terrain.js';
 import { GroundFog } from '../world/GroundFog.js';
+import { CampCharacters } from '../world/CampCharacters.js';
+import { CharacterRoster } from '../ui/CharacterRoster.js';
 import { Leaves } from '../world/Leaves.js';
 import { ContactShadows } from '../world/ContactShadows.js';
 
@@ -152,6 +154,8 @@ export class App {
       }
     });
     this.scene.add(this.enemies.group);
+    this.camp = new CampCharacters(this.terrain);
+    this.scene.add(this.camp.group);
     this.controller.setEnemies(this.enemies);
 
     // Who a press would actually go to, drawn on the ground. It is told what to
@@ -858,6 +862,29 @@ export class App {
 
   /* ------------------------------------------------------------------ */
 
+  /** Move to a selected encounter or camp character using the existing camera. */
+  focusCharacter(id) {
+    if (this.inCharacterScreen) this.toggleCharacterScreen();
+    const target = this.enemies.enemies.find(enemy => enemy.kind === id && enemy.alive)
+      ?? this.camp.characters.find(character => character.id === id);
+    if (!target) {
+      this.toast.show('That encounter is returning — try again in a moment.');
+      return;
+    }
+    this.character.jump?.cancel();
+    this.character.flight?.cancel();
+    for (const attack of this.character.attacks) attack.cancel();
+    const position = target.root.position;
+    const player = this.character.position;
+    player.set(position.x, this.terrain.heightAt(position.x, position.z - 6), position.z - 6);
+    this.controller.velocity.set(0, 0);
+    this.rig.anchor.copy(player);
+    this.rig.controls.target.set(player.x, player.y + 1.8, player.z + 3);
+    this.camera.position.set(player.x + 3, player.y + 3, player.z - 5);
+    this.rig.controls.update();
+    this.toast.show(target.root.name);
+  }
+
   /** Load assets, warm the shader cache, then start the loop. */
   async load() {
     const assets = new AssetLoader();
@@ -901,6 +928,9 @@ export class App {
     // Stood up now rather than on the first frame, so their materials are in
     // the scene for the shader warm-up below.
     this.enemies.respawnAll();
+    this.loading.setProgress(0.74, 'Welcoming the camp…');
+    await this.camp.load(assets);
+    this.roster = new CharacterRoster((id) => this.focusCharacter(id));
 
     this.loading.setProgress(0.76, 'Forging the fist…');
     // The arm the ability drops. It is in the scene from here on, hidden, so
@@ -1064,6 +1094,7 @@ export class App {
     // what they are spawned around, and what the kick's reach was measured
     // against this frame.
     this.enemies.update(dt, position);
+    this.camp.update(dt);
     // After them, so a body that has just been felled or has just walked out of
     // the cone loses its ring on the same frame it stops being a target.
     this._updateTargetRings(dt, position);
@@ -1139,6 +1170,8 @@ export class App {
     this.targetHotkeys.dispose();
     this.targetMarkers.dispose();
     this.enemies.dispose();
+    this.camp.dispose();
+    this.roster?.dispose();
     this.blood.dispose();
     this.weaponFire?.dispose();
     this.characterScreen?.dispose();

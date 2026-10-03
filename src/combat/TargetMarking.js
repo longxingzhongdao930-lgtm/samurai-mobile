@@ -231,7 +231,6 @@ export class TargetMarking {
     // Aimed at the chest rather than the feet: the marker is over the head and
     // the ring is under the feet, so the middle of the body is the one point
     // that belongs to neither and reads as "the body".
-    const chest = settings.enemies.height * 0.6;
 
     let best = null;
     let bestScore = Math.max(0.02, config.aim);
@@ -246,7 +245,7 @@ export class TargetMarking {
       }
 
       _world.copy(enemy.position);
-      _world.y += chest;
+      _world.y += (enemy.height ?? settings.enemies.height) * 0.6;
 
       // Behind the lens, rejected in *view* space. `project` divides by a
       // negative w back there and mirrors the body into the frame, so a

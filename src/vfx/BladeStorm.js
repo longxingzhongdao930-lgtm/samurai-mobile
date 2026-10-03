@@ -504,7 +504,7 @@ export class BladeStorm {
     if (!enemy?.alive) return;
     blade.hit.set(
       enemy.position.x,
-      enemy.position.y + settings.enemies.height * 0.55,
+      enemy.position.y + (enemy.height ?? settings.enemies.height) * 0.55,
       enemy.position.z
     );
   }

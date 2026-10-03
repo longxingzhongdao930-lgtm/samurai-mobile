@@ -16,6 +16,10 @@ npm run dev      # http://127.0.0.1:5173
 npm run build
 ```
 
+For automatic publishing after a GitHub push, follow
+[Cloudflare Pages setup](docs/deployment.md). The six added characters and their
+motion mappings are described in [Characters](docs/characters.md).
+
 ## Controls
 
 | | |

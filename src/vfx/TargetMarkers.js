@@ -204,7 +204,6 @@ export class TargetMarkers {
       if (mark.fade <= 0) this._marks.delete(enemy);
     }
 
-    const height = settings.enemies.height + config.lift;
     const fades = this._fades.array;
     const locks = this._locks.array;
     let count = 0;
@@ -212,6 +211,7 @@ export class TargetMarkers {
     for (const [enemy, mark] of this._marks) {
       if (count >= CAPACITY) break;
       const position = enemy.position;
+      const height = (enemy.height ?? settings.enemies.height) + config.lift;
       // Translation only: the size is a uniform, because the quad is grown in
       // view space rather than by the instance's own matrix (see the shader).
       _matrix.identity().setPosition(position.x, position.y + height, position.z);

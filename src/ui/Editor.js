@@ -1413,6 +1413,18 @@ export class Editor {
       .add({ respawn: () => this.hooks.onRespawnEnemies?.() }, 'respawn')
       .name('Respawn all');
 
+    for (const [id, config] of Object.entries(settings.creatures)) {
+      const creature = enemies.addFolder(id === 'dragon' ? 'Silver dragon' : id);
+      creature.add(config, 'enabled').name('enabled (respawn)').onChange(() => this.hooks.onRespawnEnemies?.());
+      R(creature, config, 'height', 2, 7, 0.1, 'height (m)');
+      R(creature, config, 'hitsToDefeat', 1, 20, 1, 'health (next spawn)');
+      R(creature, config, 'walkSpeed', 0.1, 4, 0.1, 'walk speed');
+      R(creature, config, 'runSpeed', 0.1, 8, 0.1, 'run speed');
+      creature.add(config, 'useSkills').name('mix in skill motions');
+      R(creature, config, 'attackCooldown', 1, 10, 0.1, 'attack interval');
+      R(creature, config, 'blend', 0.05, 0.4, 0.01, 'motion blend (s)');
+    }
+
     // Authored rather than imported — the export carries no textures at all.
     const look = enemies.addFolder('Look');
     const el = e.look;

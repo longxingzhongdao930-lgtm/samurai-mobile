@@ -1,6 +1,7 @@
 import { MathUtils, Vector3 } from 'three';
 import { settings } from '../../config/settings.js';
 import { EnemyAgent } from '../ai/EnemyAgent.js';
+import { BossDressing } from './BossDressing.js';
 
 const _v = new Vector3();
 
@@ -81,6 +82,7 @@ export class Rasetsu extends EnemyAgent {
     // Damage taken is scaled down a little while he is fresh: the fight should
     // run two to three minutes for a first-timer.
     this.damageTaken = 1;
+    this.dressing = new BossDressing(this);
   }
 
   /* ------------------------------------------------------------------ */
@@ -137,6 +139,7 @@ export class Rasetsu extends EnemyAgent {
   /* ------------------------------------------------------------------ */
 
   update(dt, ctx) {
+    this.dressing.update(dt, this.phase, this.alive && !this.finalDown);
     if (!this.alive) return;
     this._updateZones(dt);
     this._auraFx(dt);
@@ -435,6 +438,7 @@ export class Rasetsu extends EnemyAgent {
 
   dispose() {
     this.zones.length = 0;
+    this.dressing.dispose();
     super.dispose();
   }
 }

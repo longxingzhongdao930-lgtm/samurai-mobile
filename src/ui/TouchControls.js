@@ -213,8 +213,13 @@ export class TouchControls {
     setRing(this.buttons.special, special);
     this.buttons.special.classList.toggle('is-ready', special >= 1);
     this.buttons.attack.classList.toggle('is-execute', Boolean(execute));
-    this.buttons.attack.querySelector('.tc-btn__glyph').textContent = execute ? '処' : '斬';
-    this.buttons.attack.querySelector('.tc-btn__label').textContent = execute ? '処刑' : '攻撃';
+    const glyph = execute ? '処' : state.attackGlyph ?? '斬';
+    const label = execute ? '処刑' : state.attackLabel ?? '攻撃';
+    if (this._attackGlyph !== glyph) {
+      this._attackGlyph = glyph;
+      this.buttons.attack.querySelector('.tc-btn__glyph').textContent = glyph;
+      this.buttons.attack.querySelector('.tc-btn__label').textContent = label;
+    }
     this.buttons.lock.classList.toggle('is-on', Boolean(locked));
     if (state.weapon && this._weaponName !== state.weapon) {
       this._weaponName = state.weapon;

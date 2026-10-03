@@ -296,7 +296,9 @@ export class Game {
       locked: p.lockTarget?.alive,
       guard: p.guarding,
       available: p.unlocked,
-      weapon: p.weapon.name
+      weapon: p.weapon.name,
+      attackGlyph: p.weapon.glyph,
+      attackLabel: p.weapon.verb
     });
 
     this.audio.setListener(app.camera);

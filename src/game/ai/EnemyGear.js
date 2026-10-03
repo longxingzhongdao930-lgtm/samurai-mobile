@@ -89,7 +89,18 @@ function build() {
   };
 }
 
+/** The real bow (BowRig's model), once loaded: archers carry it instead. */
+let _realBow = null;
+export function setBowModel(group) {
+  _realBow = group;
+}
+
 function meshesFor(kind) {
+  if (kind === 'bow' && _realBow) {
+    const bow = _realBow.clone(true);
+    bow.scale.setScalar(0.9);
+    return bow;
+  }
   _cache ??= build();
   const group = new Group();
   const parts = _cache.kinds[kind];
@@ -144,7 +155,9 @@ export function equipEnemy(enemy, gear, { horns = null, hat = null } = {}) {
       hand('RightHand', 'tanto', [0.19, 0, 0], [0, 0.06, 0.02]);
       break;
     case 'bow':
-      hand('LeftHand', 'bow', [0, Math.PI / 2, 0], [0.0, 0.07, 0.0]);
+      // The real bow runs up the fist like a held blade; the primitive is laid across it.
+      if (_realBow) hand('LeftHand', 'bow', [0.19, 0, 0], [0, 0.06, 0.02]);
+      else hand('LeftHand', 'bow', [0, Math.PI / 2, 0], [0.0, 0.07, 0.0]);
       break;
     case 'kanabo':
       hand('RightHand', 'kanabo', [0.19, 0, 0], [0, 0.0, 0.02]);

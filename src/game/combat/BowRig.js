@@ -11,6 +11,7 @@ import {
   Vector3
 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { setBowModel } from '../ai/EnemyGear.js';
 
 const URL = './models/weapons/bow.glb';
 const BOW_LENGTH = 1.6;
@@ -96,6 +97,7 @@ export class BowRig {
       this._fit(bowMeshes, this.bow, 'bow');
       this._fit(arrowMeshes, this.arrow, 'arrow');
       this.ready = bowMeshes.length > 0;
+      if (this.ready) setBowModel(this.bow);
     } catch (error) {
       console.warn('[BowRig] bow model unavailable', error);
     }

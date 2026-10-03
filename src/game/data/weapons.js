@@ -53,6 +53,8 @@ export const WEAPONS = {
   katana: {
     id: 'katana',
     name: '刀',
+    glyph: '斬',
+    verb: '攻撃',
     equipment: 'sword',
     available: true,
     combo: [
@@ -160,6 +162,8 @@ const K = WEAPONS.katana;
 WEAPONS.odachi = {
   ...K,
   id: 'odachi',
+  glyph: '斬',
+  verb: '攻撃',
   name: '大太刀',
   model: 'odachi',
   trailColor: '#ffd6a0',
@@ -176,6 +180,8 @@ WEAPONS.odachi = {
 WEAPONS.spear = {
   ...K,
   id: 'spear',
+  glyph: '突',
+  verb: '突き',
   name: '槍',
   model: 'spear',
   trailColor: '#e8e2ff',
@@ -191,6 +197,8 @@ WEAPONS.spear = {
 WEAPONS.naginata = {
   ...K,
   id: 'naginata',
+  glyph: '薙',
+  verb: '薙ぎ',
   name: '薙刀',
   model: 'naginata',
   trailColor: '#ffc8e0',
@@ -205,6 +213,8 @@ WEAPONS.naginata = {
 WEAPONS.kusarigama = {
   ...K,
   id: 'kusarigama',
+  glyph: '鎌',
+  verb: '攻撃',
   name: '鎖鎌',
   model: 'kusarigama',
   trailColor: '#d0ffd8',
@@ -228,6 +238,8 @@ WEAPONS.kusarigama = {
 WEAPONS.gauntlet = {
   ...K,
   id: 'gauntlet',
+  glyph: '打',
+  verb: '打撃',
   name: '手甲',
   model: 'gauntlet',
   mount: 'forearms',
@@ -248,6 +260,8 @@ const THROW = {
 WEAPONS.shuriken = {
   ...K,
   id: 'shuriken',
+  glyph: '投',
+  verb: '投擲',
   name: '手裏剣',
   model: 'shuriken',
   combo: [

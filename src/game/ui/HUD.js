@@ -1,3 +1,4 @@
+import { combatHint } from '../combat/CombatRhythm.js';
 import { Vector3 } from 'three';
 
 const _p = new Vector3();
@@ -32,6 +33,8 @@ export class HUD {
     this.dragonLabel.title = '攻撃命中で蓄積。満タンで次の命中に竜爪';
     this.potion = el('div', 'gh-potion', frame);
     this.objective = el('div', 'gh-objective', root);
+    this.combatHint = el('div', 'gh-combat-hint', root);
+    this.combatHint.setAttribute('aria-live', 'polite');
 
     // Boss
     this.boss = el('div', 'gh-boss', root);
@@ -168,10 +171,12 @@ export class HUD {
       this.calmLabel.classList.toggle('is-ready', player.spirit.calm >= 100);
       this.dragonLabel.classList.toggle('is-ready', player.spirit.dragon >= 100);
     }
+    this._text('combatHint', this.combatHint, combatHint(player));
+    this.guardBar.parentElement.classList.toggle('is-low', player.guardMeter / player.maxGuard < 0.25);
     this._set('hp', this.hpBar, player.hp / player.maxHp);
     this._set('mp', this.mpBar, player.mp / player.maxMp);
     this._set('guard', this.guardBar, player.guardMeter / player.maxGuard);
-    this.vignette.style.opacity = player.hp / player.maxHp < 0.3 ? String(0.35 + 0.25 * Math.sin(performance.now() * 0.006)) : '0';
+    this.vignette.style.opacity = player.hp / player.maxHp < 0.3 ? String(game.reducedMotion ? 0.35 : 0.35 + 0.25 * Math.sin(performance.now() * 0.006)) : '0';
 
     // Boss
     const boss = game.boss;
@@ -189,6 +194,7 @@ export class HUD {
     if (this._noticeTimer > 0 && (this._noticeTimer -= dt) <= 0) this.noticeEl.classList.remove('is-on');
     if (this._bigTimer > 0 && (this._bigTimer -= dt) <= 0) this.big.classList.remove('is-on');
     if (this._cardTimer > 0 && (this._cardTimer -= dt) <= 0) this.card.classList.remove('is-on');
+    if (game.reducedMotion) this._flash = 0;
     if (this._flash > 0) {
       this._flash -= dt;
       this.flashEl.style.opacity = String(Math.max(0, this._flash / this._flashLife));

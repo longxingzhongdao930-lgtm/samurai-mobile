@@ -805,3 +805,13 @@ body.game .loader__status {
 .gh-spirit span:last-child { color: #91cbe3; }
 .gh-spirit .is-ready { color: #ffe6a2; text-shadow: 0 0 7px #d39c45; }
 .gh-spirit span:last-child.is-ready { color: #d8f7ff; text-shadow: 0 0 7px #56beff; }
+
+.gh-combat-hint {
+  position: absolute; left: 16px; top: calc(110px * var(--u) + 8px);
+  max-width: min(360px, 55vw); padding: 4px 10px; border-radius: 3px;
+  color: #f3dfb4; background: rgba(10, 14, 20, .7); text-align: left;
+  font-size: calc(12px * var(--u)); pointer-events: none;
+}
+.gh-combat-hint:empty { display: none; }
+.gh-bar--guard.is-low { border-color: #ff9975; }
+.gh-bar--guard.is-low .gh-bar__fill { background: #ff9975; }

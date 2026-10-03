@@ -35,6 +35,9 @@ const _look = { x: 0, y: 0 };
 export class Game {
   constructor(app) {
     this.app = app;
+    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    app.rig.shakeScale = this.reducedMotion ? 0 : TOUCH ? 0.45 : 1;
+    this._spiritImpactAt = -Infinity;
     this.quality = quality;
     this.budget = new DynamicBudget(app.renderer);
     this.input = app.input;
@@ -528,6 +531,12 @@ export class Game {
       return result;
     }
 
+    if (result.damage > 0 && (hit.dragonPulse || hit.force?.spiritCalm) && this.elapsed - this._spiritImpactAt >= 0.15) {
+      this._spiritImpactAt = this.elapsed;
+      this.hitStop(hit.dragonPulse ? 0.075 : 0.1, 0.06);
+      this.rig.shake(hit.dragonPulse ? 0.12 : 0.16);
+      this.audio.play('heavyHit', { pos: enemy.position, volume: 0.65, pitch: 0.72 });
+    }
     const crit = hit.execute || hit.heavy || result.broke || agent.state === 'recoil';
     if (result.damage > 0) this.hud.damage(enemy.position, result.damage, {
       crit,
@@ -560,6 +569,7 @@ export class Game {
     this.enemies.kill(enemy, hit.dirX || Math.sin(this.app.character.facing), hit.dirZ || Math.cos(this.app.character.facing), force);
     this.director.releaseToken(agent);
     this.kills++;
+    this.player._hitComboTimer = Math.max(this.player._hitComboTimer, 3.4);
     this.score += agent.score;
     this.player.special = Math.min(1, this.player.special + (agent.type.elite ? 0.25 : 0.05));
     this.player.mp = Math.min(this.player.maxMp, this.player.mp + 6);
@@ -640,7 +650,14 @@ export class Game {
     this.app.blood.emit(_v, _v2(0, 0.5, 0), 18, 2.5);
   }
 
-  onPerfectDodge() {
+  onPerfectDodge(hit) {
+    const p = this.player;
+    if (!this.form?.active) {
+      p.counterWindow = Math.max(p.counterWindow, 1.4);
+      p.counterTarget = hit.attacker ?? null;
+      p.guardMeter = Math.min(p.maxGuard, p.guardMeter + 18);
+      p.spirit.defend(false);
+    }
     this.audio.play('perfect');
     this.slowMo(0.45, 0.35);
     this.hud.bigText('見切り', '#bcd8ff', 0.7);

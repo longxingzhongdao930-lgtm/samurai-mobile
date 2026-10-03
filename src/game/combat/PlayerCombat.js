@@ -1,3 +1,4 @@
+import { comboLifetime, canSwitchInRecovery } from './CombatRhythm.js';
 import { DualSpirit } from './DualSpirit.js';
 import { GauntletAir } from './GauntletAir.js';
 import { MathUtils, Vector3 } from 'three';
@@ -58,6 +59,9 @@ export class PlayerCombat {
     /** Seconds left in which an attack press becomes the riposte. */
     this.counterWindow = 0;
     this.counterTarget = null;
+    this._weaponQueue = 0;
+    this._switchBoost = 0;
+    this._linkHitTimer = 0;
     this.invulnerable = 0;
     this.lockTarget = null;
     this.elementIndex = 0;
@@ -145,6 +149,7 @@ export class PlayerCombat {
     const weapon = WEAPONS[id];
     if (!weapon?.available || weapon === this.weapon) return false;
     this.air?.reset(); this._gauntletCharged = false;
+    this._switchBoost = 0;
     for (const move of this.moves) move.cancel();
     const overrides = this.character.locomotion.overrides;
     for (const move of this._moveOverrides) {
@@ -162,21 +167,38 @@ export class PlayerCombat {
   }
 
   _readWeaponSwitch() {
-    if (!this.input.consume('weapon')) return;
-    if (this.state !== 'free') return;
+    if (this.dead || this.game.form?.active || this.game.cinematic || ['hurt', 'down', 'cast'].includes(this.state)) {
+      this._weaponQueue = 0;
+      this.input.consume('weapon');
+      return;
+    }
+    if (this.input.consume('weapon')) this._weaponQueue = 0.7;
+    const recovery = canSwitchInRecovery(this);
+    if (this._weaponQueue <= 0 || (this.state !== 'free' && !recovery)) return;
+    this._weaponQueue = 0;
+    const linked = recovery && this._linkHitTimer > 0;
     const order = WEAPON_ORDER.filter((id) => WEAPONS[id]?.available);
     const next = order[(order.indexOf(this.weapon.id) + 1) % order.length];
     if (this.setWeapon(next)) {
-      this.game.hud?.notice(this.weapon.id === 'gauntlet' ? '飛ぶ手甲 — 攻撃で射出・長押しして離すと引き寄せ' : this.weapon.name, this.weapon.id === 'gauntlet' ? 3.5 : 1.6);
+      this._toFree();
+      this._held.warp.active = false;
+      this._switchBoost = linked ? 2 : 0;
+      this._linkHitTimer = 0;
+      this.game.hud?.notice(linked ? `${this.weapon.name} — 持ち替え連携` : this.weapon.id === 'gauntlet' ? '飛ぶ手甲 — 攻撃で射出・長押しして離すと引き寄せ' : this.weapon.name, 2);
       this.game.audio?.play('select');
     }
   }
 
+  _recordHit(count = 1) {
+    this.hitCombo += count;
+    this._hitComboTimer = Math.max(this._hitComboTimer, comboLifetime(this.hitCombo));
+    this._linkHitTimer = 0.8;
+    this.stats.maxCombo = Math.max(this.stats.maxCombo, this.hitCombo);
+  }
+
   /** A thrown star landed: the same rewards a blade's hit gives. */
   onRangedHit(config) {
-    this.hitCombo += 1;
-    this._hitComboTimer = 2.4;
-    this.stats.maxCombo = Math.max(this.stats.maxCombo, this.hitCombo);
+    this._recordHit();
     this.special = Math.min(1, this.special + 0.02);
     this.mp = Math.min(this.maxMp, this.mp + 1.2);
     this.game.hitStop(0.03, 0.2);
@@ -212,6 +234,10 @@ export class PlayerCombat {
     if (this.game.state !== 'playing') return this._hold();
     const input = this.input;
     this.spirit.update(dt);
+    this._weaponQueue = Math.max(0, this._weaponQueue - dt);
+    this._switchBoost = Math.max(0, this._switchBoost - dt);
+    this._linkHitTimer = Math.max(0, this._linkHitTimer - dt);
+    if (this.game.form?.active) this._switchBoost = this._linkHitTimer = 0;
     this.stateTime += dt;
     this.guardTime += dt;
     this.invulnerable = Math.max(0, this.invulnerable - dt);
@@ -468,6 +494,10 @@ export class PlayerCombat {
     move.baseConfig ??= move._config;
     const radius = target?.agent?.radius ?? 0;
     move._config = radius > 0.6 ? { ...move.baseConfig, standoff: move.baseConfig.standoff + (radius - 0.45), reach: move.baseConfig.reach + (radius - 0.45) } : move.baseConfig;
+    if (this._switchBoost > 0 && move !== this.execute && move !== this.cast) {
+      move._config = { ...move._config, posture: move._config.posture + 12 };
+      this._switchBoost = 0;
+    }
     move._config = this.spirit.empowerMove(move._config, move === this.heavy);
     move.start(target?.alive ? target : null);
     this.move = move;
@@ -547,7 +577,7 @@ export class PlayerCombat {
         source: 'melee',
         heavy: move === this.heavy || move === this.combo[4]
       });
-      if (result) landed++;
+      if (result?.damage > 0 && !result.evaded) landed++;
       if (config.airLauncher && result?.damage > 0 && !result.killed) {
         this.air.launch(enemy, opening || result.broke || move === this.counter);
       }
@@ -566,9 +596,7 @@ export class PlayerCombat {
     }
 
     if (landed > 0) {
-      this.hitCombo += landed;
-      this._hitComboTimer = 2.4;
-      this.stats.maxCombo = Math.max(this.stats.maxCombo, this.hitCombo);
+      this._recordHit(landed);
       this.special = Math.min(1, this.special + 0.025 * landed);
       this.mp = Math.min(this.maxMp, this.mp + 1.6 * landed);
       this.game.hitStop(config.hitStop, config.hitStopScale);
@@ -740,6 +768,8 @@ export class PlayerCombat {
   }
 
   _stagger(seconds, dx, dz, knock, knockdown) {
+    this._weaponQueue = this._switchBoost = this._linkHitTimer = 0;
+    this.counterWindow = 0;
     this._gauntletCharged = false;
     for (const move of this.moves) if (move.locked) move.release();
     this._cancelPoses();
@@ -765,6 +795,7 @@ export class PlayerCombat {
   }
 
   _die(hit) {
+    this._weaponQueue = this._switchBoost = this._linkHitTimer = 0;
     this.state = 'dead';
     this.stateTime = 0;
     for (const move of this.moves) if (move.locked) move.release();
@@ -860,6 +891,8 @@ export class PlayerCombat {
   /** Back to full, standing — a retry from a checkpoint. */
   revive(hp = this.maxHp) {
     this.spirit?.reset();
+    this._weaponQueue = this._switchBoost = this._linkHitTimer = 0;
+    this.hitCombo = this._hitComboTimer = this._comboGrace = 0;
     this.air?.reset();
     this._gauntletCharged = false;
     for (const move of this.moves) move.cancel();

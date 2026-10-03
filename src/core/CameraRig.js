@@ -162,7 +162,7 @@ export class CameraRig {
    * frame rather than summing — two impacts do not shake twice as hard.
    */
   shake(amount) {
-    this._shake = Math.max(this._shake, amount);
+    this._shake = Math.max(this._shake, amount * (this.shakeScale ?? 1));
   }
 
   /**

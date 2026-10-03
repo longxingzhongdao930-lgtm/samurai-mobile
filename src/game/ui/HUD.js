@@ -25,6 +25,11 @@ export class HUD {
     this.hpBar = bar(bars, 'gh-bar--hp');
     this.mpBar = bar(bars, 'gh-bar--mp');
     this.guardBar = bar(bars, 'gh-bar--guard');
+    this.spiritRow = el('div', 'gh-spirit', bars);
+    this.calmLabel = el('span', '', this.spiritRow);
+    this.dragonLabel = el('span', '', this.spiritRow);
+    this.calmLabel.title = '防御で蓄積。満タンで刀の長押し居合を強化';
+    this.dragonLabel.title = '攻撃命中で蓄積。満タンで次の命中に竜爪';
     this.potion = el('div', 'gh-potion', frame);
     this.objective = el('div', 'gh-objective', root);
 
@@ -157,6 +162,12 @@ export class HUD {
     const player = game.player;
     if (!player) return;
 
+    if (player.spirit) {
+      this.calmLabel.textContent = player.spirit.calm >= 100 ? '静・居合準備' : `静 ${player.spirit.calm}/100`;
+      this.dragonLabel.textContent = player.spirit.dragon >= 100 ? '竜・爪準備' : `竜 ${player.spirit.dragon}/100`;
+      this.calmLabel.classList.toggle('is-ready', player.spirit.calm >= 100);
+      this.dragonLabel.classList.toggle('is-ready', player.spirit.dragon >= 100);
+    }
     this._set('hp', this.hpBar, player.hp / player.maxHp);
     this._set('mp', this.mpBar, player.mp / player.maxMp);
     this._set('guard', this.guardBar, player.guardMeter / player.maxGuard);

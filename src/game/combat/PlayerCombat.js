@@ -1,3 +1,4 @@
+import { DualSpirit } from './DualSpirit.js';
 import { GauntletAir } from './GauntletAir.js';
 import { MathUtils, Vector3 } from 'three';
 import { Attack } from '../../animation/Attack.js';
@@ -77,6 +78,7 @@ export class PlayerCombat {
 
     this._build();
     this.air = new GauntletAir(this);
+    this.spirit = new DualSpirit(this);
   }
 
   /* ------------------------------------------------------------------ */
@@ -209,6 +211,7 @@ export class PlayerCombat {
   control(dt) {
     if (this.game.state !== 'playing') return this._hold();
     const input = this.input;
+    this.spirit.update(dt);
     this.stateTime += dt;
     this.guardTime += dt;
     this.invulnerable = Math.max(0, this.invulnerable - dt);
@@ -465,6 +468,7 @@ export class PlayerCombat {
     move.baseConfig ??= move._config;
     const radius = target?.agent?.radius ?? 0;
     move._config = radius > 0.6 ? { ...move.baseConfig, standoff: move.baseConfig.standoff + (radius - 0.45), reach: move.baseConfig.reach + (radius - 0.45) } : move.baseConfig;
+    move._config = this.spirit.empowerMove(move._config, move === this.heavy);
     move.start(target?.alive ? target : null);
     this.move = move;
     this.state = move === this.cast ? 'cast' : 'attack';
@@ -687,6 +691,7 @@ export class PlayerCombat {
     // Parry: the guard went up just before the blow. Works on everything but
     // a grab-like unblockable, and it is the only answer to a guard break.
     if (this.guarding && front && this.guardTime <= this.weapon.guard.parryWindow && !hit.unparryable) {
+      this.spirit.defend(true);
       this.stats.parries++;
       this.special = Math.min(1, this.special + 0.14);
       this.counterWindow = 1.1;
@@ -712,6 +717,7 @@ export class PlayerCombat {
       this._takeDamage(hit.damage * spec.chip, hit, true);
       this._knock.x -= (dx / distance) * 0.35;
       this._knock.z -= (dz / distance) * 0.35;
+      this.spirit.defend(false);
       this.game.onBlock(hit);
       return 'block';
     }
@@ -853,6 +859,7 @@ export class PlayerCombat {
 
   /** Back to full, standing — a retry from a checkpoint. */
   revive(hp = this.maxHp) {
+    this.spirit?.reset();
     this.air?.reset();
     this._gauntletCharged = false;
     for (const move of this.moves) move.cancel();

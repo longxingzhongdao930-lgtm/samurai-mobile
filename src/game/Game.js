@@ -293,6 +293,7 @@ export class Game {
     this.motion.update(dt);
     this.weapons.fist?.lateUpdate();
     this.bow.update(dt, this.player.castTarget);
+    this.player.spirit.lateUpdate();
     this.fx.update(dt, this.elapsed);
     this.fx.ribbons.update(dt);
     this._camera(raw);
@@ -515,7 +516,9 @@ export class Game {
     const agent = enemy.agent;
     if (!agent || !enemy.alive) return null;
     if (hit.source === 'melee') hit = { ...hit, damage: hit.damage * this.blessings.damageMultiplier };
+    hit = this.player.spirit.prepareHit(hit);
     const result = agent.takeHit(hit);
+    this.player.spirit.landed(hit, result, enemy);
     if (!result) return null;
     const height = agent.type.height;
     _v.set(enemy.position.x - hit.dirX * agent.radius * 0.6, enemy.position.y + height * 0.6, enemy.position.z - hit.dirZ * agent.radius * 0.6);

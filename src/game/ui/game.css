@@ -800,3 +800,8 @@ body.game .loader__status {
 .gs-blessing__choice:focus-visible { outline: 2px solid var(--kin-pale); outline-offset: 3px; }
 @media (max-width: 500px) and (orientation: portrait) { .gs-blessing__choices { grid-template-columns: 1fr; } .gs-blessing__choice { padding: 12px; gap: 5px; } }
 @media (max-height: 450px) { .gs-blessing { padding: 12px; gap: 5px; } .gs-blessing__choice { padding: 12px 8px; gap: 6px; } }
+
+.gh-spirit { display: flex; gap: 10px; font-size: calc(10px * var(--u)); line-height: 1.2; color: #c6c1b5; text-shadow: 0 1px 3px #000; }
+.gh-spirit span:last-child { color: #91cbe3; }
+.gh-spirit .is-ready { color: #ffe6a2; text-shadow: 0 0 7px #d39c45; }
+.gh-spirit span:last-child.is-ready { color: #d8f7ff; text-shadow: 0 0 7px #56beff; }

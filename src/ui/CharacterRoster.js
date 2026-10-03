@@ -21,6 +21,10 @@ export class CharacterRoster {
       });
       this.element.append(button);
     }
+    const back = document.createElement('a');
+    back.href = './';
+    back.textContent = '黒雨の城下町へ戻る';
+    this.element.append(back);
     const credits = document.createElement('a');
     credits.href = './model-credits.html';
     credits.target = '_blank';

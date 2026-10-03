@@ -105,6 +105,7 @@ const UPPER_CONTACTS = new Set([
 ]);
 
 const UP = /* @__PURE__ */ new Vector3(0, 1, 0);
+const _white = /* @__PURE__ */ makeColor('#ffffff');
 const DOWN = /* @__PURE__ */ new Vector3(0, -1, 0);
 
 const _cutNormal = /* @__PURE__ */ new Vector3();
@@ -216,6 +217,25 @@ export class Enemy {
 
     this.root = new Group();
     this.root.name = 'Enemy';
+    // Yaw first, then the lean in the body's own frame — see `lean`.
+    this.root.rotation.order = 'YXZ';
+
+    /**
+     * Game-side extras. All optional: the template's population leaves them
+     * alone and the body behaves exactly as it always did.
+     *
+     * `look` overrides `settings.enemies.look` per body (a type's colours),
+     * `flash` (0..1) whitens the rim for a hit, `lean` tilts the body back
+     * (radians) for a flinch, `radius` is how wide it stands for collision,
+     * and `agent` is whatever drives it (`game/ai/EnemyAgent.js`).
+     */
+    this.look = null;
+    this.flash = 0;
+    this.lean = 0;
+    this.radius = null;
+    this.agent = null;
+    /** Extra animation work after the mixer, before the pose is drawn. */
+    this.onAnimate = null;
 
     /** Metres per unit of the export — the dissolve's noise is sized off it. */
     this._scale = scale;
@@ -372,8 +392,10 @@ export class Enemy {
   _live(dt, player) {
     const config = settings.enemies;
 
-    this.mixer.timeScale = settings.global.animationSpeed;
+    this.mixer.timeScale = settings.global.animationSpeed * (this.timeScale ?? 1);
     this.mixer.update(dt);
+    this.onAnimate?.(dt);
+    this.root.rotation.x = this.lean;
 
     // Re-read the floor every frame rather than at spawn: the terrain sliders
     // are live, and a body left standing in the air the moment someone moves
@@ -409,6 +431,8 @@ export class Enemy {
 
     this.state = 'dead';
     this.timer = 0;
+    this.lean = 0;
+    this.root.rotation.x = 0;
     // Nothing fades. The pose the clip is on *is* the ragdoll's first frame —
     // so the skeleton is brought fully up to date, ancestors included, before
     // it is read: the solver works in world space and every rest length it
@@ -604,6 +628,13 @@ export class Enemy {
     const bindOffset = this._toBindPlane(_cutNormal, _cutNormal.dot(_cutPoint), _cutNormalBind);
 
     const upper = cloneRigged(this.parts[0].model);
+    // Armour and gear go with whichever half carries their bones.
+    const keep = (model, half) =>
+      model.traverse((node) => {
+        if (node.userData.half && node.userData.half !== half) node.visible = false;
+      });
+    keep(this.parts[0].model, 'lower');
+    keep(upper, 'upper');
     this.root.add(upper);
     this.parts.push(this._makePart(upper));
     // The clone has to be in the world before the solver reads a bone off it.
@@ -762,6 +793,8 @@ export class Enemy {
 
     part.model.traverse((node) => {
       if (!node.isMesh && !node.isSkinnedMesh) return;
+      // Anything the game hung on the body (armour, weapons) keeps its own look.
+      if (node.userData.ownMaterial) return;
 
       node.castShadow = true;
       node.receiveShadow = true;
@@ -848,8 +881,9 @@ if (uCutSide != 0.0 && (dot(vEnemyBind, uCutNormal) - uCutOffset) * uCutSide < 0
 
   /** Settings → this body's uniforms. Live, so the look is editable on screen. */
   _syncMaterial() {
-    const look = settings.enemies.look;
+    const look = this.look ?? settings.enemies.look;
     const cut = settings.slice;
+    const flash = this.flash;
 
     for (const part of this.parts) {
       const u = part.uniforms;
@@ -863,6 +897,13 @@ if (uCutSide != 0.0 && (dot(vEnemyBind, uCutNormal) - uCutOffset) * uCutSide < 0
       copyColor(u.uRimColor.value, look.rimColor);
       u.uRimPower.value = look.rimPower;
       u.uRimEmissive.value = look.rimEmissive;
+      if (flash > 0) {
+        // A hit whitens the whole silhouette for a frame or two: the rim goes
+        // white, wide and hot, which reads as the body flinching under light.
+        u.uRimColor.value.lerp(_white, Math.min(1, flash));
+        u.uRimPower.value = look.rimPower * (1 - 0.8 * flash) + 0.3 * flash;
+        u.uRimEmissive.value = look.rimEmissive + flash * 6;
+      }
       copyColor(u.uEdgeColor.value, look.edgeColor);
       u.uEdgeEmissive.value = look.edgeEmissive;
       u.uEdgeWidth.value = look.edgeWidth;

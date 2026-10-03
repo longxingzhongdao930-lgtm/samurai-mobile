@@ -13,7 +13,7 @@ integration; no deployment token or GitHub Actions workflow is needed.
 
    | Setting | Value |
    | --- | --- |
-   | Project name | `character-equipment` (the name in `wrangler.toml`) |
+   | Project name | `samurai-mobile` (the name in `wrangler.toml`) |
    | Production branch | `main` |
    | Framework preset | Vite, or None with the explicit settings below |
    | Build command | `npm test && npm run build` |
@@ -35,3 +35,7 @@ Subsequent successful builds update the same production URL automatically.
 
 Model credits and asset licenses are linked from the game's character menu.
 See `docs/characters.md` before using the supplied models commercially.
+
+The production project is `samurai-mobile.pages.dev`. Its root opens the
+**黒雨の城下町** trial. The title links to the six-character playground at `?dev`.
+Both modes deploy together from `main`.

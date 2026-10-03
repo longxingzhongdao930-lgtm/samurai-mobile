@@ -1,3 +1,50 @@
+# 黒雨の城下町 — 体験版 v1.0
+
+スマホ（横画面）で遊べる、和風ダークファンタジー × 3Dアクション × アクションRPG の体験版（10〜15分）。
+Three.js 製の三人称テンプレートを土台に、戦闘・敵AI・ボス・ステージ・演出・モバイル操作を載せたもの。
+
+```bash
+npm install
+npm run dev      # http://127.0.0.1:5173        ← 体験版
+                 # http://127.0.0.1:5173/?dev   ← 追加6体の確認画面（スタジオ・エディタ）
+npm run build
+```
+
+URLオプション: `?q=low|mid|high`（画質固定）· `?touch=1`（PCでタッチUI表示）· `?dyn=0`（動的解像度オフ）· `?sandbox`（全敵種の試遊場）· `?debug`（Gでエディタ）
+
+通常画面はClaudeブランチ `claude/confident-goldberg-8tk9be` の体験版です。
+タイトルの「追加キャラクター6体を見る」から、別途追加したモデルの確認画面へ移動できます。
+
+### 操作
+
+| | スマホ | PC |
+| --- | --- | --- |
+| 移動 | 左半分：仮想スティック（軽く倒すと歩き） | WASD（Shiftで歩き） |
+| カメラ | 右半分をスワイプ | マウスを動かす（クリックでカーソル固定・Escで解放） |
+| 攻撃 / 5段コンボ | 斬（連打） | 左クリック（連打） |
+| 居合（強攻撃） | 斬を長押し | 左クリック長押し |
+| ガード / パリィ | 守（攻撃直前に押すと弾き） | 右クリック |
+| 反撃 | パリィ直後に斬 | 同左 |
+| 回避（見切り） | 避 | Space |
+| 処刑 | 体勢が崩れた敵の近くで斬（ボタンが「処」に変化） | 同左 |
+| 魔法 / 属性切替 | 術 / 火・雷・氷チップ | Q / 1・2・3 |
+| 武器切替（刀→大太刀→槍→薙刀→鎖鎌→手甲→手裏剣） | 右上の武器ボタン | E / ホイール |
+| 奥義 | 奥義（ゲージ満タン） | R |
+| ロックオン | 敵をタップ / ◎ | Tab / ホイール押し |
+| ポーズ | 右上 | Esc / P |
+
+### 遊びの流れ
+
+城下町（探索・脇道の霊薬と魂玉）→ 赤鬼戦 → 雷の術を会得 → 百鬼夜行（大量戦闘）→ 廃神社（千本鳥居・忍妖の奇襲・境内）→ 氷の術を会得 → 城門 → **黒角鬼・羅刹**（3フェーズ：通常 → 妖気解放 → 暴走）→ 処刑 → リザルト（S〜Cランク）
+
+属性反応：火＋雷＝**爆雷**（爆発）· 氷＋雷＝**凍雷**（凍結）· 火＋氷＝**蒸破**（体幹崩し）
+
+設計・調査結果・最適化の詳細は [docs/TRIAL.md](docs/TRIAL.md)。
+
+---
+
+# 以下：土台のテンプレート（`?dev`）
+
 # Samurai — a third-person Three.js template
 
 A complete third-person action stage in the browser: a rigged samurai on an
@@ -587,3 +634,13 @@ src/
 - **Animations** — [Mixamo](https://mixamo.com)
 - **Textures** — [ambientCG](https://ambientcg.com)
 - **HDRI** — [Poly Haven](https://polyhaven.com)
+- **Ōdachi** (`odachi.glb`) — "Masahiro Ōdachi Dragon Samurai Ōdachi Sword" by [tinohunda34](https://sketchfab.com/3d-models/none-f8b64024983047d9bb66775495efe24c), CC BY 4.0
+- **Spear** (`spear.glb`) — "spear" by [KIFIR](https://sketchfab.com/3d-models/spear-f13ddd24e2fe47aa8aca23487afd893e), CC BY-NC 4.0 — **non-commercial only**
+- **Naginata** (`naginata.glb`) — "Naginata_2_v02" by [safetyman](https://sketchfab.com/3d-models/none-28a9fd3332124adb9130c72d74307dcf), CC BY 4.0
+- **Kusarigama** (`kusarigama.glb`) — "Kusarigama" by [TheSlavarik](https://sketchfab.com/3d-models/none-d1270138aa3f4891b99703f5e543700c), CC BY 4.0
+- **Gauntlets** (`gauntlet_pair.glb`) — "Daedric Gauntlet (Skyrim fanArt)" by [francislam](https://sketchfab.com/3d-models/none-169110e93a28406bbc79c285bec08d66), CC BY-NC-SA 4.0 — **non-commercial only, and fan art of a Bethesda design**
+- **Shuriken** (`shuriken.glb`) — "Shuriken" by [afferu](https://sketchfab.com/3d-models/none-9ff964d8c8824ac6b2c052dd4a6496de), CC BY-SA 4.0
+
+  All weapon models were re-oriented into the katana's frame, decimated and had their textures resized; the scabbard, ribbon and spare parts were removed.
+- **Dragonkin** (`models/dragonkin.glb`, the special's transformation) — "Silver Dragonkin (Mir4)" by [Doctor A.](https://sketchfab.com/3d-models/silver-dragonkin-mir4-89ead4e87cdc4b70840f748383f0998f) on Sketchfab, published as CC BY 4.0. **A creature from the game MIR4: the uploader's right to license it is doubtful — personal / non-public use only; replace before any public or commercial release.** Animations trimmed to 12, textures resized.
+- **Bow and Arrow** (`public/models/weapons/bow.glb`, quiver and spare arrows removed, textures resized) — [Amatsukast](https://sketchfab.com/3d-models/bow-and-arrow-1ce33880149543f9ae7b5848e6e52d66) on Sketchfab, [CC BY-NC-SA 4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/). **Non-commercial only** — replace it before any commercial release.

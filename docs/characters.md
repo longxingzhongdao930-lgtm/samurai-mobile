@@ -1,6 +1,13 @@
 # Added characters
 
-Open **Characters · 6** at the top of the screen and select a name to move near
+The default page is the full **黒雨の城下町** trial from
+`claude/confident-goldberg-8tk9be` (`00db330`), including its town, progression,
+weapons, combat and dragon transformation. On its title screen select
+**追加キャラクター6体を見る** to enter the separate character playground (`?dev`).
+The trial does not download these six showcase assets during startup. Its own
+`models/dragonkin.glb` continues to power the playable dragon form.
+
+In the playground, open **Characters · 6** and select a name to move near
 that character. The menu works with touch and keyboard. The existing player
 character and controls are retained.
 
@@ -17,7 +24,7 @@ Camp roles describe their placement/presentation: these three are not combat AI
 or replacements for the playable samurai. They stand to the left of the initial
 spawn and can also be reached using the menu.
 
-The three enemies occupy three of the existing five population slots. They
+In the playground, the three enemies occupy three of the existing five population slots. They
 approach using walk/run, play ordinary attacks and occasional skill motions,
 and return to idle. Multi-part Achates attacks play all sections in order.
 Infinian's Skill03 can play Up → Down as one sequence. A lethal hit interrupts
@@ -25,9 +32,10 @@ any sequence and holds the final death pose until corpse removal. Infinian has
 no supplied hit animation: a nonlethal hit interrupts it into idle instead.
 Settings are under `settings.creatures` and **G → Combat → Enemies**.
 
-This is animation integration. The base project has no player-health system;
-enemy attacks do not damage the player, and newly mapped skills do not create
-new breath/spell VFX or hitboxes. No unsupported cross-rig retargeting is used.
+This playground is animation integration. It has no player-health system;
+playground enemy attacks do not damage the player, and newly mapped skills do not create
+new breath/spell VFX or hitboxes. No unsupported cross-rig retargeting is used. The separate town trial retains its
+complete player-health, enemy AI, boss and progression systems.
 
 ## Asset preparation
 

@@ -1,4 +1,4 @@
-name = "character-equipment"
+name = "samurai-mobile"
 compatibility_date = "2026-08-17"
 
 # Static-site (Pages) project: `vite build` writes here and wrangler uploads it.

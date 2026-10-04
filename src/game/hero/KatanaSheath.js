@@ -35,7 +35,7 @@ export class KatanaSheath {
     if(this.offset)mouth.add(this.offset());
     const carrying = p.weapon.id==='katana' && p.state==='free' && !p.guarding && !c.airHeight && !p.dead && !g.form.active && (!p.arts.mode || p.arts.mode==='sheathed');
     this.carryWeight = (this.carryWeight??0) + ((carrying?1:0)-(this.carryWeight??0))*(1-Math.exp(-dt*16));
-    const axis = new Vector3(-Math.sin(yaw), -.16, -Math.cos(yaw)).normalize();
+    const axis = new Vector3(-Math.sin(yaw), p.arts.mode==='charge'?.12:-.16, -Math.cos(yaw)).normalize();
     if (hips) {
       // The grip is 10 cm behind the mouth. A single sword uses both hands'
       // shared reach; each dual sword must use only its own holding arm.
@@ -71,6 +71,10 @@ export class KatanaSheath {
     h.sheath.position.copy(mouth);
     h.sheath.quaternion.copy(rotation);
     h.sheath.scale.setScalar(1);
+    if(this.reference&&p.weapon.id==='katana'&&p.state==='attack'&&p.move===p.heavy){
+      const weight=1-smoothPhase(p.move.phase,.72,.94);
+      this._hand('Left',mouth,weight);
+    }
     const source = this.source?.() ?? g.weapons.blade?.() ?? g.weapons._slot()?.model;
     const active = p.weapon.id === 'katana' && ['sheath', 'flourish', 'sheathed', 'charge'].includes(p.arts.mode) && !p.dead && !g.form.active;
     if (!source) return;
@@ -89,7 +93,7 @@ export class KatanaSheath {
       }
       if (this.drawFromSheath) {
         if (p.move !== p.heavy || p.state !== 'attack' || p.move.phase >= .28) this.drawFromSheath = false;
-        else this._hand('Left', mouth, 1 - smooth(p.move.phase / .28));
+        else if(!this.reference)this._hand('Left', mouth, 1 - smooth(p.move.phase / .28));
       }
       if (this.release && this.copy && p.weapon.id === 'katana' && !p.dead && !g.form.active) {
         this.release.t += dt;
@@ -215,8 +219,9 @@ export class KatanaSheath {
       const upper=c.getBone(this.side+'Arm'),lower=c.getBone(this.side+'ForeArm');
       const shoulder=upper.getWorldPosition(new Vector3()),elbow=lower.getWorldPosition(new Vector3()),hand=rightHand.getWorldPosition(new Vector3());
       const reach=shoulder.distanceTo(elbow)+elbow.distanceTo(hand)-.015;
-      const away=shoulder.clone().sub(mouth).normalize();
-      const outside=shoulder.clone().addScaledVector(away,reach);
+      const away=shoulder.clone().sub(mouth).setY(0).normalize();
+      const retract=this.reference?away.multiplyScalar(reach*.86).add(new Vector3(Math.sin(yaw)*reach*.3,-.03,Math.cos(yaw)*reach*.3)):away.setLength(reach);
+      const outside=shoulder.clone().add(retract);
       const finalGrip=mouth.clone().addScaledVector(axis,-.1);
       const lifted=this.fromGrip.clone().add(new Vector3(Math.sin(yaw)*.2,.2,Math.cos(yaw)*.2));
       const liftEnd=profile?.lift??.08,retractEnd=profile?.retract??.18;

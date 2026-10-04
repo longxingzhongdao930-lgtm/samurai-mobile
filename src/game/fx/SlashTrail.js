@@ -52,7 +52,8 @@ export class SlashTrail {
         uColor: { value: new Color('#ffb36a') },
         uCore: { value: new Color('#fff6e8') },
         uLife: { value: 0.11 },
-        uStrength: { value: 1 }
+        uStrength: { value: 1 },
+        uBand: { value: 0 }
       },
       vertexShader: /* glsl */ `
         attribute float aAge;
@@ -69,6 +70,7 @@ export class SlashTrail {
         uniform vec3 uCore;
         uniform float uLife;
         uniform float uStrength;
+        uniform float uBand;
         varying float vAge;
         varying float vSide;
         void main() {
@@ -78,6 +80,7 @@ export class SlashTrail {
           // Only a thin hot rim along the edge; the inner side is a faint smear.
           float edge = pow(smoothstep(0.0, 1.0, vSide), 3.0);
           float a = fade * mix(0.04, 0.85, edge) * uStrength;
+          if(vSide<uBand)discard;
           vec3 col = mix(uColor, uCore, edge * (1.0 - t) * 0.7);
           if (a < 0.01) discard;
           gl_FragColor = vec4(col * a, a);

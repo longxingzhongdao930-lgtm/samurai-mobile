@@ -1,6 +1,6 @@
 import { MathUtils, Vector3 } from 'three';
 import { SHEATH_REFERENCE, sheathDuration } from './SheathReference.js';
-import { sheathPose } from './SheathPose.js';
+import { vergilIaiStance } from './VergilIai.js';
 import { PoseLayer } from '../combat/PoseLayer.js';
 
 export function attackDirection(heading, facing) {
@@ -17,7 +17,7 @@ export function behind(enemy, position) {
 export class HeroArts {
   constructor(player) {
     this.p=player;this.g=player.game;
-    this.pose=new PoseLayer(player.character.mixer,sheathPose(player.character.clips.get('crouch'),player.character.clips.get('idle')),{blendIn:.12,blendOut:.1});
+    this.pose=new PoseLayer(player.character.mixer,vergilIaiStance(player.character.clips.get('crouch'),player.character.clips.get('idle')),{blendIn:.12,blendOut:.1});
     this.restPose=new PoseLayer(player.character.mixer,player.character.clips.get('idle'),{blendIn:.16,blendOut:.12,loop:true});
     player.poses.push(this.pose,this.restPose);player.character.locomotion.overrides.push(this.pose,this.restPose);
     this.reset();

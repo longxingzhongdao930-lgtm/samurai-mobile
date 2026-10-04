@@ -1,3 +1,4 @@
+import { vergilIaiStance, vergilIaiCut } from '../hero/VergilIai.js';
 import { jumpAttack } from '../data/jump-attacks.js';
 import { nextWeapon } from './WeaponCycle.js';
 import { HeroArts } from '../hero/HeroArts.js';
@@ -100,7 +101,8 @@ export class PlayerCombat {
     const clip = (name) => character.clips.get(name)?.clone() ?? null;
     const onStrike = (move, index) => this._onStrike(move, index);
     const make = (config) => {
-      const animation=clip(config.clip);
+      let animation=clip(config.clip);
+      if(config.id==='heavy'&&this.weapon.id==='katana'&&config.clip==='crouchSlash')animation=vergilIaiCut(animation,vergilIaiStance(character.clips.get('crouch'),character.clips.get('idle')),character.clips.get('idle'));
       if(config.airborne&&animation)animation.tracks=animation.tracks.filter(track=>/(?:Spine\d*|(?:Left|Right)(?:Shoulder|Arm|ForeArm|Hand)(?:\w*))\.quaternion$/i.test(track.name));
       return new Attack(mixer,animation,character,{config,onStrike});
     };

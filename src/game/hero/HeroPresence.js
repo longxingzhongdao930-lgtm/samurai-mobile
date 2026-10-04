@@ -1,3 +1,4 @@
+import { VergilIaiMotion } from './VergilIaiMotion.js';
 import { Group, Mesh, MeshStandardMaterial, ConeGeometry, CylinderGeometry, SphereGeometry, BufferGeometry, Line, LineBasicMaterial, Vector3, DoubleSide } from 'three';
 import { SheathBody } from './SheathBody.js';
 import { SHEATH_REFERENCE } from './SheathReference.js';
@@ -7,7 +8,7 @@ import { ik } from '../combat/WeaponMotion.js';
 /** Small, reversible pose offsets; no edits to the imported rig or animation tracks. */
 export class HeroPresence {
   constructor(game){
-    this.g=game;this.sheathBody=new SheathBody(this);this.katanaSheath=new KatanaSheath(this,{reference:SHEATH_REFERENCE.single});this.originals=new Map();this.look=0;this.speed=0;this.sway=0;
+    this.g=game;this.iaiMotion=new VergilIaiMotion(this);this.sheathBody=new SheathBody(this);this.katanaSheath=new KatanaSheath(this,{reference:SHEATH_REFERENCE.single});this.originals=new Map();this.look=0;this.speed=0;this.sway=0;
     this.root=new Group();game.app.scene.add(this.root);
     const cloth=new MeshStandardMaterial({color:'#252f39',roughness:.95,side:DoubleSide});this.cloth=cloth;
     this.hat=new Mesh(new ConeGeometry(.43,.14,24),new MeshStandardMaterial({color:'#584632',roughness:1}));
@@ -82,6 +83,7 @@ export class HeroPresence {
     this.cloth.color.setRGB(.025*(1-arts.dirt*.35),.035*(1-arts.dirt*.35),.045*(1-arts.dirt*.35));
     this.sheath.visible=p.weapon.id==='katana';
     const blade=g.weapons.blade?.() ?? g.weapons._slot()?.model;if(blade&&p.weapon.id==='katana')blade.visible=!['sheath','sheathed','charge'].includes(arts.mode);
+    this.iaiMotion.update();
     this.katanaSheath.update(dt);
     const fist=g.weapons.fist,f=fist?.flight;
     this.tether.visible=!!f&&(f.time<.2||f.returning||f.grabbed);

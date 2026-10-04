@@ -200,7 +200,31 @@ export class Effects {
 
   update(dt, elapsed) {
     if (!this._bladeBound) this.bindBlade();
+    const p=this.game.player,iai=p.weapon.id==='katana'&&p.state==='attack'&&p.move===p.heavy&&!this.game.form.active;
+    const uniforms=this.trail.material.uniforms;
+    uniforms.uColor.value.set(iai?'#769fff':'#ffb36a');
+    uniforms.uCore.value.set(iai?'#effbff':'#fff6e8');
+    uniforms.uLife.value=iai?.14:.11;
+    uniforms.uBand.value=iai?.82:0;
+    if(iai){
+      // Keep the crouched silhouette readable; light appears at the draw,
+      // rather than washing out the held stance or the recovery.
+      const phase=p.move.phase;
+      this._iaiStrength=phase>.12&&phase<.82?1.05:0;
+      if(!this._iaiDraw&&phase>=.12){
+        this._iaiDraw=true;
+        p.character.getBone('RightHand')?.getWorldPosition(_hand);
+        this.glow.spawn(_hand,'#e6f9ff',.28,.09,{star:true,intensity:1.3,grow:.35});
+        this.flare(_hand,'#a7d6ff',4,.09);
+      }
+      if(!this._iaiCut&&phase>=(p.move.config.hits?.[0]??.66)){
+        this._iaiCut=true;
+        p.character.getBone('RightHand')?.getWorldPosition(_hand);
+        this.glow.burst(_hand,'#9bbdff',this.game.quality.name==='low'?4:7,{speed:1.8,size:.025,life:.18,up:.1,gravity:0});
+      }
+    }else{this._iaiDraw=false;this._iaiCut=false;}
     this.trail.update(dt);
+    if(iai)uniforms.uStrength.value=this._iaiStrength;
     this.leftTrail.update(dt);
     this.glow.update(dt, this.game.app.renderer.size.height * this.game.app.renderer.gl.getPixelRatio());
     this.hitSparks.sync(elapsed, this.hitConfig);

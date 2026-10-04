@@ -51,21 +51,23 @@ export class KatanaSheath {
         if (offset.length() > chain.reach) mouth.copy(chain.center).add(offset.setLength(chain.reach));
       }
     }
-    // Reference walk: left hand carries the mouth beside the thigh; the
-    // sheathed blade points down and slightly back. Gait still owns the legs.
+    // Carry near the middle, tilted down/back so the hilt clears the forearm.
+    // The insertion/charge states still use the mouth grip.
     const leftArm=c.getBone('LeftArm'),leftFore=c.getBone('LeftForeArm'),leftHand=c.getBone('LeftHand');
     if(carrying&&leftArm&&leftFore&&leftHand){
       c.root.updateMatrixWorld(true);
       const shoulder=leftArm.getWorldPosition(new Vector3());
       const reach=shoulder.distanceTo(leftFore.getWorldPosition(new Vector3()))+leftFore.getWorldPosition(new Vector3()).distanceTo(leftHand.getWorldPosition(new Vector3()));
-      const outward=shoulder.clone().sub(c.position).setY(0).normalize();
-      const target=shoulder.clone().addScaledVector(outward,.10).add(new Vector3(Math.sin(yaw)*.035,-reach*.95,Math.cos(yaw)*.035));
+      const lateral=new Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+      const outward=lateral.multiplyScalar(Math.sign(shoulder.clone().sub(c.position).dot(lateral))||1);
+      const target=shoulder.clone().addScaledVector(outward,.16).add(new Vector3(Math.sin(yaw)*.035,-reach*.98,Math.cos(yaw)*.035));
       const carryDelta=target.clone().sub(shoulder);
-      if(carryDelta.length()>reach*.97)target.copy(shoulder).add(carryDelta.setLength(reach*.97));
+      if(carryDelta.length()>reach*.993)target.copy(shoulder).add(carryDelta.setLength(reach*.993));
       this._hand('Left',target,this.carryWeight);
-      mouth.copy(leftHand.getWorldPosition(new Vector3()));
-      const carriedAxis=new Vector3(-Math.sin(yaw)*.24,-.96,-Math.cos(yaw)*.24).addScaledVector(outward,.14).normalize();
+      const carriedAxis=new Vector3(-Math.sin(yaw)*.62,-.77,-Math.cos(yaw)*.62).addScaledVector(outward,-.06).normalize();
       axis.lerp(carriedAxis,this.carryWeight).normalize();
+      this.carryGripDepth=.36;
+      mouth.copy(leftHand.getWorldPosition(new Vector3())).addScaledVector(axis,-this.carryGripDepth);
     }
     const rotation = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), axis);
     // The imported scabbard is authored from its mouth along +Z. Keep one
@@ -275,7 +277,7 @@ export class KatanaSheath {
     const out=shoulder.clone().sub(c.position).setY(0);
     if(out.lengthSq()<1e-6)out.set(side==='Left'?1:-1,0,0);
     out.normalize();
-    const target=shoulder.clone().addScaledVector(out,.025).add(new Vector3(Math.sin(c.facing)*.035,-reach*.975,Math.cos(c.facing)*.035));
+    const target=shoulder.clone().addScaledVector(out,.02).add(new Vector3(Math.sin(c.facing)*.025,-reach*.993,Math.cos(c.facing)*.025));
     this._hand(this.support?side:'Right',target,weight);
   }
   invalidate() { this.copy?.removeFromParent(); this.copy = null; this.active = false; this.drawFromSheath = false; this.release = null; this.flourishing = false; this.seated=null; }

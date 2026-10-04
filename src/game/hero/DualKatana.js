@@ -77,7 +77,8 @@ export class DualKatana {
     const flourish=p.arts.mode==='flourish'?SHEATH_REFERENCE.flourish:0;
     for(const rig of this.rigs){
       const drawing=!held&&p.state==='attack'&&p.move===p.heavy;
-      const local=p.arts.t-flourish-(rig.index===1?SHEATH_REFERENCE.dualDelay:0);
+      const sequential=['sheath','flourish'].includes(p.arts.mode);
+      const local=p.arts.t-flourish-(sequential&&rig.index===1?SHEATH_REFERENCE.dualDelay:0);
       const waiting=['sheath','flourish'].includes(p.arts.mode)&&local<0;
       if(waiting){
         // Keep the right blade above the shoulder while the left is put away.

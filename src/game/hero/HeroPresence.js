@@ -42,13 +42,13 @@ export class HeroPresence {
       if(p.hp<25&&g.state==='playing'&&g.elapsed>(this.breathAt??0)){this.breathAt=g.elapsed+4;g.audio.play('breath',{volume:.12})}
       const threat=g.coach.warnings.find(w=>w.el.classList.contains('is-edge'));
       if(threat)this.turn(c.getBone('LeftArm'),0,0,.08);
-      if(speed<2&&!c.airHeight){
-        for(const side of ['Left','Right']){
-          const up=c.getBone(side+'UpLeg'),low=c.getBone(side+'Leg'),foot=c.getBone(side+'Foot');if(!up||!low||!foot)continue;
-          c.root.updateMatrixWorld(true);const at=foot.getWorldPosition(new Vector3()),ground=g.app.terrain.heightAt(at.x,at.z);
-          const delta=Math.max(-.12,Math.min(.12,ground+.08-at.y));
-          if(Math.abs(delta)>.015){for(const b of [up,low])this.originals.set(b,b.quaternion.clone());ik(up,low,foot,at.add(new Vector3(0,delta,0)),new Vector3(Math.sin(c.facing),0,Math.cos(c.facing)),.45);}
-        }
+    }
+    if(p.state==='free'&&speed<2&&!c.airHeight){
+      for(const side of ['Left','Right']){
+        const up=c.getBone(side+'UpLeg'),low=c.getBone(side+'Leg'),foot=c.getBone(side+'Foot');if(!up||!low||!foot)continue;
+        c.root.updateMatrixWorld(true);const at=foot.getWorldPosition(new Vector3()),ground=g.app.terrain.heightAt(at.x,at.z);
+        const delta=Math.max(-.12,Math.min(.12,ground+.08-at.y));
+        if(Math.abs(delta)>.015){for(const b of [up,low])this.originals.set(b,b.quaternion.clone());ik(up,low,foot,at.add(new Vector3(0,delta,0)),new Vector3(Math.sin(c.facing),0,Math.cos(c.facing)),.45);}
       }
     }
     this.sheathBody.update(dt);

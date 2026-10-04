@@ -1,7 +1,6 @@
 import { MathUtils, Vector3 } from 'three';
 import { SHEATH_REFERENCE, sheathDuration } from './SheathReference.js';
 import { PoseLayer } from '../combat/PoseLayer.js';
-import { sheathPose } from './SheathPose.js';
 
 export function attackDirection(heading, facing) {
   if (heading == null) return 'neutral';
@@ -17,7 +16,7 @@ export function behind(enemy, position) {
 export class HeroArts {
   constructor(player) {
     this.p=player;this.g=player.game;
-    this.pose=new PoseLayer(player.character.mixer,sheathPose(player.character.clips.get('crouchSlash'),player.character.clips.get('idle')),{blendIn:.12,blendOut:.1});
+    this.pose=new PoseLayer(player.character.mixer,player.character.clips.get('idle'),{blendIn:.12,blendOut:.1});
     this.restPose=new PoseLayer(player.character.mixer,player.character.clips.get('idle'),{blendIn:.16,blendOut:.12,loop:true});
     player.poses.push(this.pose,this.restPose);player.character.locomotion.overrides.push(this.pose,this.restPose);
     this.reset();
@@ -29,7 +28,7 @@ export class HeroArts {
     for(const m of p.moves)m.release();p._toFree();p.guarding=false;p._guardLatched=false;p.guardPose.stop();
     this.mode=flourish?'flourish':'sheath';this.t=0;this.pose.stop();this.restPose.hold(0);return true;
   }
-  charge(){for(const m of this.p.moves)m.release();this.p._toFree();this.mode='charge';this.t=0;this.restPose.stop();this.pose.hold(.06);this.p.input.consume('attack');}
+  charge(){for(const m of this.p.moves)m.release();this.p._toFree();this.mode='charge';this.t=0;this.pose.stop();this.restPose.hold(0);this.p.input.consume('attack');}
   stepToward(target, distance, side=0){
     if(!target?.alive)return;
     const at=this.p.character.position,delta=target.position.clone().sub(at).setY(0),d=delta.length();if(d<.01)return;

@@ -16,10 +16,15 @@ export class SheathBody {
   constructor(presence) { this.h=presence; this.pose=[0,0,0,0,0]; }
   update(dt) {
     const h=this.h,p=h.g.player,c=p.character,a=p.arts;
-    const eligible=p.weapon.id==='katana'&&h.g.weapons.swords.id!=='dual'&&!p.dead&&!h.g.form.active;
-    const active=eligible&&['sheath','flourish','sheathed'].includes(a.mode);
+    const eligible=p.weapon.id==='katana'&&!p.dead&&!h.g.form.active;
+    const single=h.g.weapons.swords.id!=='dual';
+    const charging=eligible&&a.mode==='charge';
+    const active=eligible&&(charging||single&&['sheath','flourish','sheathed'].includes(a.mode));
     let target=[0,0,0,0,0];
-    if(active){
+    if(charging){
+      const u=smoothPhase(a.t,0,.18);
+      target=[.04*u,-.04*u,-.06*u,-.015*u,.015*u];
+    }else if(active){
       const t=a.mode==='sheathed'?SHEATH_REFERENCE.single.end:a.t-(a.mode==='flourish'?SHEATH_REFERENCE.single.flourish:0);
       if(t>=0){
         const end=KEYS.findIndex(k=>k[0]>=t);

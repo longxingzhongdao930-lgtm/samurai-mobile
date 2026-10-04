@@ -1,5 +1,5 @@
 import { AnimationClip, Quaternion, Vector3 } from 'three';
-export const SWORD_TIMINGS={k1:.32,k2:.36,k3:.41,k4:.46,k5:.56,counter:.41,execute:.63,branchB:.53,branchC:.7,launcher:.48,rising:.51,'jump-katana':.51,'dive-katana':.48};
+export const SWORD_TIMINGS={k1:.32,k2:.36,k3:.41,k4:.46,k5:.56,counter:.41,execute:.63,branchB:.53,branchC:.7,launcher:.48,rising:.51,'jump-katana':.51,'dive-katana':.48,'aerial-b':.62};
 // phase, preparatory crouch, gait step, chest turn, lean. Each technique has
 // its own pelvis/legs/torso accompaniment, based on the supplied video order.
 export const SWORD_BODY={
@@ -9,8 +9,9 @@ export const SWORD_BODY={
  k4:[[0,0,0,0,0],[.15,.12,.2,-.16,.02],[.32,.08,.32,.16,.04],[.5,.1,.2,-.14,.03],[.65,.04,.35,.18,.02],[1,0,0,0,0]],
  k5:[[0,0,0,0,0],[.24,.2,.2,-.18,.04],[.48,.12,.4,.24,.06],[.75,.04,.2,.1,.02],[1,0,0,0,0]],
  launcher:[[0,0,0,0,0],[.25,.35,.1,-.12,.04],[.48,.05,.18,.16,-.04],[.72,0,.1,.06,0],[1,0,0,0,0]],
- branchB:[[0,0,0,0,0],[.15,.12,.2,-.16,.02],[.3,.06,.35,.18,.03],[.48,.1,.2,-.12,.02],[.62,.06,.35,.20,.04],[1,0,0,0,0]],
- branchC:[[0,0,0,0,0],[.12,.15,.2,-.18,.03],[.25,.1,.3,.20,.05],[.38,.1,.2,-.16,.03],[.48,.08,.3,.18,.04],[.6,.12,.2,-.15,.03],[.73,.06,.35,.22,.04],[1,0,0,0,0]]
+ 'aerial-b':[[0,.12,.05,-.12,.04],[.2,.28,.1,-.24,.06],[.32,.18,.15,.28,.02],[.52,.28,.08,.16,-.04],[.75,.18,.18,-.26,.10],[1,0,0,0,0]],
+ branchB:[[0,0,0,0,0],[.15,.18,.2,-.22,.04],[.3,.08,.35,.22,.04],[.44,.48,.14,-.16,.1],[.64,.48,.14,-.16,.1],[.8,.24,.35,.26,.06],[1,0,0,0,0]],
+ branchC:[[0,0,0,0,0],[.12,.18,.2,-.22,.06],[.25,.24,.3,.30,.08],[.38,.38,.2,-.30,.1],[.48,.44,.3,.32,.12],[.6,.50,.2,-.28,.12],[.73,.44,.35,.32,.1],[.86,.28,.15,.12,.06],[1,0,0,0,0]]
 };
 export function swordBodyClip(idle,id,seconds=SWORD_TIMINGS[id]??.6,crouch=null,walk=null){
  if(!idle)return null;const keys=SWORD_BODY[id]??SWORD_BODY[id==='rising'?'launcher':'k4'];

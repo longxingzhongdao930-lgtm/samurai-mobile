@@ -2,9 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AnimationClip, QuaternionKeyframeTrack, VectorKeyframeTrack, Vector3 } from 'three';
 import { swordBodyClip, SWORD_BODY } from '../src/game/hero/SwordMoves.js';
-import { VergilTechniques, segmentDistance } from '../src/game/hero/VergilTechniques.js';
+import { VergilTechniques, segmentDistance, canChainJudgement } from '../src/game/hero/VergilTechniques.js';
 import { MOTIONS, nameMotion } from '../src/game/hero/MotionCatalog.js';
 const clip=(name,lean=0,height=1)=>new AnimationClip(name,1,[new QuaternionKeyframeTrack('Spine.quaternion',[0,1],[0,0,0,1,0,0,0,1]),new QuaternionKeyframeTrack('RightUpLeg.quaternion',[0,1],[Math.sin(lean/2),0,0,Math.cos(lean/2),Math.sin(lean/2),0,0,Math.cos(lean/2)]),new VectorKeyframeTrack('Hips.position',[0,1],[0,height,0,0,height,0])]);
 test('named whole-body sword moves change legs and pelvis and recover to idle without editing source',()=>{const idle=clip('idle'),low=clip('low',.8,.7),walk=clip('walk',.3),before=low.toJSON();for(const id of Object.keys(SWORD_BODY)){const out=swordBodyClip(idle,id,1,low,walk);nameMotion(out,id);assert.equal(out.name,MOTIONS[id].name);const leg=out.tracks.find(t=>t.name==='RightUpLeg.quaternion'),hips=out.tracks.find(t=>t.name==='Hips.position');assert.ok(Math.abs(leg.createInterpolant().evaluate(.25)[0])>.01);assert.ok(hips.createInterpolant().evaluate(.25)[1]<1);for(const t of out.tracks){const end=t.createInterpolant().evaluate(1),rest=idle.tracks.find(s=>s.name===t.name).values.slice(0,t.getValueSize());assert.ok(Array.from(end).every((v,i)=>Math.abs(v-rest[i])<1e-5));if(t.getValueSize()===4)for(let p=0;p<=1;p+=.01)assert.ok(Math.abs(Math.hypot(...t.createInterpolant().evaluate(p))-1)<1e-5);}}assert.deepEqual(low.toJSON(),before);});
 test('remote slash respects visibility and range; wide finisher does not duplicate adjacent targets',()=>{const a={alive:true,agent:{radius:.4},position:new Vector3(0,0,3)},b={alive:true,agent:{radius:.4},position:new Vector3(.2,0,3)},hidden={alive:true,agent:{},position:new Vector3(0,0,3)},far={alive:true,agent:{},position:new Vector3(0,0,30)},hits=[];const tech=Object.assign(Object.create(VergilTechniques.prototype),{p:{character:{position:new Vector3()},arts:{transform:0}},g:{enemies:{enemies:[a,b,hidden,far]},targetVisible:e=>e!==hidden,damageEnemy:(e,hit)=>{hits.push(e);return {damage:hit.damage};}}});tech.damage(new Vector3(0,1,3),2,24,'special',false,a);assert.deepEqual(hits,[a]);hits.length=0;tech.damage(new Vector3(0,1,3),40,24);assert.deepEqual(hits,[a,b]);});
 test('fast phantom swords sweep their entire frame segment',()=>{assert.equal(segmentDistance(new Vector3(0,0,3),new Vector3(),new Vector3(0,0,6)),0);assert.equal(segmentDistance(new Vector3(2,0,3),new Vector3(),new Vector3(0,0,6)),2);});
+
+test('successive judgement cuts require the deliberate input window, resources and a bounded chain',()=>{
+ const ritual={end:false,queued:false,chain:1};
+ assert.equal(canChainJudgement(ritual,.41,100),false);assert.equal(canChainJudgement(ritual,.42,12),true);
+ assert.equal(canChainJudgement(ritual,.7,12),true);assert.equal(canChainJudgement(ritual,.71,100),false);
+ assert.equal(canChainJudgement(ritual,.5,11),false);assert.equal(canChainJudgement({...ritual,queued:true},.5,100),false);
+ assert.equal(canChainJudgement({...ritual,chain:3},.5,100),false);assert.equal(canChainJudgement({...ritual,end:true},.5,100),false);
+});

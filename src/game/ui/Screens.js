@@ -47,7 +47,7 @@ export class Screens {
   title({ onStart, quality, onContinue, onSettings, onPractice, onHero }) {
     const controls = this.touch
       ? '<li><b>左</b> 移動スティック</li><li><b>右スワイプ</b> カメラ</li><li><b>斬</b> 攻撃（長押しで居合）</li><li><b>守</b> ガード / 直前で弾き</li><li><b>避</b> 回避 · <b>跳</b> ジャンプ</li><li><b>空中で斬</b> 空中技</li><li><b>納</b> 納刀 · <b>昇</b> 斬り上げ · <b>次元斬</b> 遠隔斬撃</li><li><b>剣</b> 幻影剣 · <b>竜</b> 竜人化 · <b>絶</b> 次元斬・絶</li><li><b>敵をタップ</b> ロックオン</li>'
-      : '<li><b>WASD</b> 移動 · <b>Alt</b> 歩き</li><li><b>マウス</b> カメラ</li><li><b>左クリック</b> 攻撃（長押しで居合）</li><li><b>右クリック</b> ガード · 直前で弾き</li><li><b>Shift</b> 回避 · <b>Space</b> ジャンプ（空中で攻撃すると空中技）</li><li><b>C</b> 納刀 · <b>V</b> 斬り上げ · <b>E</b> 次元斬</li><li><b>Q</b> 幻影剣（長押しで連射・守りながらで包囲） · <b>1 2 3</b> 射出・周回・雨</li><li><b>R</b> 竜人化 · <b>F</b> 次元斬・絶 · <b>Tab / ホイール押し</b> ロックオン</li><li><b>Esc</b> ポーズ</li>';
+      : '<li><b>WASD</b> 移動 · <b>Alt</b> 歩き</li><li><b>マウス</b> カメラ</li><li><b>左クリック</b> 攻撃（長押しで居合）</li><li><b>右クリック</b> ガード · 直前で弾き</li><li><b>Shift</b> 回避 · <b>Space</b> ジャンプ（空中で攻撃すると空中技）</li><li><b>C</b> 納刀 · <b>T</b> 掲刀挑発 · <b>V</b> 斬り上げ／空中連斬・弐 · <b>E</b> 次元斬（空中可・斬撃後に再入力で最大3連）</li><li><b>Q</b> 幻影剣（長押しで連射・守りながらで包囲） · <b>1 2 3</b> 射出・周回・雨</li><li><b>R</b> 竜人化 · <b>F</b> 次元斬・絶 · <b>Tab / ホイール押し</b> ロックオン</li><li><b>Esc</b> ポーズ</li>';
     const panel = this._panel(
       'gs-title',
       `<div class="gs-title__mark">影</div>

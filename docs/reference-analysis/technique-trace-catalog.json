@@ -1,0 +1,583 @@
+{
+  "schema": "samurai-technique-trace/v1",
+  "date": "2026-10-05",
+  "scope": "直前に列挙した単刀・幻影剣・所作・独自派生36項目。Force EdgeとBeowulfは含めない。",
+  "reviewRule": "参照と同じ技の映像・実装・実撮影・比較を揃えた上で、全身と刀と時刻を照合する。撮影やテスト成功だけではcompleteTraceをtrueにしない。",
+  "techniques": [
+    {
+      "id": "combo-a",
+      "name": "地上連斬A",
+      "captures": [
+        "combo-a",
+        "k1",
+        "k2",
+        "k3",
+        "k4",
+        "k5"
+      ],
+      "reference": {
+        "file": "20261004-0746-52.8952967.mp4",
+        "recordedSeconds": [
+          0.9,
+          3.4
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "関節・刀・足運び・時刻の全一致は未認定"
+    },
+    {
+      "id": "combo-b",
+      "name": "地上連斬B",
+      "captures": [
+        "combo-b",
+        "branchB"
+      ],
+      "reference": {
+        "file": "20261004-0747-47.7194994.mp4",
+        "recordedSeconds": [
+          0.5,
+          2.5
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "関節・刀・足運び・時刻の全一致は未認定"
+    },
+    {
+      "id": "combo-c",
+      "name": "地上連斬C",
+      "captures": [
+        "combo-c",
+        "branchC"
+      ],
+      "reference": {
+        "file": "20261004-0748-25.5971930.mp4",
+        "recordedSeconds": [
+          2.9,
+          4.75
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "関節・刀・足運び・時刻の全一致は未認定"
+    },
+    {
+      "id": "rapid-slash",
+      "name": "疾走居合",
+      "captures": [
+        "heavy"
+      ],
+      "reference": {
+        "file": "20261004-0747-47.7194994.mp4",
+        "recordedSeconds": [
+          9,
+          11.125
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "天翔居合の移動を共用。FBXと原作の疾走居合は同じ元モーションではない"
+    },
+    {
+      "id": "rising-star",
+      "name": "上昇斬り",
+      "captures": [
+        "rising"
+      ],
+      "reference": {
+        "file": "20261004-0748-25.5971930.mp4",
+        "recordedSeconds": [
+          0,
+          2
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "関節・刀・足運び・時刻の全一致は未認定"
+    },
+    {
+      "id": "upper-slash",
+      "name": "斬り上げ",
+      "captures": [
+        "launcher"
+      ],
+      "reference": {
+        "file": "20261004-0748-59.7104260.mp4",
+        "recordedSeconds": [
+          0,
+          1.5
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "参照は技の途中から。欠けた初動は未復元"
+    },
+    {
+      "id": "aerial-a",
+      "name": "空中連斬A",
+      "captures": [
+        "jump-katana"
+      ],
+      "reference": {
+        "file": "20261004-0748-59.7104260.mp4",
+        "recordedSeconds": [
+          11,
+          13.5
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "関節・刀・足運び・時刻の全一致は未認定"
+    },
+    {
+      "id": "aerial-b",
+      "name": "空中連斬B",
+      "captures": [
+        "aerial-b"
+      ],
+      "reference": {
+        "file": "20261004-0749-21.1007959.mp4",
+        "recordedSeconds": [
+          6,
+          9.5
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "関節・刀・足運び・時刻の全一致は未認定"
+    },
+    {
+      "id": "judgement",
+      "name": "次元斬",
+      "captures": [
+        "judgement",
+        "stance"
+      ],
+      "reference": {
+        "file": "20261004-0748-41.7182452.mp4",
+        "recordedSeconds": [
+          0.4,
+          1.9
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "関節・刀・足運び・時刻の全一致は未認定"
+    },
+    {
+      "id": "judgement-air",
+      "name": "空中次元斬",
+      "captures": [
+        "judgement-air"
+      ],
+      "reference": {
+        "file": "20261004-0748-41.7182452.mp4",
+        "recordedSeconds": [
+          8.6,
+          9.65
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "空中実演の詳細な関節比較は未完了"
+    },
+    {
+      "id": "judgement-chain",
+      "name": "連続次元斬",
+      "captures": [
+        "judgement-chain"
+      ],
+      "reference": null,
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "ゲーム向け3連。連続発動の対応実演が未特定"
+    },
+    {
+      "id": "end",
+      "name": "次元斬・絶",
+      "captures": [
+        "end"
+      ],
+      "reference": {
+        "file": "20261004-0750-07.8233860.mp4",
+        "recordedSeconds": [
+          0,
+          6
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "関節・刀・足運び・時刻の全一致は未認定"
+    },
+    {
+      "id": "phantom-shot",
+      "name": "幻影剣・通常射出",
+      "captures": [
+        "phantom-shot"
+      ],
+      "reference": null,
+      "status": "reference-missing",
+      "completeTrace": false,
+      "remaining": "原作の射撃・配置に対応する実演が未特定。0751-13の挑発を射撃の参照へ流用しない"
+    },
+    {
+      "id": "phantom-orbit",
+      "name": "幻影剣・周回剣",
+      "captures": [
+        "phantom-orbit"
+      ],
+      "reference": null,
+      "status": "reference-missing",
+      "completeTrace": false,
+      "remaining": "原作の射撃・配置に対応する実演が未特定。0751-13の挑発を射撃の参照へ流用しない"
+    },
+    {
+      "id": "phantom-burst",
+      "name": "幻影剣・連続射出",
+      "captures": [
+        "phantom-burst"
+      ],
+      "reference": null,
+      "status": "reference-missing",
+      "completeTrace": false,
+      "remaining": "原作の射撃・配置に対応する実演が未特定。0751-13の挑発を射撃の参照へ流用しない"
+    },
+    {
+      "id": "phantom-storm",
+      "name": "幻影剣・包囲剣",
+      "captures": [
+        "phantom-storm"
+      ],
+      "reference": null,
+      "status": "reference-missing",
+      "completeTrace": false,
+      "remaining": "原作の射撃・配置に対応する実演が未特定。0751-13の挑発を射撃の参照へ流用しない"
+    },
+    {
+      "id": "phantom-rain",
+      "name": "幻影剣・降雨剣",
+      "captures": [
+        "phantom-rain"
+      ],
+      "reference": null,
+      "status": "reference-missing",
+      "completeTrace": false,
+      "remaining": "原作の射撃・配置に対応する実演が未特定。0751-13の挑発を射撃の参照へ流用しない"
+    },
+    {
+      "id": "trick-approach",
+      "name": "標的への瞬間接近",
+      "captures": [],
+      "reference": null,
+      "status": "reference-and-implementation-missing",
+      "completeTrace": false,
+      "remaining": "現在の移動・回避を同一の原作技と認定しない"
+    },
+    {
+      "id": "trick-up",
+      "name": "上方への瞬間移動",
+      "captures": [],
+      "reference": null,
+      "status": "reference-and-implementation-missing",
+      "completeTrace": false,
+      "remaining": "現在の移動・回避を同一の原作技と認定しない"
+    },
+    {
+      "id": "trick-down",
+      "name": "下降・離脱",
+      "captures": [],
+      "reference": null,
+      "status": "reference-and-implementation-missing",
+      "completeTrace": false,
+      "remaining": "現在の移動・回避を同一の原作技と認定しない"
+    },
+    {
+      "id": "trick-dodge",
+      "name": "短い瞬間回避",
+      "captures": [],
+      "reference": null,
+      "status": "reference-and-implementation-missing",
+      "completeTrace": false,
+      "remaining": "現在の移動・回避を同一の原作技と認定しない"
+    },
+    {
+      "id": "transform",
+      "name": "竜人化",
+      "captures": [
+        "transform"
+      ],
+      "reference": {
+        "file": "20261004-0746-52.8952967.mp4",
+        "recordedSeconds": [
+          8,
+          11
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "ゲーム独自の竜人強化。原作の魔人化モデルと同じ形状ではない"
+    },
+    {
+      "id": "taunt",
+      "name": "挑発・掲刀",
+      "captures": [
+        "taunt"
+      ],
+      "reference": {
+        "file": "20261004-0750-07.8233860.mp4",
+        "recordedSeconds": [
+          11,
+          15
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "掲刀所作を採用。挑発全種類・指の動作は未復元"
+    },
+    {
+      "id": "flourish",
+      "name": "血払い",
+      "captures": [
+        "flourish"
+      ],
+      "reference": {
+        "file": "20261004-0746-52.8952967.mp4",
+        "recordedSeconds": [
+          2.3,
+          2.6
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "関節・刀・足運び・時刻の全一致は未認定"
+    },
+    {
+      "id": "carry",
+      "name": "納刀・携行",
+      "captures": [
+        "sheath",
+        "walk"
+      ],
+      "reference": {
+        "file": "20261004-0746-16.4854595.mp4",
+        "recordedSeconds": [
+          0,
+          3
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "status": "reconstruction",
+      "completeTrace": false,
+      "remaining": "携行歩行は1329-24を参照。二つの動作を同一の録画区間と扱わない"
+    },
+    {
+      "id": "quick-draw",
+      "name": "抜刀一閃",
+      "captures": [
+        "quickDraw"
+      ],
+      "reference": null,
+      "status": "original-design",
+      "completeTrace": false,
+      "remaining": "先の一覧で提案した独自派生。原作に同一の技があると称さない。既存動作を使う派生で、原作の完全トレースではない"
+    },
+    {
+      "id": "charged-draw",
+      "name": "溜め居合",
+      "captures": [
+        "heavy"
+      ],
+      "reference": null,
+      "status": "original-design",
+      "completeTrace": false,
+      "remaining": "先の一覧で提案した独自派生。原作に同一の技があると称さない。既存動作を使う派生で、原作の完全トレースではない"
+    },
+    {
+      "id": "rear-draw",
+      "name": "背後取り居合",
+      "captures": [],
+      "reference": null,
+      "status": "original-design",
+      "completeTrace": false,
+      "remaining": "先の一覧で提案した独自派生。原作に同一の技があると称さない。専用の接続・入力は未実装"
+    },
+    {
+      "id": "evade-draw",
+      "name": "見切り抜刀",
+      "captures": [
+        "counter",
+        "dodge"
+      ],
+      "reference": null,
+      "status": "original-design",
+      "completeTrace": false,
+      "remaining": "先の一覧で提案した独自派生。原作に同一の技があると称さない。既存動作を使う派生で、原作の完全トレースではない"
+    },
+    {
+      "id": "guard-draw",
+      "name": "弾き返し居合",
+      "captures": [
+        "counter"
+      ],
+      "reference": null,
+      "status": "original-design",
+      "completeTrace": false,
+      "remaining": "先の一覧で提案した独自派生。原作に同一の技があると称さない。既存動作を使う派生で、原作の完全トレースではない"
+    },
+    {
+      "id": "jump-draw",
+      "name": "跳躍抜刀",
+      "captures": [
+        "launcher"
+      ],
+      "reference": null,
+      "status": "original-design",
+      "completeTrace": false,
+      "remaining": "先の一覧で提案した独自派生。原作に同一の技があると称さない。既存動作を使う派生で、原作の完全トレースではない"
+    },
+    {
+      "id": "air-drop",
+      "name": "空中斬り落とし",
+      "captures": [
+        "dive-katana"
+      ],
+      "reference": null,
+      "status": "original-design",
+      "completeTrace": false,
+      "remaining": "先の一覧で提案した独自派生。原作に同一の技があると称さない。既存動作を使う派生で、原作の完全トレースではない"
+    },
+    {
+      "id": "landing-draw",
+      "name": "着地居合",
+      "captures": [],
+      "reference": null,
+      "status": "original-design",
+      "completeTrace": false,
+      "remaining": "先の一覧で提案した独自派生。原作に同一の技があると称さない。専用の接続・入力は未実装"
+    },
+    {
+      "id": "sword-bind-draw",
+      "name": "幻影剣拘束→居合",
+      "captures": [],
+      "reference": null,
+      "status": "original-design",
+      "completeTrace": false,
+      "remaining": "先の一覧で提案した独自派生。原作に同一の技があると称さない。専用の接続・入力は未実装"
+    },
+    {
+      "id": "remote-dash",
+      "name": "次元斬→疾走居合",
+      "captures": [],
+      "reference": null,
+      "status": "original-design",
+      "completeTrace": false,
+      "remaining": "先の一覧で提案した独自派生。原作に同一の技があると称さない。専用の接続・入力は未実装"
+    },
+    {
+      "id": "air-route",
+      "name": "斬り上げ→空中連斬→降下",
+      "captures": [],
+      "reference": null,
+      "status": "original-design",
+      "completeTrace": false,
+      "remaining": "先の一覧で提案した独自派生。原作に同一の技があると称さない。専用の接続・入力は未実装"
+    }
+  ],
+  "effects": [
+    {
+      "id": "draw-crescent",
+      "reference": {
+        "file": "20261004-0748-41.7182452.mp4",
+        "recordedSeconds": [
+          0.4,
+          1.9
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "captures": [
+        "judgement",
+        "judgement-air",
+        "judgement-chain"
+      ],
+      "implementation": "Original 3D crescent emitted at the real right hand",
+      "completeTrace": false,
+      "remaining": [
+        "Exact arc, colour, brightness and source time remain unmatched."
+      ]
+    },
+    {
+      "id": "spatial-rift",
+      "reference": {
+        "file": "20261004-0748-41.7182452.mp4",
+        "recordedSeconds": [
+          0.4,
+          1.9
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "captures": [
+        "judgement",
+        "judgement-air",
+        "judgement-chain"
+      ],
+      "implementation": "Original crossed 3D cuts and procedural purple cloud",
+      "completeTrace": false,
+      "remaining": [
+        "Exact cut angles, cloud turbulence and duration remain unmatched."
+      ]
+    },
+    {
+      "id": "judgement-end-field",
+      "reference": {
+        "file": "20261004-0750-07.8233860.mp4",
+        "recordedSeconds": [
+          0,
+          6
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "captures": [
+        "end"
+      ],
+      "implementation": "Original volume-crossing cuts",
+      "completeTrace": false,
+      "remaining": [
+        "Reference high-speed afterimages and full-screen field remain incomplete."
+      ]
+    },
+    {
+      "id": "judgement-end-burst",
+      "reference": {
+        "file": "20261004-0750-07.8233860.mp4",
+        "recordedSeconds": [
+          0,
+          6
+        ],
+        "reportedPlaybackSpeed": 2
+      },
+      "captures": [
+        "end"
+      ],
+      "implementation": "Original expanding radial 3D triangles at the final hit",
+      "completeTrace": false,
+      "remaining": [
+        "Final burst size, timing and particles are not an exact reconstruction."
+      ]
+    }
+  ]
+}

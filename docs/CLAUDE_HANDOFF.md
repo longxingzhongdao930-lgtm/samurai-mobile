@@ -1,3 +1,11 @@
+## 2026-10-05 追加技と自作3D演出：完全トレースはまだ未認定
+
+最新は docs/reference-analysis/all-techniques-review.md、original-3d-effects.md、technique-trace-catalog.json。36ケースを実30fpsで撮影→参照比較→形状・姿勢修正→再撮影。4つの自作GLBを保存。払い→遠方斬撃と最終破裂の消失を実入力と時系列JSONで確認。旧10/15fpsの結果より新しい撮影を優先。32個の再利用クリップは全ソース骨格とrestを保持。
+
+E空中可／3連続入力、Space→V空中連斬弐、T掲刀挑発を追加。B/Cの体幹・保持、短い鞘からの抜き差し、空中開始直後のV分岐を修正。149単体テストと実入力の遠隔ダメージ・中断・着地・納刀帰還を確認。専用自作3DエフェクトはKatanaEffectGeometry.jsとSpectralAssets.js。node scripts/build-katana-effects.mjsで4つのGLBを再生成。旧JCEモデルのロードを外し、薄い交差斬線と自作紫雲を導入。Force Edgeは出典付きの剣素材として残す。
+
+全36候補が完成したとは言わない。Trick4種、未特定の幻影剣参照、原作の全コンボ・足運び・指・全画面演出等が残る。テストや動画の存在は完全一致の証明ではない。公開反映未確認。侍標準・二刀削除・stash/WIPは保持し、原本モデルを上書きしない。
+
 ## 2026-10-05 全技の撮影比較・上段停止の向き修正
 
 最新詳細は docs/reference-analysis/all-techniques-review.md。25項目を実ゲームで動画撮影、骨格時系列を保存。参照との並列比較と再撮影を行った。撮影物は /tmp/vergil-motion-review（セッション内成果物、Gitには元動画を追加しない）。次回必要なら scripts/record-katana-comparison.py で再生成する。

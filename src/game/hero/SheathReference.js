@@ -9,3 +9,6 @@ export const SHEATH_REFERENCE = {
 };
 export const sheathDuration = () => SHEATH_REFERENCE.single.end;
 export function smoothPhase(t,start,end){const x=Math.max(0,Math.min(1,(t-start)/(end-start)));return x*x*(3-2*x);}
+
+/** A short exposed blade section during the remote cut; zero outside the cut. */
+export function judgementDrawDistance(time){return .18*smoothPhase(time,.23,.31)*(1-smoothPhase(time,.35,.43));}

@@ -1,6 +1,6 @@
 import { Box3, Quaternion, Vector3 } from 'three';
 import { ik } from '../combat/WeaponMotion.js';
-import { smoothPhase } from './SheathReference.js';
+import { smoothPhase, judgementDrawDistance } from './SheathReference.js';
 import { bladeCurve, curvedInsertion } from './SheathCurve.js';
 
 const smooth = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
@@ -77,6 +77,7 @@ export class KatanaSheath {
       mouth.copy(leftHand.getWorldPosition(new Vector3())).addScaledVector(axis,-this.carryGripDepth);
     }
     if(p.weapon.id==='katana'&&p.state==='attack'&&(p.move?.config?.referenceMotion||p.move?.config?.swordMotion)&&leftHand){c.root.updateMatrixWorld(true);mouth.copy(leftHand.getWorldPosition(new Vector3()));const data=c.clips.get(p.move.config.referenceMotion)?.userData,right=c.getBone('RightHand');if(data&&right){const end=data.holdStart/p.move.action.getClip().duration,w=smoothPhase(p.move.phase,end*.8,end);axis.lerp(mouth.clone().sub(right.getWorldPosition(new Vector3())).normalize(),w).normalize();}}
+    if(p.techniques?.taunt&&leftHand){c.root.updateMatrixWorld(true);mouth.copy(leftHand.getWorldPosition(new Vector3()));const right=c.getBone('RightHand');if(right)axis.copy(mouth).sub(right.getWorldPosition(new Vector3())).normalize();}
     if(this.reference?.handheld&&['sheath','flourish'].includes(p.arts.mode)&&leftArm&&leftFore&&leftHand){
       const t=Math.max(0,p.arts.t-(p.arts.mode==='flourish'?this.reference.flourish:0));
       if(!this.heldStart||p.arts.t<(this.heldTime??0))this.heldStart={mouth:h.sheath.position.clone(),axis:new Vector3(0,0,1).applyQuaternion(h.sheath.quaternion)};
@@ -250,7 +251,8 @@ export class KatanaSheath {
       const retract=this.reference?.handheld?away.multiplyScalar(reach*.32).add(new Vector3(Math.sin(yaw)*reach*.18,reach*.65,Math.cos(yaw)*reach*.18)):this.reference?away.multiplyScalar(reach*.86).add(new Vector3(Math.sin(yaw)*reach*.3,-.03,Math.cos(yaw)*reach*.3)):away.setLength(reach);
       const outside=shoulder.clone().add(retract);
       // Hold a short visible blade section between the guard and mouth.
-      const finalGrip=mouth.clone().addScaledVector(axis,p.arts.mode==='charge'?-.19:-.1);
+      const ritual=p.techniques?.ritual,draw=ritual&&!ritual.end?judgementDrawDistance(ritual.t):0;
+      const finalGrip=mouth.clone().addScaledVector(axis,p.arts.mode==='charge'?-(.19+draw):-.1);
       const lifted=this.fromGrip.clone().add(new Vector3(Math.sin(yaw)*.2,.2,Math.cos(yaw)*.2));
       const liftEnd=profile?.lift??.08,retractEnd=profile?.retract??.18;
       const target=t<liftEnd?this.fromGrip.clone().lerp(lifted,smooth(t/liftEnd)):t<retractEnd?lifted.lerp(outside,smooth((t-liftEnd)/(retractEnd-liftEnd))):outside.lerp(finalGrip,insert);

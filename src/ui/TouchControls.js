@@ -84,8 +84,8 @@ export class TouchControls {
     this._bindButton(this.pause, 'pause');
 
     const arts = div('tc-arts', this.root);
-    for (const [id,text] of [['sheath','納'],['kick','昇'],['finish','絶']]) {
-      const b=document.createElement('button');b.className='tc-chip';b.textContent=text;b.setAttribute('aria-label',id==='sheath'?'納刀':id==='kick'?'斬り上げ':'次元斬・絶');arts.append(b);this._bindButton(b,id);
+    for (const [id,text] of [['sheath','納'],['kick','昇'],['finish','絶'],['taunt','構']]) {
+      const b=document.createElement('button');b.className='tc-chip';b.textContent=text;b.setAttribute('aria-label',id==='sheath'?'納刀':id==='kick'?'斬り上げ':id==='taunt'?'掲刀挑発':'次元斬・絶');arts.append(b);this._bindButton(b,id);
     }
     this._stickId = null;
     this._stickOrigin = { x: 0, y: 0 };

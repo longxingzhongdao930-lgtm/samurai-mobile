@@ -23,3 +23,11 @@ test('full-body reconstruction does not inherit the old cutting motion',()=>{
  const a=vergilIaiCut(source,stance,idle),b=vergilIaiCut(other,stance,idle);
  const aj=a.toJSON(),bj=b.toJSON();delete aj.uuid;delete bj.uuid;assert.deepEqual(aj,bj);
 });
+
+// The remote cut must visibly draw and reseat instead of holding a static hilt.
+import { judgementDrawDistance } from '../src/game/hero/SheathReference.js';
+test('remote cut exposes a bounded blade section and returns to its seated grip',()=>{
+ assert.equal(judgementDrawDistance(0),0);assert.equal(judgementDrawDistance(.22),0);
+ assert.ok(judgementDrawDistance(.32)>.17);assert.equal(judgementDrawDistance(.43),0);
+ for(let t=0;t<1;t+=.005)assert.ok(judgementDrawDistance(t)>=0&&judgementDrawDistance(t)<=.18);
+});

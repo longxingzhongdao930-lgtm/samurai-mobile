@@ -40,7 +40,7 @@ export class HeroStudio {
   }
   menu(back){
     const g=this.g,j=g.journey;if(g.state==='playing')g.pause();
-    const panel=g.screens._panel('gs-settings','<h2 class="gs-h">主人公の支度</h2><p class="gs-tip">C／納：納刀・竜化解除　V／昇：斬り上げ　E：次元斬　Q：幻影剣　R：竜人化　F／絶：次元斬・絶<br>居合の構え中は攻撃を離して抜刀、守で解除。<br>Shift：回避　Space／跳：ジャンプ、空中で攻撃すると空中技。</p>');
+    const panel=g.screens._panel('gs-settings','<h2 class="gs-h">主人公の支度</h2><p class="gs-tip">C／納：納刀・竜化解除　V／昇：斬り上げ・空中連斬弐　T／構：掲刀挑発　E：次元斬（空中可・斬撃後に再入力で3連）　Q：幻影剣　R：竜人化　F／絶：次元斬・絶<br>居合の構え中は攻撃を離して抜刀、守で解除。<br>Shift：回避　Space／跳：ジャンプ、空中で攻撃すると空中技。</p>');
     const status=document.createElement('p');status.className='gs-tip';status.setAttribute('role','status');panel.append(status);
     const choose=(name,value,items,fn)=>{const label=document.createElement('label');label.textContent=name;const select=document.createElement('select');select.setAttribute('aria-label',name);for(const [id,text,disabled]of items){const o=document.createElement('option');o.value=id;o.textContent=text;o.disabled=!!disabled;o.selected=id===value;select.append(o)}select.onchange=()=>fn(select.value);label.append(select);panel.append(label);return select};
     const styleSelect=choose('戦いの型',this.build,[['none','基本'],...Object.entries(STYLES).map(([id,s])=>[id,`${s.name}：${s.detail}（${Math.min(s.need,this.counts[s.key])}/${s.need}）`,this.counts[s.key]<s.need])],v=>{this.build=v;this.save()});

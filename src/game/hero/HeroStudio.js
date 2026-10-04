@@ -10,12 +10,27 @@ export function validateHero(raw={}){
   const counts={};for(const k of ['hits','sheath','fist','parry','dodge','spacing','tip','cut'])counts[k]=Number.isFinite(raw?.counts?.[k])?Math.min(9999,Math.max(0,Math.floor(raw.counts[k]))):0;
   const build=STYLES[raw?.build]&&counts[STYLES[raw.build].key]>=STYLES[raw.build].need?raw.build:'none';
   const appearance=['plain','hat','mask','coat'].includes(raw?.appearance)?raw.appearance:'plain';
-  const sets=Array.isArray(raw?.sets)?raw.sets.slice(0,3).filter(s=>WEAPON_ORDER.includes(s?.weapon)&&Number.isInteger(s.element)&&s.element>=0&&s.element<3).map(s=>({name:typeof s.name==='string'?s.name.slice(0,20):'',weapon:s.weapon,element:s.element,build:STYLES[s.build]?s.build:'none',blessings:Array.isArray(s.blessings)?s.blessings.filter(x=>Array.isArray(x)&&['road','sanctum'].includes(x[0])&&['blade','step','dragon','flow','link'].includes(x[1])).slice(0,2):[]})):[];
+  const sets=Array.isArray(raw?.sets)?raw.sets.slice(0,3).filter(s=>WEAPON_ORDER.includes(s?.weapon)&&Number.isInteger(s.element)&&s.element>=0&&s.element<3).map(s=>({name:typeof s.name==='string'?s.name.slice(0,20):'',weapon:s.weapon,sword:Object.hasOwn(SWORD_VARIANTS,s.sword)?s.sword:null,element:s.element,build:STYLES[s.build]?s.build:'none',blessings:Array.isArray(s.blessings)?s.blessings.filter(x=>Array.isArray(x)&&['road','sanctum'].includes(x[0])&&['blade','step','dragon','flow','link'].includes(x[1])).slice(0,2):[]})):[];
   return {counts,build,appearance,sets,sword:Object.hasOwn(SWORD_VARIANTS,raw?.sword)?raw.sword:'mythical'};
 }
 export class HeroStudio {
   constructor(game){this.g=game;Object.assign(this,validateHero(readStored('hero',{})));this.clock={};this.photo=null;}
   save(){writeStored('hero',{counts:this.counts,build:this.build,appearance:this.appearance,sets:this.sets,sword:this.sword});}
+  saveSet(name=''){
+    const p=this.g.player;
+    const set={name:name.trim().slice(0,20),weapon:p.weapon.id,sword:this.sword,element:p.elementIndex,build:this.build,blessings:this.g.blessings.snapshot()};
+    this.sets.unshift(set);this.sets.length=Math.min(3,this.sets.length);this.save();return set;
+  }
+  async applySet(set){
+    const sword=set.sword??this.sword;
+    if(!await this.g.weapons.swords.select(sword))return false;
+    const p=this.g.player;this.sword=sword;p.setWeapon(set.weapon);
+    if(p.unlocked[set.element])p.elementIndex=set.element;
+    if(set.build==='none')this.build='none';
+    else if(STYLES[set.build]&&this.counts[STYLES[set.build].key]>=STYLES[set.build].need)this.build=set.build;
+    if(this.g.journey.practice)this.g.blessings.restore(set.blessings);
+    this.save();return true;
+  }
   record(key){
     if(!(key in this.counts))return;
     const now=this.g.elapsed;if(now-(this.clock[key]??-Infinity)<.25)return;this.clock[key]=now;
@@ -27,16 +42,17 @@ export class HeroStudio {
     const panel=g.screens._panel('gs-settings','<h2 class="gs-h">主人公の支度</h2><p class="gs-tip">C／納：納刀・竜化解除　V／蹴：蹴り<br>居合の構え中は攻撃を離して抜刀、守で解除。</p>');
     const status=document.createElement('p');status.className='gs-tip';status.setAttribute('role','status');panel.append(status);
     const choose=(name,value,items,fn)=>{const label=document.createElement('label');label.textContent=name;const select=document.createElement('select');select.setAttribute('aria-label',name);for(const [id,text,disabled]of items){const o=document.createElement('option');o.value=id;o.textContent=text;o.disabled=!!disabled;o.selected=id===value;select.append(o)}select.onchange=()=>fn(select.value);label.append(select);panel.append(label);return select};
-    choose('戦いの型',this.build,[['none','基本'],...Object.entries(STYLES).map(([id,s])=>[id,`${s.name}：${s.detail}（${Math.min(s.need,this.counts[s.key])}/${s.need}）`,this.counts[s.key]<s.need])],v=>{this.build=v;this.save()});
+    const styleSelect=choose('戦いの型',this.build,[['none','基本'],...Object.entries(STYLES).map(([id,s])=>[id,`${s.name}：${s.detail}（${Math.min(s.need,this.counts[s.key])}/${s.need}）`,this.counts[s.key]<s.need])],v=>{this.build=v;this.save()});
     choose('外見',this.appearance,[['plain','通常'],['hat','旅笠'],['mask','朱の半面'],['coat','雨除け羽織']],v=>{this.appearance=v;this.save()});
     let swordRequest=0;
-    const swordSelect=choose('刀装',this.sword,Object.entries(SWORD_VARIANTS).map(([id,s])=>[id,s.name]),async v=>{const request=++swordRequest;status.textContent='刀と鞘を読み込み中…';try{if(await g.weapons.swords.select(v)){this.sword=v;this.save();g.player.setWeapon('katana');status.textContent='刀と鞘を変更しました';}}catch(e){if(request===swordRequest){swordSelect.value=this.sword;status.textContent='読み込みに失敗しました。再度選んでください';}}});
+    const swordSelect=choose('刀装',this.sword,Object.entries(SWORD_VARIANTS).map(([id,s])=>[id,s.name]),async v=>{const request=++swordRequest;saveButton.disabled=true;status.textContent='刀と鞘を読み込み中…';try{if(await g.weapons.swords.select(v)){this.sword=v;this.save();g.player.setWeapon('katana');status.textContent='刀と鞘を変更しました';}}catch(e){if(request===swordRequest){swordSelect.value=this.sword;status.textContent='読み込みに失敗しました。再度選んでください';}}finally{if(request===swordRequest)saveButton.disabled=false;}});
     const setName=document.createElement('input');setName.type='text';setName.maxLength=20;setName.placeholder='装備名（任意）';setName.setAttribute('aria-label','装備名');panel.append(setName);
-    j.button(panel,'装備セットを保存',()=>{const p=g.player;this.sets.unshift({name:setName.value.trim().slice(0,20),weapon:p.weapon.id,element:p.elementIndex,build:this.build,blessings:g.blessings.snapshot()});this.sets.length=Math.min(3,this.sets.length);this.save();this.menu(back)});
-    this.sets.forEach((s,i)=>j.button(panel,`装備 ${i+1}：${s.name||WEAPONS[s.weapon].name}`,()=>{
-      const p=g.player;p.setWeapon(s.weapon);if(p.unlocked[s.element])p.elementIndex=s.element;
-      if(STYLES[s.build]&&this.counts[STYLES[s.build].key]>=STYLES[s.build].need)this.build=s.build;
-      if(j.practice)g.blessings.restore(s.blessings);this.save();status.textContent=j.practice?'装備・属性・加護を適用':'装備を適用。本編の未取得属性・加護は変更しません';
+    const saveButton=j.button(panel,'装備セットを保存',()=>{this.saveSet(setName.value);this.menu(back)});
+    this.sets.forEach((s,i)=>j.button(panel,`装備 ${i+1}：${s.name||WEAPONS[s.weapon].name}${s.weapon==='katana'&&s.sword?' · '+SWORD_VARIANTS[s.sword].name:''}`,async()=>{
+      const request=++swordRequest;saveButton.disabled=true;status.textContent='装備を読み込み中…';
+      try{if(await this.applySet(s)){swordSelect.value=this.sword;styleSelect.value=this.build;status.textContent=j.practice?'刀装・装備・属性・加護を適用':'刀装・装備を適用。本編の未取得属性・加護は変更しません';}}
+      catch(e){if(request===swordRequest){swordSelect.value=this.sword;status.textContent='装備の読み込みに失敗しました。再度選んでください';}}
+      finally{if(request===swordRequest)saveButton.disabled=false;}
     }));
     j.button(panel,'試着・試技へ',()=>this.trial());
     if(g.state==='paused')j.button(panel,'フォトモード',()=>this.openPhoto(()=>this.menu(back)));

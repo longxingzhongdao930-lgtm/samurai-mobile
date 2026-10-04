@@ -46,3 +46,5 @@
 検証: /tmp/samurai-selected-complete-check/（timeline.json、transitions.json、low-fps.json、6姿勢画像、flourish-sheath.mp4、montage.jpg）。
 
 未完了は参考動画の速度・全身所作の一致、刀身の全頂点による途中の鞘内包・干渉確認、抜刀表示補間中の全フレームの柄接触。hurtテストは状態切替であり、敵の実打撃による全被弾パイプラインの検証とは区別する。追加刀と二刀流は未完成の別変更として保持。今回もmainへ混入・push・公開しない。
+
+保存コミット: f0bc16a。追加刀バリアントの未保存変更を含まないコミットのスナップショット /tmp/samurai-selected-committed でも、105テスト・ビルド・6姿勢・納刀連続計測・途中中断・30fps検証が成功。ブラウザログ /tmp/samurai-selected-committed-browser.log、成果物 /tmp/samurai-selected-committed-browser/。元の手元変更はstash@{0}に保持。

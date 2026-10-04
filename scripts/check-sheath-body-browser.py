@@ -7,7 +7,7 @@ with sync_playwright() as pw:
  b=pw.chromium.launch(executable_path='/usr/bin/chromium',args=['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader'])
  p=b.new_page(viewport={'width':960,'height':640});errors=[];p.on('pageerror',lambda e:errors.append(str(e)))
  p.goto(os.environ.get('GAME_URL','http://127.0.0.1:4181/')+'?q=low&dyn=0');p.wait_for_function('window.app?.game?.state==="title"',timeout=240000);p.evaluate('app.stop()');p.get_by_role('button',name='はじめる',exact=True).click()
- p.evaluate('''async()=>{const g=app.game;g.flow.update=()=>{};g.director.clear();g.magic.clear();g.flow._place(g.playerPosition.clone().set(0,0,124),0);await g.weapons.swords.select('mythical');g.player.setWeapon('katana');g.hud.setVisible(false);g.touch.setVisible(false);app.simulate(.4);g.player.arts.restPose.hold(0);app.simulate(.25);g.player.arts.startSheath();window.readBody=()=>{const c=g.player.character;return {t:g.player.arts.t,pose:g.heroPresence.sheathBody.pose.slice(),bones:Object.fromEntries(['Hips','LeftFoot','RightFoot','LeftHand','RightHand','LeftArm','RightArm'].map(n=>[n,c.getBone(n).getWorldPosition(c.position.clone()).toArray()]))};};}''')
+ p.evaluate('''async()=>{const g=app.game;g.flow.update=()=>{};g.director.clear();g.magic.clear();g.flow._place(g.playerPosition.clone().set(0,0,124),0);await g.weapons.swords.select('mythical');g.player.setWeapon('katana');g.hud.setVisible(false);g.touch.setVisible(false);app.simulate(.4);g.player.arts.restPose.hold(0);app.simulate(.25);g.player.arts.startSheath();window.readBody=()=>{const c=g.player.character;return {t:g.player.arts.t,pose:g.heroPresence.sheathBody.pose.slice(),bones:Object.fromEntries(['Hips','LeftFoot','RightFoot','LeftHand','RightHand','LeftArm','RightArm','LeftForeArm','RightForeArm'].map(n=>[n,c.getBone(n).getWorldPosition(c.position.clone()).toArray()]))};};}''')
  rows=[]
  for i in range(160):
   rows.append(p.evaluate('()=>{app.simulate(1/60,1/60);return readBody();}'))
@@ -23,5 +23,16 @@ with sync_playwright() as pw:
  final=rows[-1]['bones']
  for side in ['Left','Right']:
   assert final[side+'Hand'][1]<final[side+'Arm'][1]-.3,final
+ # Keep waiting after completion: checking only the last insertion frame
+ # misses a held/crossed-arm state that persists until the next draw.
+ held=[]
+ for seconds in [3,3]:
+  row=p.evaluate('secs=>{app.simulate(secs);return readBody();}',seconds);held.append(row)
+  bones=row['bones'];shoulder_span=abs(bones['LeftArm'][0]-bones['RightArm'][0]);wrist_span=abs(bones['LeftHand'][0]-bones['RightHand'][0])
+  elbow_span=abs(bones['LeftForeArm'][0]-bones['RightForeArm'][0])
+  assert wrist_span>=shoulder_span,{'wristSpan':wrist_span,'shoulderSpan':shoulder_span}
+  assert elbow_span>=shoulder_span,{'elbowSpan':elbow_span,'shoulderSpan':shoulder_span}
+  for side in ['Left','Right']:assert bones[side+'Hand'][1]<bones[side+'Arm'][1]-.4,bones
+ (out/'held.json').write_text(json.dumps(held,indent=2))
  assert not errors,errors
  (out/'timeline.json').write_text(json.dumps(rows,indent=2));print(json.dumps({'plantedDrift':drift,'finalPose':rows[-1]['pose'],'pageErrors':errors}));b.close()

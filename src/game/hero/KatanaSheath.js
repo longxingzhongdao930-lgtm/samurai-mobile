@@ -167,6 +167,17 @@ export class KatanaSheath {
     const align = profile?smoothPhase(t,profile.retract,profile.align):this.staged?smooth((t-.18)/.16):smooth(t / .22), insert = profile?smoothPhase(t,profile.align,profile.insert):this.staged?smooth((t-.34)/.31):smooth((t - .22) / .43);
     const relax=profile&&p.arts.mode!=='charge'?smoothPhase(t,profile.relax,profile.end):0;
     this.gripping=relax===0;
+    // A finished sheath is a separate state. Do not first pull the wrists
+    // back onto the hilt/mouth every frame and then try to release them.
+    if(profile&&p.arts.mode==='sheathed'&&this.seated){
+      this.gripping=false;
+      this._restHand(this.side,1);
+      if(this.support)this._restHand('Left',1);
+      h.sheath.updateMatrixWorld(true);
+      this.copy.position.copy(h.sheath.localToWorld(this.seated.position.clone()));
+      this.copy.quaternion.copy(h.sheath.getWorldQuaternion(new Quaternion())).multiply(this.seated.rotation);
+      return;
+    }
     const guard = mouth.clone().addScaledVector(axis, -this.length * (1 - insert));
     this.copy.position.copy(this.from).lerp(guard, align);
     this.copy.quaternion.copy(this.rotation).slerp(rotation, align);
@@ -224,19 +235,24 @@ export class KatanaSheath {
       if(!this.seated){
         this.seated={position:h.sheath.worldToLocal(this.copy.position.clone()),rotation:h.sheath.getWorldQuaternion(new Quaternion()).invert().multiply(this.copy.quaternion)};
       }
-      const upper=c.getBone(this.side+'Arm'),lower=c.getBone(this.side+'ForeArm');
-      const shoulder=upper.getWorldPosition(new Vector3()),elbow=lower.getWorldPosition(new Vector3());
-      const reach=shoulder.distanceTo(elbow)+elbow.distanceTo(rightHand.getWorldPosition(new Vector3()));
-      const rest=shoulder.clone().add(new Vector3(Math.sin(yaw)*.06,-reach*.85,Math.cos(yaw)*.06));
-      this._hand('Right',rest,relax);
-      if(this.support){
-        const left=c.getBone('LeftArm');
-        if(left)this._hand('Left',left.getWorldPosition(new Vector3()).add(new Vector3(-Math.cos(yaw)*.06,-reach*.85,Math.sin(yaw)*.06)),smoothPhase(t,profile.relax+.04,profile.end));
-      }
-      this._orientHand(source,rightHand,this.rotation,relax);
+      this._restHand(this.side,relax);
+      if(this.support)this._restHand('Left',smoothPhase(t,profile.relax+.04,profile.end));
       this.copy.position.copy(h.sheath.localToWorld(this.seated.position.clone()));
       this.copy.quaternion.copy(h.sheath.getWorldQuaternion(new Quaternion())).multiply(this.seated.rotation);
     }else this.seated=null;
+  }
+  _restHand(side,weight){
+    const c=this.presence.g.player.character;
+    const upper=c.getBone(side+'Arm'),lower=c.getBone(side+'ForeArm'),hand=c.getBone(side+'Hand');
+    if(!upper||!lower||!hand)return;
+    c.root.updateMatrixWorld(true);
+    const shoulder=upper.getWorldPosition(new Vector3()),elbow=lower.getWorldPosition(new Vector3());
+    const reach=shoulder.distanceTo(elbow)+elbow.distanceTo(hand.getWorldPosition(new Vector3()));
+    const out=shoulder.clone().sub(c.position).setY(0);
+    if(out.lengthSq()<1e-6)out.set(side==='Left'?1:-1,0,0);
+    out.normalize();
+    const target=shoulder.clone().addScaledVector(out,.05).add(new Vector3(Math.sin(c.facing)*.035,-reach*.92,Math.cos(c.facing)*.035));
+    this._hand(this.support?side:'Right',target,weight);
   }
   invalidate() { this.copy?.removeFromParent(); this.copy = null; this.active = false; this.drawFromSheath = false; this.release = null; this.flourishing = false; this.seated=null; }
   _orientHand(source, hand, rotation, weight) {
@@ -256,7 +272,8 @@ export class KatanaSheath {
     if (!upper || !lower || !hand) return;
     h.turn(upper); h.turn(lower);
     c.root.updateMatrixWorld(true);
-    const yaw=c.facing,sign=side==='Left'?-1:1;
+    const yaw=c.facing,shoulder=upper.getWorldPosition(new Vector3()).sub(c.position);
+    const sign=Math.sign(shoulder.x*Math.cos(yaw)-shoulder.z*Math.sin(yaw))||(side==='Left'?1:-1);
     // Keep elbows below and outside the torso, with a forward component so
     // crossing the belt cannot flip the elbow plane through the body.
     const pole=this.reference?new Vector3(Math.cos(yaw)*sign*.45+Math.sin(yaw)*.25,-1,-Math.sin(yaw)*sign*.45+Math.cos(yaw)*.25):new Vector3(0,-1,0);

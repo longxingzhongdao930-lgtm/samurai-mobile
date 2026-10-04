@@ -77,6 +77,7 @@ export class WeaponMotion {
       }
       if (keys) return { spec, keys, t: p.move.phase, id };
     }
+    if (['sheath','flourish','sheathed'].includes(p.arts?.mode)) return null;
     if (p.state === 'free') return { spec, keys: null, t: 0, guard: p.guarding };
     return null;
   }

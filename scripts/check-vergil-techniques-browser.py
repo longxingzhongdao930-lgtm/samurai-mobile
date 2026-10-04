@@ -8,11 +8,15 @@ with sync_playwright() as pw:
  p=b.new_page(viewport={'width':960,'height':640});errors=[];p.on('pageerror',lambda e:errors.append(str(e)))
  p.goto(os.environ.get('GAME_URL','http://127.0.0.1:4181/')+'?q=low&dyn=0');p.wait_for_function('window.app?.game?.state==="title"',timeout=240000);p.evaluate('app.stop()');p.get_by_role('button',name='はじめる',exact=True).click()
  p.evaluate('''()=>{const g=app.game;g.flow.update=()=>{};g.director.clear();g.magic.clear();g.flow._place(g.playerPosition.clone().set(0,0,124),0);g.hud.setVisible(false);g.touch.setVisible(false);app.simulate(.5);window.clean=()=>{g.input.reset();g.player.revive();g.player.invulnerable=999;g.player.special=1;g.player.mp=100;g.flow._place(g.playerPosition.clone().set(0,0,124),0);app.simulate(.3);};window.camera=()=>{const at=g.player.character.position,c=app.rig.camera;c.position.set(at.x+2,at.y+1.6,at.z+3);c.lookAt(at.x,at.y+1,at.z);c.fov=42;c.updateProjectionMatrix();app.scene.updateMatrixWorld(true);app.post.render();};}''')
+ assert p.evaluate('app.game.player.techniques.assets.status.force && app.game.player.techniques.assets.status.end')
  results={}
  # A real distant target, with AI frozen, proves remote damage and projectile contact.
  p.evaluate('''()=>{const g=app.game,a=g.director.spawn('infinian',0,130,Math.PI);a.hp=a.maxHp=10000;a.cooldown=999;a.maxPosture=10000;a.update=()=>{};g.player.lockTarget=a.enemy;window.target=a;app.simulate(.2);}''')
  for key,label in [('e','judgement'),('f','end')]:
-  p.evaluate('clean()');before=p.evaluate('target.hp');p.keyboard.press(key);p.evaluate('app.simulate(.48);camera()');p.screenshot(path=str(out/(label+'.png')));p.evaluate('app.simulate(1.3)');after=p.evaluate('target.hp')
+  p.evaluate('clean()');before=p.evaluate('target.hp');p.keyboard.press(key);p.evaluate('app.simulate(.48);camera()');p.screenshot(path=str(out/(label+'.png')))
+  if label=='end':
+   p.evaluate('app.simulate(.14)');assert p.evaluate('app.game.player.techniques.assets.endPool.some(s=>s.mesh.visible)');p.evaluate('(()=>{const c=app.rig.camera,at=app.game.playerPosition;c.position.set(at.x+5,at.y+2.2,at.z+3);c.lookAt(at.x,at.y+1,at.z+3);c.fov=55;c.updateProjectionMatrix();app.scene.updateMatrixWorld(true);app.post.render();})()');p.screenshot(path=str(out/'end-material.png'))
+  p.evaluate('app.simulate(1.3)');after=p.evaluate('target.hp')
   assert after<before,(label,before,after)
   assert p.evaluate('app.game.player.techniques.ritual===null'),label
   results[label]={'damage':before-after,'state':p.evaluate('app.game.player.state')}

@@ -1,0 +1,8 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { Group, Mesh, MeshBasicMaterial, BoxGeometry, Vector3 } from 'three';
+import { SpectralAssets } from '../src/game/fx/SpectralAssets.js';
+import { readFileSync } from 'node:fs';
+test('spectral effect fades quickly, never writes depth, and returns to hidden state',()=>{const assets=new SpectralAssets(new Group()),mesh=new Mesh(new BoxGeometry(),new MeshBasicMaterial({transparent:true,depthWrite:false,opacity:0}));assets.endPool=[{mesh,life:0}];assert.ok(assets.end(new Vector3(1,2,3)));assets.update(.12);assert.ok(mesh.visible);assert.ok(mesh.material.opacity<=.18);assert.equal(mesh.material.depthWrite,false);assets.update(.13);assert.equal(mesh.visible,false);assert.equal(mesh.material.opacity,0);});
+test('spectral pool stays bounded and reset cancels all visible effects',()=>{const assets=new SpectralAssets(new Group());assets.endPool=[{mesh:new Mesh(new BoxGeometry(),new MeshBasicMaterial()),life:0}];assert.ok(assets.end(new Vector3()));assert.equal(assets.end(new Vector3()),false);assets.reset();assert.equal(assets.endPool[0].mesh.visible,false);assert.equal(assets.endPool[0].life,0);});
+test('lightweight Force Edge retains attribution, no embedded images, and a projectile-sized silhouette',()=>{const raw=readFileSync(new URL('../public/models/fx/force-edge.glb',import.meta.url)),doc=JSON.parse(raw.subarray(20,20+raw.readUInt32LE(12)));assert.ok(raw.length<60000);assert.equal(doc.asset.extras.author,'tyang (https://sketchfab.com/tyang)');assert.ok(doc.asset.extras.license.startsWith('CC-BY-NC'));assert.equal(doc.images,undefined);assert.ok(Math.abs(doc.accessors[0].max[1]-doc.accessors[0].min[1]-.78)<.01);assert.ok(doc.accessors[1].count/3<5000);});

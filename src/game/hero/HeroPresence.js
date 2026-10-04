@@ -55,6 +55,17 @@ export class HeroPresence {
       }
     }
     this.sheathBody.update(dt);
+    // Keep the supporting feet fixed through insertion and the upright release.
+    // Locomotion and airborne actions immediately relinquish these anchors.
+    const planted=p.weapon.id==='katana'&&p.state==='free'&&speed<.1&&['sheath','flourish','sheathed'].includes(arts.mode)&&!c.airHeight&&!c.jump?.locked&&!c.hop?.locked;
+    if(planted){
+      c.root.updateMatrixWorld(true);
+      if(!this.sheathFeet)this.sheathFeet=['Left','Right'].map(side=>c.getBone(side+'Foot')?.getWorldPosition(new Vector3()));
+      for(const [i,side] of ['Left','Right'].entries()){
+        const up=c.getBone(side+'UpLeg'),low=c.getBone(side+'Leg'),foot=c.getBone(side+'Foot');
+        if(up&&low&&foot&&this.sheathFeet[i]){this.turn(up);this.turn(low);ik(up,low,foot,this.sheathFeet[i],new Vector3(Math.sin(c.facing),0,Math.cos(c.facing)),1);}
+      }
+    }else this.sheathFeet=null;
     const cfg=p.move?.config;
     if(p.state==='attack'&&cfg){
       const pulse=Math.sin(Math.PI*Math.min(1,p.move.phase));

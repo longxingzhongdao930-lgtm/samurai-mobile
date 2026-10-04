@@ -19,7 +19,9 @@ with sync_playwright() as pw:
  drift={n:max(sum((row['bones'][n][j]-rows[0]['bones'][n][j])**2 for j in range(3))**.5 for row in rows) for n in ['Hips','LeftFoot','RightFoot']}
  assert max(drift.values())<.005,drift
  assert max(abs(r['pose'][2]) for r in rows)>.1
- assert max(abs(v) for v in rows[-1]['pose'])<.001
+ # Upright breathing offsets remain; the working chest twist must be released.
+ assert abs(rows[-1]['pose'][2])<.007
+ assert max(abs(v) for v in rows[-1]['pose'])<.008
  final=rows[-1]['bones']
  for side in ['Left','Right']:
   assert final[side+'Hand'][1]<final[side+'Arm'][1]-.3,final

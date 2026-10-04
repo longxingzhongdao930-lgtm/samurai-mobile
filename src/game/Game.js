@@ -150,6 +150,7 @@ export class Game {
     app.scene.add(this.fx.group);
     this.magic = new Magic(this);
     this.player = new PlayerCombat(this);
+    await this.player.techniques.loadAssets();
     this.bow = new BowRig(this);
     this.weapons = new WeaponSet(this);
     // Weapon models load on first use: nothing extra on a phone at start-up.

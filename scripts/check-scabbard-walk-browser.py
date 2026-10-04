@@ -23,7 +23,7 @@ with sync_playwright() as pw:
  page_rest=p.evaluate("""()=>{const g=app.game,p=g.player,c=p.character;g.input.reset();app.simulate(1);p.arts.startSheath();app.simulate(3);const rows=[];for(let i=0;i<30;i++){app.simulate(.2);const chest=c.getBone('Spine2').getWorldQuaternion(c.root.quaternion.clone()).toArray(),arms=['Left','Right'].map(s=>{const a=c.getBone(s+'Arm').getWorldPosition(c.position.clone()),e=c.getBone(s+'ForeArm').getWorldPosition(c.position.clone()),h=c.getBone(s+'Hand').getWorldPosition(c.position.clone());return {drop:a.y-h.y,reach:a.distanceTo(h)/(a.distanceTo(e)+e.distanceTo(h))};});rows.push({chest,arms});}return rows;}""")
  assert all(a['drop']>.3 and a['reach']>.98 and a['reach']<1 for r in page_rest for a in r['arms']),page_rest
  assert max(sum((r['chest'][i]-page_rest[0]['chest'][i])**2 for i in range(4))**.5 for r in page_rest)>.001,page_rest
- upright=p.evaluate("()=>{const h=app.game.heroPresence,c=app.game.player.character;return h.sheathBody.upright.map(({name,value})=>{const b=c.getBone(name.replace(/^.*:/,'')),q=b.quaternion.clone().fromArray(value);return b.quaternion.angleTo(q);});}")
+ upright=p.evaluate(r"()=>{const h=app.game.heroPresence,c=app.game.player.character;return h.sheathBody.upright.filter(({name})=>/(?:Hips|Spine\d*)$/.test(name)).map(({name,value})=>{const b=c.getBone(name.replace(/^.*:/,'')),q=b.quaternion.clone().fromArray(value);return b.quaternion.angleTo(q);});}")
  assert len(upright)>=3 and max(upright)<.025,upright
  p.evaluate('app.scene.updateMatrixWorld(true);app.post.render()');p.screenshot(path=str(out/'rest-upright.png'))
  assert not errors,errors

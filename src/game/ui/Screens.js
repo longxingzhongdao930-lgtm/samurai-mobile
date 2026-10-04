@@ -51,7 +51,7 @@ export class Screens {
       'gs-title',
       `<div class="gs-title__mark">影</div>
        <h1 class="gs-title__name">黒雨の城下町</h1>
-       <p class="gs-title__sub">— 体験版 —</p><p class="gs-tip"><a href="./licenses/reference-models.json" target="_blank" rel="noopener">キャラクター素材：Nhan Do · CC BY 4.0 / 出典・作者表示</a></p>
+       <p class="gs-title__sub">— 体験版 —</p><p class="gs-tip"><a href="./licenses/reference-models.json" target="_blank" rel="noopener">追加素材の作者・出典・利用条件</a></p>
        ${onContinue ? '<button class="gs-btn gs-btn--main" data-action="continue">続きから</button>' : ''}
        <button class="gs-btn gs-btn--main" data-action="start">${onContinue ? 'はじめから' : 'はじめる'}</button>
        <div class="gs-menu-row"><button class="gs-btn" data-action="settings">設定</button><button class="gs-btn" data-action="practice">稽古・再戦</button><button class="gs-btn" data-action="hero">主人公</button></div>

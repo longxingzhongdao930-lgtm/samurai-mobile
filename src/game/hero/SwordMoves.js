@@ -1,5 +1,5 @@
 import { AnimationClip, Quaternion, Vector3 } from 'three';
-export const SWORD_TIMINGS={k1:.44,k2:.48,k3:.56,k4:.62,k5:.76,counter:.55,execute:.85,branchB:.72,branchC:.95,launcher:.65,rising:.7,'jump-katana':.7,'dive-katana':.65};
+export const SWORD_TIMINGS={k1:.38,k2:.42,k3:.48,k4:.54,k5:.66,counter:.48,execute:.74,branchB:.62,branchC:.82,launcher:.56,rising:.6,'jump-katana':.6,'dive-katana':.56};
 // phase, preparatory crouch, gait step, chest turn, lean. Each technique has
 // its own pelvis/legs/torso accompaniment, based on the supplied video order.
 export const SWORD_BODY={

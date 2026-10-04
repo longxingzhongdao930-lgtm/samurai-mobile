@@ -112,7 +112,7 @@ export class PlayerCombat {
     const onStrike = (move, index) => this._onStrike(move, index);
     const make = (config) => {
       let animation=config.swordMotion?swordBodyClip(character.clips.get('idle'),config.id,undefined,character.clips.get('crouch'),character.clips.get('walk')):clip(config.clip);
-      if(config.id==='heavy'&&this.weapon.id==='katana'&&config.clip==='crouchSlash')animation=vergilIaiCut(animation,vergilIaiStance(character.clips.get('crouch'),character.clips.get('idle')),character.clips.get('idle'),2.8);
+      if(config.id==='heavy'&&this.weapon.id==='katana'&&config.clip==='crouchSlash')animation=vergilIaiCut(animation,vergilIaiStance(character.clips.get('crouch'),character.clips.get('idle')),character.clips.get('idle'),1.25);
       if(config.airborne&&animation)animation.tracks=animation.tracks.filter(track=>/(?:Spine\d*|(?:Left|Right)(?:Shoulder|Arm|ForeArm|Hand)(?:\w*))\.quaternion$/i.test(track.name));
       return new Attack(mixer,nameMotion(animation,config.id),character,{config,onStrike});
     };

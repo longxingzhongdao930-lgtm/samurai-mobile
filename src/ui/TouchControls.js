@@ -16,8 +16,8 @@ const LAYOUT = [
   { id: 'jump', glyph: '跳', label: 'ジャンプ', cls: 'tc-btn--jump', key: 'Space' },
   { id: 'dodge', glyph: '避', label: '回避', cls: 'tc-btn--dodge', key: 'Shift' },
   { id: 'guard', glyph: '守', label: 'ガード', cls: 'tc-btn--guard', key: '右クリック' },
-  { id: 'magic', glyph: '術', label: '魔法', cls: 'tc-btn--magic', key: 'Q' },
-  { id: 'special', glyph: '奥義', label: '必殺', cls: 'tc-btn--special', key: 'R' },
+  { id: 'magic', glyph: '剣', label: '幻影剣', cls: 'tc-btn--magic', key: 'Q' },
+  { id: 'special', glyph: '竜', label: '竜人化', cls: 'tc-btn--special', key: 'R' },
   { id: 'lock', glyph: '◎', label: 'ロック', cls: 'tc-btn--lock', key: 'Tab' }
 ];
 
@@ -56,7 +56,7 @@ export class TouchControls {
     // The three elements, as small chips over the magic button.
     this.elements = div('tc-elements', this.cluster);
     this.chips = [];
-    ['火', '雷', '氷'].forEach((glyph, index) => {
+    ['射', '輪', '雨'].forEach((glyph, index) => {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = `tc-chip tc-chip--${index}`;
@@ -70,9 +70,8 @@ export class TouchControls {
     this.weapon = document.createElement('button');
     this.weapon.type = 'button';
     this.weapon.className = 'tc-weapon';
-    this.weapon.innerHTML = '<span class="tc-weapon__name">刀</span>';
-    this.weapon.disabled = true;
-    this.weapon.setAttribute('aria-label', '装備：刀');
+    this.weapon.innerHTML = '<span class="tc-weapon__name">次元斬</span><kbd class="tc-key">E</kbd>';
+    this.weapon.setAttribute('aria-label', '次元斬');
     this.root.appendChild(this.weapon);
     this._bindButton(this.weapon, 'weapon');
 
@@ -85,8 +84,8 @@ export class TouchControls {
     this._bindButton(this.pause, 'pause');
 
     const arts = div('tc-arts', this.root);
-    for (const [id,text] of [['sheath','納'],['kick','蹴']]) {
-      const b=document.createElement('button');b.className='tc-chip';b.textContent=text;b.setAttribute('aria-label',id==='sheath'?'納刀・変身解除':'蹴り');arts.append(b);this._bindButton(b,id);
+    for (const [id,text] of [['sheath','納'],['kick','昇'],['finish','絶']]) {
+      const b=document.createElement('button');b.className='tc-chip';b.textContent=text;b.setAttribute('aria-label',id==='sheath'?'納刀':id==='kick'?'斬り上げ':'次元斬・絶');arts.append(b);this._bindButton(b,id);
     }
     this._stickId = null;
     this._stickOrigin = { x: 0, y: 0 };
@@ -219,12 +218,12 @@ export class TouchControls {
     this.buttons.magic.classList.toggle('is-off', mp < mpCost);
     setRing(this.buttons.magic, Math.min(1, mp / 100));
     setRing(this.buttons.special, special);
-    this.buttons.special.classList.toggle('is-ready', state.transformed ? state.skillReady : special >= 1);
-    const specialLabel = state.transformed ? '竜技' : '必殺';
+    this.buttons.special.classList.toggle('is-ready', state.dragonHuman || special >= .5);
+    const specialLabel = state.dragonHuman ? '解除' : '竜人化';
     if (this._specialLabel !== specialLabel) {
       this._specialLabel = specialLabel;
       this.buttons.special.querySelector('.tc-btn__label').textContent = specialLabel;
-      this.buttons.special.querySelector('.tc-btn__glyph').textContent = state.transformed ? '竜技' : '奥義';
+      this.buttons.special.querySelector('.tc-btn__glyph').textContent = '竜';
     }
     this.buttons.attack.classList.toggle('is-execute', Boolean(execute));
     const glyph = execute ? '処' : state.attackGlyph ?? '斬';
@@ -237,7 +236,7 @@ export class TouchControls {
     this.buttons.lock.classList.toggle('is-on', Boolean(locked));
     if (state.weapon && this._weaponName !== state.weapon) {
       this._weaponName = state.weapon;
-      this.weapon.querySelector('.tc-weapon__name').textContent = state.weapon;
+      this.weapon.querySelector('.tc-weapon__name').textContent = '次元斬';
     }
     this.buttons.guard.classList.toggle('is-on', Boolean(guard));
   }

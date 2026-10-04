@@ -87,6 +87,10 @@ export class Game {
     this.input.canLock = () => !TOUCH && this.state === 'playing';
     this.input.canJump=()=>{
       const p=this.player;
+      if(this.state==='playing'&&!this.cinematic&&!p.dead&&!p.character.hop?.locked&&!p.character.jump?.locked&&p.state==='attack'){
+        if(p.move===p.heavy&&p.move.phase>.45){p._startMove(p.risingMove,p.lockTarget??p._autoTarget(p.risingMove.config));p.character.hop.start();return false;}
+        if(p.move===p.launcher&&p.move.phase>.55){p.move.release();p._toFree();}
+      }
       if(this.state!=='playing'||this.cinematic||this.form.active||p.state!=='free'||p.air.active||p.character.jump?.locked||p.character.hop?.locked)return false;
       p.arts.cancel();p.guarding=false;p.guardPose.stop();return true;
     };
@@ -346,13 +350,14 @@ export class Game {
       element: p.elementIndex,
       special: p.special,
       mp: p.mp,
-      mpCost: p.spell.cost,
+      mpCost: p.techniques?.mode?16:8,
       execute: !this.form.active && this.executionTarget() !== null,
       transformed: this.form.active,
       skillReady: this.form._skillCd <= 0,
       locked: p.lockTarget?.alive,
       guard: p.guarding,
-      available: p.unlocked,
+      available: [true,true,true],
+      dragonHuman:p.arts.transform>0,
       weapon: this.form.active ? '銀竜' : p.weapon.name,
       attackGlyph: this.form.active ? '爪' : p.air?.airborne ? '撃' : p.weapon.glyph,
       attackLabel: this.form.active ? '連撃' : p.air?.airborne ? '空中追撃' : p.character.jump?.locked||p.character.hop?.locked?'空中技':p.weapon.verb

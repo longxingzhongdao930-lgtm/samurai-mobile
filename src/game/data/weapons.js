@@ -289,6 +289,11 @@ WEAPONS.shuriken = {
 };
 
 /** The order the weapon button cycles through. */
+// Single-katana reference moves replace the old kick/landing combo.
+const sword=WEAPONS.katana;
+sword.combo=sword.combo.map((c,i)=>({...c,swordMotion:true,clip:'slashHit',clipFrom:0,clipTo:1,timeScale:1,hits:i===3?[.32,.65]:[.48],cancelAt:.73,recoverAt:.96,slices:true,trail:true,sfx:'slash',ring:false,launch:false,airLauncher:false,spin:0,lift:.3,impulse:2,arc:i===4?160:120,damage:i===4?18:c.damage}));
+sword.counter={...sword.counter,swordMotion:true,clipFrom:0,clipTo:1,timeScale:1,hits:[.32,.66]};
+sword.execute={...sword.execute,swordMotion:true,clipFrom:0,clipTo:1,timeScale:1};
 // The current player moveset is single-katana only. Retain older definitions
 // for saved-data recognition; they cannot be equipped or cycled.
 for (const weapon of Object.values(WEAPONS)) weapon.available = weapon.id === 'katana';

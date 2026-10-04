@@ -13,7 +13,7 @@
 /** Seconds an unconsumed press stays valid. Generous enough to chain a combo. */
 const BUFFER = 0.32;
 
-export const BUTTONS = ['attack', 'jump', 'dodge', 'guard', 'magic', 'special', 'lock', 'el0', 'el1', 'el2', 'weapon', 'sheath', 'kick', 'pause'];
+export const BUTTONS = ['attack', 'jump', 'dodge', 'guard', 'magic', 'special', 'lock', 'el0', 'el1', 'el2', 'weapon', 'finish', 'sheath', 'kick', 'pause'];
 
 const KEY_BUTTONS = {
   KeyC: 'sheath',
@@ -33,7 +33,7 @@ const KEY_BUTTONS = {
   Digit2: 'el1',
   Digit3: 'el2',
   KeyE: 'weapon',
-  KeyF: 'weapon',
+  KeyF: 'finish',
   Escape: 'pause',
   KeyP: 'pause'
 };
@@ -139,16 +139,8 @@ export class GameInput {
       this.lockRefused = true;
     };
     this._onContext = (event) => event.preventDefault();
-    // The wheel turns through the weapons; one notch, one weapon.
-    this._wheelAt = 0;
-    this._onWheel = (event) => {
-      if (!this.canLock()) return;
-      const now = performance.now();
-      if (now - this._wheelAt < 220) return;
-      this._wheelAt = now;
-      this.press('weapon');
-      this.release('weapon');
-    };
+    // Katana-only equipment: scrolling must not trigger the E technique.
+    this._onWheel = () => {};
 
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('keyup', this._onKeyUp);

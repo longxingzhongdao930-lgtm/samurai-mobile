@@ -1,3 +1,6 @@
+import { nameMotion } from '../hero/MotionCatalog.js';
+import { VergilTechniques } from '../hero/VergilTechniques.js';
+import { swordBodyClip, swordConfig } from '../hero/SwordMoves.js';
 import { vergilIaiStance, vergilIaiCut } from '../hero/VergilIai.js';
 import { jumpAttack } from '../data/jump-attacks.js';
 import { nextWeapon } from './WeaponCycle.js';
@@ -89,6 +92,13 @@ export class PlayerCombat {
     this.air = new GauntletAir(this);
     this.spirit = new DualSpirit(this);
     this.arts = new HeroArts(this);
+    this.techniques = new VergilTechniques(this);
+    this.launcher=this._make(swordConfig(this.weapon.combo[0],'launcher',{hits:[.48],damage:15,posture:18,launch:true,lift:5,impulse:3,reach:2.7,arc:110}));
+    this.risingMove=this._make(swordConfig(this.weapon.combo[0],'rising',{airborne:true,hits:[.46],damage:17,launch:true,lift:5,maxWarp:0,lunge:0}));
+    this.diveMove=this._make(swordConfig(this.jumpMove.config,'dive-katana',{hits:[.55],damage:22,posture:20,airLanding:true,airborne:true,airDive:true,ring:true,arc:180,maxWarp:0,lunge:0}));
+    this.branchB=this._make(swordConfig(this.weapon.combo[0],'branchB',{hits:[.3,.62],damage:9,posture:8}));
+    this.branchC=this._make(swordConfig(this.weapon.combo[0],'branchC',{hits:[.25,.48,.73],damage:7,posture:6,arc:180}));
+    for(const m of [this.launcher,this.risingMove,this.diveMove,this.branchB,this.branchC]){this.moves.push(m);this._moveOverrides.push(m);this.character.locomotion.overrides.push(m);}
   }
 
   /* ------------------------------------------------------------------ */
@@ -101,10 +111,10 @@ export class PlayerCombat {
     const clip = (name) => character.clips.get(name)?.clone() ?? null;
     const onStrike = (move, index) => this._onStrike(move, index);
     const make = (config) => {
-      let animation=clip(config.clip);
+      let animation=config.swordMotion?swordBodyClip(character.clips.get('idle'),config.id,undefined,character.clips.get('crouch'),character.clips.get('walk')):clip(config.clip);
       if(config.id==='heavy'&&this.weapon.id==='katana'&&config.clip==='crouchSlash')animation=vergilIaiCut(animation,vergilIaiStance(character.clips.get('crouch'),character.clips.get('idle')),character.clips.get('idle'),2.8);
       if(config.airborne&&animation)animation.tracks=animation.tracks.filter(track=>/(?:Spine\d*|(?:Left|Right)(?:Shoulder|Arm|ForeArm|Hand)(?:\w*))\.quaternion$/i.test(track.name));
-      return new Attack(mixer,animation,character,{config,onStrike});
+      return new Attack(mixer,nameMotion(animation,config.id),character,{config,onStrike});
     };
 
     this._make = make;
@@ -119,7 +129,7 @@ export class PlayerCombat {
       cancelAt: 0.85, recoverAt: 0.9, trail: false, standoff: 99, maxWarp: 0, sfx: null
     });
     this.kickMove ??= makeKick(this);
-    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove, this.jumpMove];
+    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove, this.jumpMove,...[this.launcher,this.risingMove,this.diveMove,this.branchB,this.branchC].filter(Boolean)];
     this._moveOverrides = [...this.moves];
 
     this.guardPose = new PoseLayer(mixer, character.clips.get('crouch'), { blendIn: 0.07, blendOut: 0.14 });
@@ -162,7 +172,7 @@ export class PlayerCombat {
       if (index >= 0) overrides.splice(index, 1);
     }
     this._useSet(this._setFor(this.weapon));
-    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove, this.jumpMove];
+    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove, this.jumpMove,...[this.launcher,this.risingMove,this.diveMove,this.branchB,this.branchC].filter(Boolean)];
     this._moveOverrides = [...this.moves];
     overrides.unshift(...this.moves);
     this.comboIndex = -1;
@@ -199,7 +209,7 @@ export class PlayerCombat {
     this.game.hud?.notice(WEAPON_TIPS[id], 2.8);
     this._useSet(this._setFor(weapon));
     this.kickMove ??= makeKick(this);
-    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove, this.jumpMove];
+    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove, this.jumpMove,...[this.launcher,this.risingMove,this.diveMove,this.branchB,this.branchC].filter(Boolean)];
     this._moveOverrides = [...this.moves];
     overrides.unshift(...this.moves);
     this.comboIndex = -1;
@@ -208,6 +218,7 @@ export class PlayerCombat {
   }
 
   _readWeaponSwitch() {
+    if(this.techniques)return;
     if (this.dead || this.character?.jump?.locked || this.character?.hop?.locked || this.game.form?.active || this.game.cinematic || ['hurt', 'down', 'cast'].includes(this.state)) {
       this._weaponQueue = 0;
       this.input.consume('weapon');
@@ -335,15 +346,20 @@ export class PlayerCombat {
         break;
     }
 
+    const techniqueControl=this.techniques?.update(dt,input);
+    if(techniqueControl!==undefined)return techniqueControl;
+    if(input.pending('kick')&&this._canCancel(.55)&&!this.character.airHeight){input.consume('kick');this.arts.cancel();this._startMove(this.launcher,this.lockTarget??this._autoTarget(this.launcher.config));return this._held;}
+    if(this.move===this.heavy&&this.state==='attack'&&this.move.phase>.45&&input.pending('jump')){input.consume('jump');this._startMove(this.risingMove,this.lockTarget??this._autoTarget(this.risingMove.config));this.game.input._edges.jump=0;return this._held;}
     const jumping=this.character.jump?.locked||this.character.hop?.locked;
-    if(jumping||this.move===this.jumpMove&&this.state==='attack'){
+    if(jumping||[this.jumpMove,this.diveMove].includes(this.move)&&this.state==='attack'){
       this.arts.cancel();this.guarding=false;this.guardPose.stop();
       for(const button of ['dodge','guard','magic','special','weapon'])input.consume(button);
       if(jumping&&this.state==='free'&&input.consume('attack')&&!this._landingStrike){
         this._startMove(this.jumpMove,null);this._held.warp.active=false;
         this.game.hud?.notice(this.jumpMove.config.name,1);
       }
-      if(this.state==='attack'&&this.move===this.jumpMove&&(!this.move.locked||this.move.phase>=this.move.config.recoverAt)){this.move.release();this._toFree();}
+      if(this.state==='attack'&&this.move===this.jumpMove&&input.held.attack&&input.holdTime.attack>.3){this._startMove(this.diveMove,null);this._held.warp.active=false;}
+      if(this.state==='attack'&&[this.jumpMove,this.diveMove].includes(this.move)&&(!this.move.locked||this.move.phase>=this.move.config.recoverAt)){this.move.release();this._toFree();}
       return null;
     }
 
@@ -500,6 +516,7 @@ export class PlayerCombat {
   }
 
   _readElementChips() {
+    if(this.techniques)return;
     for (let i = 0; i < 3; i++) {
       if (!this.input.consume(`el${i}`)) continue;
       if (!this.unlocked[i]) {
@@ -543,10 +560,11 @@ export class PlayerCombat {
     // A press shortly after a link finished still continues the string: the
     // grace is what lets a deliberate rhythm reach the fifth cut.
     const continuing =
-      (this.state === 'attack' && this.move && this.combo.includes(this.move)) ||
+      (this.state === 'attack' && this.move && (this.combo.includes(this.move)||this.move===this.branchB||this.move===this.branchC)) ||
       (this.state === 'free' && this._comboGrace > 0 && this.comboIndex >= 0);
     this.comboIndex = continuing ? (this.comboIndex + 1) % this.combo.length : 0;
-    const move = this.combo[this.comboIndex];
+    const delayed=this.state==='free'&&this.stateTime>.12&&continuing;
+    const move=delayed?(this.comboIndex%2?this.branchB:this.branchC):this.combo[this.comboIndex];
     this._startMove(move, (this.lockTarget?.alive && this.game.targetVisible?.(this.lockTarget) !== false ? this.lockTarget : this._autoTarget({ ...move.config, arc: Math.min(100, move.config.arc ?? 100) })));
   }
 
@@ -986,7 +1004,7 @@ export class PlayerCombat {
   }
 
   _toFree() {
-    const fromCombo = this.state === 'attack' && this.move && this.combo.includes(this.move);
+    const fromCombo = this.state === 'attack' && this.move && (this.combo.includes(this.move)||this.move===this.branchB||this.move===this.branchC);
     this.state = 'free';
     this.stateTime = 0;
     this.move = null;
@@ -1001,6 +1019,7 @@ export class PlayerCombat {
     this.character?.jump?.cancel();this.character?.hop?.cancel();this._landingStrike=null;
     this.spirit?.reset();
     this.arts?.reset();
+    this.techniques?.reset();
     this._guardLatched = false;
     this._weaponQueue = this._switchBoost = this._linkHitTimer = 0;
     this.hitCombo = this._hitComboTimer = this._comboGrace = 0;

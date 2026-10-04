@@ -60,6 +60,6 @@ export class DualSpirit {
     const from = elbow.getWorldPosition(new Vector3()), direction = hand.getWorldPosition(new Vector3()).sub(from).normalize();
     this.arm.position.copy(from); this.arm.quaternion.copy(new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), direction));
     this.arm.scale.setScalar(1 + Math.sin(this.pulse / 0.8 * Math.PI) * 0.25);
-    this.armMaterial.opacity = Math.min(0.7, Math.max(this.pulse,partial) * 3);
+    this.armMaterial.opacity = partial>0?.28:Math.min(.7,this.pulse*3);
   }
 }

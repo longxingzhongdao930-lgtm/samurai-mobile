@@ -17,6 +17,8 @@ export class HeroPresence {
     for(const side of [-1,1]){const f=new Mesh(new CylinderGeometry(.255,.31,.6,12,4,true,side<0?.55:Math.PI,Math.PI-.55),cloth);f.position.set(0,-.17,0);this.flaps.push(f);this.coat.add(f);}
     this.sheath=new Group();this.sheath.name='Mythical scabbard mount';
     this.root.add(this.hat,this.mask,this.coat,this.sheath);
+    const dragonMaterial=new MeshStandardMaterial({color:'#abcce2',emissive:'#224e80',emissiveIntensity:.8,metalness:.65,roughness:.35});
+    this.dragonHorns=new Group();for(const side of [-1,1]){const horn=new Mesh(new ConeGeometry(.045,.24,6),dragonMaterial);horn.position.set(side*.13,.23,-.035);horn.rotation.z=-side*.35;this.dragonHorns.add(horn);}this.root.add(this.dragonHorns);
     this.sleeves=['Left','Right'].map(side=>{const mesh=new Mesh(new CylinderGeometry(.14,.12,.24,10,1,true),cloth);this.root.add(mesh);return {side,mesh};});
     this.tether=new Line(new BufferGeometry().setFromPoints([new Vector3(),new Vector3()]),new LineBasicMaterial({color:'#9dd8eb',transparent:true,opacity:.5}));this.tether.frustumCulled=false;this.root.add(this.tether);
   }
@@ -43,8 +45,8 @@ export class HeroPresence {
       const threat=g.coach.warnings.find(w=>w.el.classList.contains('is-edge'));
       if(threat)this.turn(c.getBone('LeftArm'),0,0,.08);
     }
-    const groundedIai=p.weapon.id==='katana'&&p.state==='attack'&&p.move===p.heavy;
-    if((p.state==='free'&&speed<2||groundedIai)&&!c.airHeight){
+    const groundedIai=p.weapon.id==='katana'&&p.state==='attack'&&(p.move===p.heavy||p.move?.config.swordMotion)&&!p.move?.config.airborne;
+    if((p.state==='free'&&speed<2||groundedIai)&&!c.airHeight&&!c.jump?.locked&&!c.hop?.locked){
       for(const side of ['Left','Right']){
         const up=c.getBone(side+'UpLeg'),low=c.getBone(side+'Leg'),foot=c.getBone(side+'Foot');if(!up||!low||!foot)continue;
         c.root.updateMatrixWorld(true);const at=foot.getWorldPosition(new Vector3()),ground=g.app.terrain.heightAt(at.x,at.z);
@@ -73,7 +75,7 @@ export class HeroPresence {
     const head=c.getBone('Head'),chest=c.getBone('Spine2');c.root.updateMatrixWorld(true);
     const cosmetic=g.heroStudio?.appearance??'plain';
     this.hat.visible=cosmetic==='hat';this.mask.visible=cosmetic==='mask';this.coat.visible=cosmetic==='coat';
-    if(head){head.getWorldPosition(this.hat.position);this.hat.position.y+=.28;this.hat.rotation.y=c.facing;head.getWorldPosition(this.mask.position);this.mask.position.add(new Vector3(Math.sin(c.facing)*.12,.12,Math.cos(c.facing)*.12));this.mask.rotation.y=c.facing;}
+    this.dragonHorns.visible=arts.transform>0;if(head){head.getWorldPosition(this.dragonHorns.position);this.dragonHorns.quaternion.copy(head.getWorldQuaternion(this.dragonHorns.quaternion));head.getWorldPosition(this.hat.position);this.hat.position.y+=.28;this.hat.rotation.y=c.facing;head.getWorldPosition(this.mask.position);this.mask.position.add(new Vector3(Math.sin(c.facing)*.12,.12,Math.cos(c.facing)*.12));this.mask.rotation.y=c.facing;}
     if(chest){chest.getWorldPosition(this.coat.position);this.coat.rotation.y=c.facing;}
     for(const {side,mesh} of this.sleeves){
       const upper=c.getBone(side+'Arm'),lower=c.getBone(side+'ForeArm');mesh.visible=cosmetic==='coat'&&!!upper&&!!lower;

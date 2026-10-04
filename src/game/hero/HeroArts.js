@@ -1,3 +1,4 @@
+import { nameMotion } from './MotionCatalog.js';
 import { MathUtils, Vector3 } from 'three';
 import { SHEATH_REFERENCE, sheathDuration } from './SheathReference.js';
 import { vergilIaiStance } from './VergilIai.js';
@@ -17,7 +18,7 @@ export function behind(enemy, position) {
 export class HeroArts {
   constructor(player) {
     this.p=player;this.g=player.game;
-    this.pose=new PoseLayer(player.character.mixer,vergilIaiStance(player.character.clips.get('crouch'),player.character.clips.get('idle')),{blendIn:.12,blendOut:.1});
+    this.pose=new PoseLayer(player.character.mixer,nameMotion(vergilIaiStance(player.character.clips.get('crouch'),player.character.clips.get('idle')),'stance'),{blendIn:.12,blendOut:.1});
     this.restPose=new PoseLayer(player.character.mixer,player.character.clips.get('idle'),{blendIn:.16,blendOut:.12,loop:true});
     player.poses.push(this.pose,this.restPose);player.character.locomotion.overrides.push(this.pose,this.restPose);
     this.reset();
@@ -39,7 +40,7 @@ export class HeroArts {
   }
   control(dt,input){
     const p=this.p,g=this.g;
-    for(const key of ['ready','link','returnGuard','evadeWindow','kickCd','transform'])this[key]=Math.max(0,this[key]-dt);
+    for(const key of ['ready','link','returnGuard','evadeWindow','kickCd'])this[key]=Math.max(0,this[key]-dt);
     if(p.dead||['hurt','down'].includes(p.state)){this.cancel();return undefined;}
     if(input.pending('sheath')&&g.form.active){input.consume('sheath');g.form.end(true);this.startSheath();return null;}
     if(g.form.active)return undefined;
@@ -78,7 +79,8 @@ export class HeroArts {
     return null;
   }
   configure(config,move,target){
-    const p=this.p,g=this.g,c={...config};this.elementCd=null;
+    const p=this.p,g=this.g,c={...config};
+    if(this.transform>0){c.damage*=1.25;c.posture*=1.2;}this.elementCd=null;
     if(move===p.cast)return c;
     const gap=target?target.position.distanceTo(p.character.position):99;
     if(move===p.execute){

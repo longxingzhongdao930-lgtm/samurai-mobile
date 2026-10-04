@@ -3,6 +3,7 @@
  */
 export function jumpAttack(weapon){
   const base=weapon.combo[0];
+  if(weapon.id==='katana')return {...base,id:'jump-katana',name:'空中連斬',swordMotion:true,airborne:true,clipFrom:0,clipTo:1,timeScale:1,hits:[.3,.65],damage:8,posture:6,maxWarp:0,lunge:0,passThrough:0,reach:2.6,arc:140,cancelAt:.85,recoverAt:.96,airLanding:false,ring:false,launch:false};
   const names={katana:'刀・空中斬り',odachi:'大太刀・落下斬り',spear:'槍・空中突き',naginata:'薙刀・空中薙ぎ',kusarigama:'鎖鎌・空中刈り',gauntlet:'手甲・空中射出',shuriken:'手裏剣・空中投げ'};
   return {...base,id:'jump-'+weapon.id,name:names[weapon.id],airborne:true,
     clip:'slashHit',clipFrom:.07,clipTo:.66,timeScale:1.8,

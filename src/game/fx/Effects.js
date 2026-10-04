@@ -201,11 +201,12 @@ export class Effects {
   update(dt, elapsed) {
     if (!this._bladeBound) this.bindBlade();
     const p=this.game.player,iai=p.weapon.id==='katana'&&p.state==='attack'&&p.move===p.heavy&&!this.game.form.active;
+    const sword=p.weapon.id==='katana'&&p.state==='attack'&&!this.game.form.active;
     const uniforms=this.trail.material.uniforms;
-    uniforms.uColor.value.set(iai?'#769fff':'#ffb36a');
-    uniforms.uCore.value.set(iai?'#effbff':'#fff6e8');
+    uniforms.uColor.value.set(sword?'#769fff':'#ffb36a');
+    uniforms.uCore.value.set(sword?'#effbff':'#fff6e8');
     uniforms.uLife.value=iai?.14:.11;
-    uniforms.uBand.value=iai?.82:0;
+    uniforms.uBand.value=sword?.82:0;
     if(iai){
       // Keep the crouched silhouette readable; light appears at the draw,
       // rather than washing out the held stance or the recovery.

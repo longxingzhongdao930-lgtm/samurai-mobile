@@ -11,15 +11,28 @@ const KEYS=[
   [.8,  .04, .25,.16,   .65,.6,.24],
   [.94, .04,-.35,.24,   .1,.5,.9]
 ];
+const PATHS={
+ k1:[[0,-.24,-.28,.22,-.8,0,.8],[.48,.30,-.23,.3,1,.05,.2],[1,.05,-.38,.18,.1,.3,1]],
+ k2:[[0,.25,-.2,.2,1,0,.2],[.48,-.23,-.26,.3,-.8,.1,.7],[1,.05,-.38,.18,.1,.3,1]],
+ k3:[[0,.12,-.4,.25,.1,-.5,.8],[.48,.12,.2,.3,.1,1,.25],[1,.05,-.38,.18,.1,.3,1]],
+ k4:[[0,-.24,-.28,.22,-.8,0,.8],[.32,.3,-.23,.3,1,0,.2],[.5,.3,-.2,.22,1,0,.2],[.65,-.23,-.26,.3,-.8,.1,.7],[1,.05,-.38,.18,.1,.3,1]],
+ k5:[[0,.06,.18,.18,.2,.8,.3],[.48,.24,-.33,.4,.2,-.8,.5],[1,.05,-.38,.18,.1,.3,1]],
+ launcher:[[0,.12,-.4,.25,.1,-.5,.8],[.48,.12,.2,.3,.1,1,.25],[1,.05,-.38,.18,.1,.3,1]],
+ 'dive-katana':[[0,.05,.2,.22,.2,1,.2],[.55,.1,-.32,.4,.1,-1,.3],[1,.05,-.38,.18,.1,.3,1]]
+};
+PATHS.rising=PATHS.launcher;PATHS.counter=PATHS.k4;PATHS.execute=PATHS.k5;PATHS['jump-katana']=PATHS.k4;
+PATHS.branchB=[[0,...PATHS.k1[0].slice(1)],[.3,...PATHS.k1[1].slice(1)],[.48,...PATHS.k2[0].slice(1)],[.62,...PATHS.k2[1].slice(1)],[1,...PATHS.k1[2].slice(1)]];
+PATHS.branchC=[[0,...PATHS.k1[0].slice(1)],[.25,...PATHS.k1[1].slice(1)],[.38,...PATHS.k2[0].slice(1)],[.48,...PATHS.k2[1].slice(1)],[.6,...PATHS.k1[0].slice(1)],[.73,...PATHS.k1[1].slice(1)],[1,...PATHS.k1[2].slice(1)]];
 export class VergilIaiMotion {
   constructor(presence){this.h=presence;}
   update(){
     const h=this.h,g=h.g,p=g.player,c=p.character;
-    if(p.weapon.id!=='katana'||p.state!=='attack'||p.move!==p.heavy||p.dead||g.form.active)return;
-    const phase=p.move.phase,w=smoothPhase(phase,.14,.24)*(1-smoothPhase(phase,.88,.99));
+    if(p.weapon.id!=='katana'||p.state!=='attack'||(!p.move?.config.swordMotion&&p.move!==p.heavy)||p.dead||g.form.active)return;
+    const heavy=p.move===p.heavy,keys=heavy?KEYS:(PATHS[p.move.config.id]??PATHS.k1);
+    const phase=p.move.phase,w=heavy?smoothPhase(phase,.14,.24)*(1-smoothPhase(phase,.88,.99)):smoothPhase(phase,0,.12)*(1-smoothPhase(phase,.88,1));
     if(w<=0)return;
-    let i=KEYS.findIndex(k=>k[0]>=phase);if(i<1)i=phase>KEYS.at(-1)[0]?KEYS.length-1:1;
-    const a=KEYS[i-1],b=KEYS[i],u=smoothPhase(phase,a[0],b[0]),v=a.slice(1).map((n,j)=>n+(b[j+1]-n)*u);
+    let i=keys.findIndex(k=>k[0]>=phase);if(i<1)i=phase>keys.at(-1)[0]?keys.length-1:1;
+    const a=keys[i-1],b=keys[i],u=smoothPhase(phase,a[0],b[0]),v=a.slice(1).map((n,j)=>n+(b[j+1]-n)*u);
     const arm=c.getBone('RightArm'),fore=c.getBone('RightForeArm'),hand=c.getBone('RightHand');
     const source=g.weapons.blade();if(!arm||!fore||!hand||!source)return;
     c.root.updateMatrixWorld(true);

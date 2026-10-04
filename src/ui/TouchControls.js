@@ -13,7 +13,8 @@ const STICK_RADIUS = 58;
 
 const LAYOUT = [
   { id: 'attack', glyph: '斬', label: '攻撃', cls: 'tc-btn--attack', key: '左クリック' },
-  { id: 'dodge', glyph: '避', label: '回避', cls: 'tc-btn--dodge', key: 'Space' },
+  { id: 'jump', glyph: '跳', label: 'ジャンプ', cls: 'tc-btn--jump', key: 'Space' },
+  { id: 'dodge', glyph: '避', label: '回避', cls: 'tc-btn--dodge', key: 'Shift' },
   { id: 'guard', glyph: '守', label: 'ガード', cls: 'tc-btn--guard', key: '右クリック' },
   { id: 'magic', glyph: '術', label: '魔法', cls: 'tc-btn--magic', key: 'Q' },
   { id: 'special', glyph: '奥義', label: '必殺', cls: 'tc-btn--special', key: 'R' },

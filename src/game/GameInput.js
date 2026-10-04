@@ -13,13 +13,15 @@
 /** Seconds an unconsumed press stays valid. Generous enough to chain a combo. */
 const BUFFER = 0.32;
 
-export const BUTTONS = ['attack', 'dodge', 'guard', 'magic', 'special', 'lock', 'el0', 'el1', 'el2', 'weapon', 'sheath', 'kick', 'pause'];
+export const BUTTONS = ['attack', 'jump', 'dodge', 'guard', 'magic', 'special', 'lock', 'el0', 'el1', 'el2', 'weapon', 'sheath', 'kick', 'pause'];
 
 const KEY_BUTTONS = {
   KeyC: 'sheath',
   KeyV: 'kick',
   KeyJ: 'attack',
-  Space: 'dodge',
+  Space: 'jump',
+  ShiftLeft: 'dodge',
+  ShiftRight: 'dodge',
   KeyL: 'guard',
   KeyK: 'guard',
   KeyQ: 'magic',
@@ -238,7 +240,7 @@ export class GameInput {
    * Movement, camera-relative, as the controller expects it.
    *
    * The stick is analogue: a light push walks, past ~55% it runs at full
-   * pace. On the keyboard the body runs by default and Shift walks — an action
+   * pace. On the keyboard the body runs by default and Alt walks — an action
    * game spends almost all of its time at a run.
    */
   sample() {
@@ -278,7 +280,7 @@ export class GameInput {
         x /= length;
         y /= length;
       }
-      this.running = length > 0 && !(this.keys.has('ShiftLeft') || this.keys.has('ShiftRight'));
+      this.running = length > 0 && !(this.keys.has('AltLeft') || this.keys.has('AltRight'));
     }
 
     this.axis.x = x;
@@ -290,9 +292,10 @@ export class GameInput {
     return this.axis.x !== 0 || this.axis.y !== 0;
   }
 
-  /** The controller's jump/attack edges are not used in the game. */
+  /** Consume immediately, so an unavailable jump never fires after recovery. */
   consumeJump() {
-    return false;
+    const pressed=this.consume('jump');
+    return pressed && this.enabled && (this.canJump?.()??true);
   }
 
   consumeAttack() {

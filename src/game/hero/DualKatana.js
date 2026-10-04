@@ -1,4 +1,5 @@
 import { Group, Vector3, Quaternion } from 'three';
+import { SHEATH_REFERENCE, smoothPhase } from './SheathReference.js';
 import { KatanaSheath } from './KatanaSheath.js';
 
 /** Two-sword draw/sheath and independent upper-body combat poses. */
@@ -24,7 +25,7 @@ export class DualKatana {
         const arts=Object.create(p.arts),player=Object.create(p),game=Object.create(g);
         Object.defineProperty(player,'arts',{value:arts});Object.defineProperty(game,'player',{value:player});
         const proxy={g:game,root:h.root,sheath:index?h.sheath:this.cover,turn:h.turn.bind(h)};
-        const rig=new KatanaSheath(proxy,{side,support:false,staged:true,source:()=>index?g.weapons.blade():this.left,offset:()=>index?new Vector3():new Vector3(-Math.sin(c.facing)*.07,-.105,-Math.cos(c.facing)*.07)});
+        const rig=new KatanaSheath(proxy,{side,support:false,staged:true,reference:index?SHEATH_REFERENCE.dualRight:SHEATH_REFERENCE.dualLeft,source:()=>index?g.weapons.blade():this.left,offset:()=>index?new Vector3():new Vector3(-Math.sin(c.facing)*.07,-.105,-Math.cos(c.facing)*.07)});
         return Object.assign(rig,{arts,index});
       });
     }
@@ -46,6 +47,10 @@ export class DualKatana {
       }
     }
     const config=p.move?.config,phase=p.move?.phase??0;
+    const shoulderY=(c.getBone('RightArm').getWorldPosition(new Vector3()).y+c.getBone('LeftArm').getWorldPosition(new Vector3()).y)*.5;
+    if(!c.jump?.locked&&!c.hop?.locked&&!config?.airborne)this.stanceHeight=shoulderY-c.position.y;
+    const bodyBase=c.position.clone();
+    if(config?.airborne)bodyBase.y+=Math.max(0,shoulderY-c.position.y-(this.stanceHeight??1.45));
     const attacking=!held&&p.state==='attack'&&config?.dualPose;
     if(attacking){
       for(const [index,side] of ['Left','Right'].entries()){
@@ -55,7 +60,7 @@ export class DualKatana {
         const t=Math.max(0,Math.min(1,(phase-(hit-.22))/.44));
         const cut=t*t*(3-2*t),sign=index?1:-1;
         const strength=active?Math.sin(Math.PI*t):0;
-        const target=c.position.clone().add(world((index?.32:-.34)-sign*.48*strength,(index?1.38:1.05)+.18*strength,(index?.02:.22)+.3*strength));
+        const target=bodyBase.clone().add(world((index?.32:-.34)-sign*.48*strength,(index?1.38:1.05)+.18*strength,(index?.02:.22)+.3*strength));
         this.rigs[index]._hand('Right',target,1);
         const direction=active?world(sign*(.85-1.7*cut),.3-.5*Math.sin(Math.PI*cut),.65):world(sign*.2,index?.9:-.2,index?-.35:.95);
         const rest=new Quaternion().setFromUnitVectors(new Vector3(0,0,1),world(index?-.1:-.2,index?.9:-.2,index?-.35:.95).normalize());
@@ -69,10 +74,22 @@ export class DualKatana {
       if(live&&!trail.active)trail.begin(p.move===p.heavy?1.3:1);
       else if(!live)trail.end();
     }
+    const flourish=p.arts.mode==='flourish'?SHEATH_REFERENCE.flourish:0;
     for(const rig of this.rigs){
       const drawing=!held&&p.state==='attack'&&p.move===p.heavy;
-      rig.arts.mode=drawing&&rig.index===1&&this.clock<.16?'sheathed':p.arts.mode;
-      rig.arts.t=Math.max(0,p.arts.t-(rig.index===1?.4:0));
+      const local=p.arts.t-flourish-(rig.index===1?SHEATH_REFERENCE.dualDelay:0);
+      const waiting=['sheath','flourish'].includes(p.arts.mode)&&local<0;
+      if(waiting){
+        // Keep the right blade above the shoulder while the left is put away.
+        const at=c.position.clone().add(world(rig.index?.32:-.34,rig.index?1.38:1.05,rig.index?.02:.22));
+        const kick=flourish>0&&p.arts.t<.6&&rig.index===0?Math.sin(Math.PI*p.arts.t/.6):0;
+        at.add(world(-.2*kick,-.12*kick,.18*kick));
+        rig._hand('Right',at,smoothPhase(p.arts.t,0,.18));
+        const dir=world(rig.index?-.1:-.2-.7*kick,rig.index?.9:-.2-.5*kick,rig.index?-.35:.95-.4*kick);
+        rig._orientHand(rig.source(),c.getBone((rig.index?'Right':'Left')+'Hand'),new Quaternion().setFromUnitVectors(new Vector3(0,0,1),dir.normalize()),smoothPhase(p.arts.t,0,.18));
+      }
+      rig.arts.mode=drawing&&rig.index===1&&this.clock<.16?'sheathed':waiting?'':p.arts.mode==='flourish'?'sheath':p.arts.mode;
+      rig.arts.t=Math.max(0,local);
       rig.update(dt);
     }
     return true;

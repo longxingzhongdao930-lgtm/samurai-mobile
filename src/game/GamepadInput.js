@@ -1,10 +1,10 @@
-const ACTIONS={0:'attack',1:'dodge',2:'magic',3:'weapon',4:'guard',5:'lock',6:'special',7:'attack',9:'pause',10:'sheath',11:'kick'};
+const ACTIONS={0:'attack',1:'dodge',2:'magic',3:'weapon',4:'guard',5:'lock',6:'special',7:'attack',9:'pause',10:'sheath',11:'kick',12:'jump'};
 export class GamepadInput {
   constructor(game){this.game=game;this.previous=new Set();this.menuTime=0;this.connected=false;this.neutral=true;}
   poll(dt){
     const g=this.game,input=g.input,pad=[...(navigator.getGamepads?.()??[])].find(p=>p?.connected&&p.mapping==='standard');
     if(!pad){if(this.connected){for(const a of this.previous)input.release(a);input.padAxis=null;g.pause();this.connected=false}this.previous.clear();return}
-    if(!this.connected){this.connected=true;g.hud?.notice('パッド：A 攻撃 · B 回避 · LB 守 · X 術 · Y 武器 · LT 奥義',5)}
+    if(!this.connected){this.connected=true;g.hud?.notice('パッド：A 攻撃 · B 回避 · LB 守 · X 術 · Y 武器 · LT 奥義 · 十字上 ジャンプ',5)}
     const current=new Set(Object.entries(ACTIONS).filter(([i])=>pad.buttons[i]?.pressed).map(([,action])=>action));
     const axis=v=>Math.abs(v)<.22?0:Math.sign(v)*(Math.abs(v)-.22)/.78;
     const x=axis(pad.axes[0]??0),y=-axis(pad.axes[1]??0);

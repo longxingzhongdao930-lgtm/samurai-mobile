@@ -382,7 +382,7 @@ export class App {
       // The game reads its own keys (`game/GameInput.js`); only the frame
       // stats and, with ?debug, the editor stay on the window.
       if (this.mode === 'game') {
-        if (event.code === 'KeyF') this.stats.toggle();
+        if (event.code === 'F8') this.stats.toggle();
         if (event.code === 'KeyG' && new URLSearchParams(location.search).has('debug')) this.editor.toggle();
         return;
       }

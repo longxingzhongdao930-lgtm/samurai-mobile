@@ -211,6 +211,13 @@ body.game .loader__status {
   from { box-shadow: 0 0 8px rgba(255, 90, 54, 0.4); }
   to { box-shadow: 0 0 26px rgba(255, 200, 120, 0.9); }
 }
+.tc-btn--jump {
+  right: calc(185px * var(--u));
+  bottom: calc(4px * var(--u));
+  width: calc(54px * var(--u));
+  height: calc(54px * var(--u));
+}
+.tc-btn--jump .tc-btn__glyph { font-size: calc(22px * var(--u)); }
 .tc-btn--dodge {
   right: calc(104px * var(--u));
   bottom: calc(4px * var(--u));

@@ -1,14 +1,15 @@
 import { Box3, Quaternion, Vector3 } from 'three';
 import { ik } from '../combat/WeaponMotion.js';
+import { smoothPhase } from './SheathReference.js';
 import { bladeCurve, curvedInsertion } from './SheathCurve.js';
 
 const smooth = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 export const SHEATH_SECONDS = .75;
 export const FLOURISH_SECONDS = .22;
 
-/** Original game choreography, not a retarget of the supplied MMD motion. */
+/** Reference-timed hand/weapon IK; the default fallback keeps legacy timings. */
 export class KatanaSheath {
-  constructor(presence, {side='Right', support=true, source=null, offset=null, staged=false}={}) { this.presence = presence; this.side=side; this.support=support; this.source=source; this.offset=offset; this.staged=staged; this.active = false; }
+  constructor(presence, {side='Right', support=true, source=null, offset=null, staged=false, reference=null}={}) { this.presence = presence; this.side=side; this.support=support; this.source=source; this.offset=offset; this.staged=staged; this.reference=reference; this.active = false; }
   update(dt = 1 / 60) {
     const h = this.presence, g = h.g, p = g.player, c = p.character;
     const yaw = c.facing;
@@ -127,7 +128,20 @@ export class KatanaSheath {
       this.depth = blade.isEmpty() ? .065 : Math.max(.065, 2 * Math.max(Math.abs(blade.min.y), Math.abs(blade.max.y)) + .012);
       h.root.add(this.copy);
     }
-    if (p.arts.mode === 'flourish' && p.arts.t < FLOURISH_SECONDS) {
+    const flourishSeconds=this.reference?.flourish??FLOURISH_SECONDS;
+    if (p.arts.mode === 'flourish' && p.arts.t < flourishSeconds) {
+      if(this.reference){
+        if(!this.flourishing)this.flourishFrom=c.getBone(this.side+'Hand')?.getWorldPosition(new Vector3());
+        const phase=Math.min(1,p.arts.t/flourishSeconds),swing=Math.sin(Math.PI*phase);
+        const target=this.flourishFrom.clone().add(new Vector3(Math.cos(yaw)*.24*swing+Math.sin(yaw)*.16*swing,-.15*swing,-Math.sin(yaw)*.24*swing+Math.cos(yaw)*.16*swing));
+        this._hand('Right',target,1);
+        source.updateWorldMatrix(true,false);
+        const rotation=source.getWorldQuaternion(new Quaternion()).premultiply(new Quaternion().setFromAxisAngle(new Vector3(Math.sin(yaw),0,Math.cos(yaw)),.55*swing));
+        this._orientHand(source,c.getBone(this.side+'Hand'),rotation,1);
+        // Re-anchor after IK; rigid blade never separates during the flick.
+        const hand=c.getBone(this.side+'Hand').getWorldPosition(new Vector3());
+        source.position.copy(source.parent.worldToLocal(hand)).sub(new Vector3(0,0,-.1).multiply(source.scale).applyQuaternion(source.quaternion));
+      }
       source.updateWorldMatrix(true, false);
       this.copy.position.copy(source.getWorldPosition(new Vector3()));
       this.copy.quaternion.copy(source.getWorldQuaternion(new Quaternion()));
@@ -148,8 +162,11 @@ export class KatanaSheath {
     }
     if(!this.active)this.fromGrip=c.getBone(this.side+'Hand')?.getWorldPosition(new Vector3());
     this.active = true; source.visible = false; this.copy.visible = true;
-    const t = ['sheathed', 'charge'].includes(p.arts.mode) ? SHEATH_SECONDS : p.arts.t - (p.arts.mode === 'flourish' ? FLOURISH_SECONDS : 0);
-    const align = this.staged?smooth((t-.18)/.16):smooth(t / .22), insert = this.staged?smooth((t-.34)/.31):smooth((t - .22) / .43);
+    const profile=this.reference;
+    const t = ['sheathed', 'charge'].includes(p.arts.mode) ? (profile?.end??SHEATH_SECONDS) : p.arts.t - (p.arts.mode === 'flourish' ? flourishSeconds : 0);
+    const align = profile?smoothPhase(t,profile.retract,profile.align):this.staged?smooth((t-.18)/.16):smooth(t / .22), insert = profile?smoothPhase(t,profile.align,profile.insert):this.staged?smooth((t-.34)/.31):smooth((t - .22) / .43);
+    const relax=profile&&p.arts.mode!=='charge'?smoothPhase(t,profile.relax,profile.end):0;
+    this.gripping=relax===0;
     const guard = mouth.clone().addScaledVector(axis, -this.length * (1 - insert));
     this.copy.position.copy(this.from).lerp(guard, align);
     this.copy.quaternion.copy(this.rotation).slerp(rotation, align);
@@ -157,7 +174,7 @@ export class KatanaSheath {
     // Follow its current hilt rather than the final insertion axis.
     const grip = new Vector3(0, 0, -.1).applyQuaternion(this.copy.quaternion).add(this.copy.position);
     for (const [side, target] of [['Left', mouth], ['Right', grip]]) {
-      this._hand(side, target, this.staged?0:align);
+      this._hand(side, target, profile?(side==='Left'?smoothPhase(t,0,.24):0):this.staged?0:align);
     }
     // IK deliberately blends during alignment and cannot reach every point of
     // the old straight-line path. The rigid sword must stay in the real hand,
@@ -165,7 +182,7 @@ export class KatanaSheath {
     const rightHand = c.getBone(this.side+'Hand');
     // Dual swords first lift clear of the belt, retract, then rotate before
     // insertion. The actual arm reach keeps the blade attached to the hand.
-    if(this.staged&&rightHand&&this.fromGrip){
+    if((this.staged||profile)&&rightHand&&this.fromGrip){
       c.root.updateMatrixWorld(true);
       const upper=c.getBone(this.side+'Arm'),lower=c.getBone(this.side+'ForeArm');
       const shoulder=upper.getWorldPosition(new Vector3()),elbow=lower.getWorldPosition(new Vector3()),hand=rightHand.getWorldPosition(new Vector3());
@@ -173,9 +190,10 @@ export class KatanaSheath {
       const away=shoulder.clone().sub(mouth).normalize();
       const outside=shoulder.clone().addScaledVector(away,reach);
       const finalGrip=mouth.clone().addScaledVector(axis,-.1);
-      const lifted=this.fromGrip.clone().add(new Vector3(0,.2,0));
-      const target=t<.08?this.fromGrip.clone().lerp(lifted,smooth(t/.08)):t<.18?lifted.lerp(outside,smooth((t-.08)/.1)):outside.lerp(finalGrip,insert);
-      this._hand('Right',target,1);
+      const lifted=this.fromGrip.clone().add(new Vector3(Math.sin(yaw)*.2,.2,Math.cos(yaw)*.2));
+      const liftEnd=profile?.lift??.08,retractEnd=profile?.retract??.18;
+      const target=t<liftEnd?this.fromGrip.clone().lerp(lifted,smooth(t/liftEnd)):t<retractEnd?lifted.lerp(outside,smooth((t-liftEnd)/(retractEnd-liftEnd))):outside.lerp(finalGrip,insert);
+      this._hand('Right',target,p.arts.mode==='charge'&&profile?smoothPhase(p.arts.t,0,.12):1);
     }
     if (rightHand) {
       c.root.updateMatrixWorld(true);
@@ -196,11 +214,27 @@ export class KatanaSheath {
         h.sheath.quaternion.copy(rotation).slerp(scabbardRotation, align);
         // Keep the wrist's grip orientation consistent with the mounted sword.
         // Position-only IK otherwise leaves the rigid blade turned in the palm.
-        this._orientHand(source, rightHand, this.copy.quaternion, this.staged?1:align);
+        this._orientHand(source, rightHand, this.copy.quaternion, this.staged||profile?1:align);
       } else this.copy.position.add(actualGrip.sub(grip));
     }
+    if(profile&&relax>0&&rightHand){
+      // Once seated the blade belongs to the scabbard, not the released hand.
+      // Cache in scabbard space so a later hip movement carries both together.
+      h.sheath.updateMatrixWorld(true);
+      if(!this.seated){
+        this.seated={position:h.sheath.worldToLocal(this.copy.position.clone()),rotation:h.sheath.getWorldQuaternion(new Quaternion()).invert().multiply(this.copy.quaternion)};
+      }
+      const upper=c.getBone(this.side+'Arm'),lower=c.getBone(this.side+'ForeArm');
+      const shoulder=upper.getWorldPosition(new Vector3()),elbow=lower.getWorldPosition(new Vector3());
+      const reach=shoulder.distanceTo(elbow)+elbow.distanceTo(rightHand.getWorldPosition(new Vector3()));
+      const rest=shoulder.clone().add(new Vector3(Math.sin(yaw)*.06,-reach*.85,Math.cos(yaw)*.06));
+      this._hand('Right',rest,relax);
+      this._orientHand(source,rightHand,this.rotation,relax);
+      this.copy.position.copy(h.sheath.localToWorld(this.seated.position.clone()));
+      this.copy.quaternion.copy(h.sheath.getWorldQuaternion(new Quaternion())).multiply(this.seated.rotation);
+    }else this.seated=null;
   }
-  invalidate() { this.copy?.removeFromParent(); this.copy = null; this.active = false; this.drawFromSheath = false; this.release = null; this.flourishing = false; }
+  invalidate() { this.copy?.removeFromParent(); this.copy = null; this.active = false; this.drawFromSheath = false; this.release = null; this.flourishing = false; this.seated=null; }
   _orientHand(source, hand, rotation, weight) {
     if (!hand.parent) return;
     this.presence.turn?.(hand);

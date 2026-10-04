@@ -380,7 +380,7 @@ export class Flow {
           this._pickup('spirit', stage().spots.yard);
           game.director.spawn('archer', 22, 64, -Math.PI / 2);
           game.director.spawn('shinobi', 16, 76, -Math.PI / 2);
-          game.after(1.8, () => hud().notice(touch() ? '「避」で回避 · 攻撃直前なら見切り' : 'Spaceで回避 · 攻撃直前なら見切り', 3));
+          game.after(1.8, () => hud().notice(touch() ? '「避」で回避 · 攻撃直前なら見切り' : 'Shiftで回避 · 攻撃直前なら見切り', 3));
         },
         done: () => this.encounter ? this.fightOver : true
       },

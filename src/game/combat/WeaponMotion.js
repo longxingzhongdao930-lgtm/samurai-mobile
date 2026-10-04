@@ -69,7 +69,12 @@ export class WeaponMotion {
     if (p.air?.airborne) return { spec, keys: spec.moves[p.air.pose] ?? null, t: p.air.phase, id: p.air.pose };
     if (p.state === 'attack' && p.move) {
       const id = p.move.config.id;
-      const keys = spec.moves[id];
+      let keys=spec.moves[id];
+      if(p.move.config.airborne){
+        const source=p.weapon.id==='odachi'?'k5':p.weapon.id==='naginata'?'k3':'k1';
+        const contact=source==='k5'?.42:source==='k3'?.5:.62;
+        keys=spec.moves[source]?.map(key=>({...key,t:key.t<=contact?key.t*.5/contact:.5+(key.t-contact)*.5/(1-contact)}));
+      }
       if (keys) return { spec, keys, t: p.move.phase, id };
     }
     if (p.state === 'free') return { spec, keys: null, t: 0, guard: p.guarding };
@@ -102,7 +107,11 @@ export class WeaponMotion {
     const right = _b.set(-Math.cos(yaw), 0, Math.sin(yaw));
     const leftAxis = _c.copy(right).negate();
     const scale = this._scale();
-    const origin = character.position;
+    const origin = character.position.clone();
+    if(this.player.move?.config.airborne){
+      const shoulder=(B.RightArm.getWorldPosition(new Vector3()).y+B.LeftArm.getWorldPosition(new Vector3()).y)*.5;
+      origin.y+=Math.max(0,shoulder-character.position.y-1.45*scale);
+    }
     const toWorld = (v, out) =>
       out.copy(origin).addScaledVector(right, v[0] * scale).addScaledVector(_up, v[1] * scale).addScaledVector(fw, v[2] * scale);
     const dirWorld = (v, out) => out.set(0, 0, 0).addScaledVector(right, v[0]).addScaledVector(_up, v[1]).addScaledVector(fw, v[2]).normalize();

@@ -28,7 +28,7 @@ with sync_playwright() as pw:
             if(mode==='guard')g.input.press('guard');
             if(['inserting','sheathed'].includes(mode))p.arts.startSheath();
             if(mode==='charge'){g.input.press('attack');p.arts.charge();}
-            app.simulate(mode==='inserting'?.4:1);
+            app.simulate(mode==='inserting'?1.5:mode==='sheathed'?3:1);
             if(mode==='draw'){g.input.press('attack');p.arts.charge();app.simulate(.5);g.input.release('attack');app.simulate(.2);}
             const model=g.weapons.blade(), h=g.heroPresence, copy=h.katanaSheath.copy;
             const held=['inserting','sheathed','charge'].includes(mode);
@@ -63,14 +63,14 @@ with sync_playwright() as pw:
         const g=app.game,p=g.player,h=g.heroPresence;
         g.input.reset();p.arts.cancel();p.revive();p.arts.startSheath();
         const rows=[];
-        for(let i=0;i<120;i++){
+        for(let i=0;i<180;i++){
             app.simulate(1/60,1/60);app.scene.updateMatrixWorld(true);
             const mouth=h.sheath.position.clone();
             const left=p.character.getBone('LeftHand').getWorldPosition(mouth.clone());
             const right=p.character.getBone('RightHand').getWorldPosition(mouth.clone());
             const copy=h.katanaSheath.copy;
             const grip=mouth.clone().set(0,0,-.1).applyQuaternion(copy.quaternion).add(copy.position);
-            rows.push({t:(i+1)/60,mode:p.arts.mode,leftGap:left.distanceTo(mouth),rightGap:right.distanceTo(grip),
+            rows.push({gripping:h.katanaSheath.gripping!==false,t:(i+1)/60,mode:p.arts.mode,leftGap:left.distanceTo(mouth),rightGap:right.distanceTo(grip),
                 left:left.toArray(),right:right.toArray(),mouth:mouth.toArray(),guard:copy.position.toArray(),
                 mouthAxisGap:mouth.clone().sub(copy.position).cross(grip.clone().set(0,0,1).applyQuaternion(copy.quaternion)).length(),
                 axisAngle:copy.quaternion.angleTo(h.sheath.quaternion),
@@ -81,8 +81,8 @@ with sync_playwright() as pw:
     (output/'timeline.json').write_text(json.dumps(timeline,indent=2))
     settled=[r for r in timeline if r['t']>1]
     assert max(r['leftGap'] for r in settled)<.005, 'settled left-hand contact'
-    assert max(r['rightGap'] for r in timeline)<.005, 'right hand keeps its grip throughout insertion'
-    aligned=[r for r in timeline if r['t']>=.23]
+    assert max(r['rightGap'] for r in timeline if r['gripping'])<.005, 'right hand keeps its grip throughout insertion'
+    aligned=[r for r in timeline if r['t']>=.95 and r['gripping']]
     # Curved insertion intentionally turns the blade relative to the mouth axis.
     assert max(r['axisAngle'] for r in aligned)<.2, 'curved insertion stays within a modest angle'
     assert max(r['wristAngle'] for r in aligned)<.005, 'wrist follows the mounted blade orientation'
@@ -97,11 +97,11 @@ with sync_playwright() as pw:
             if(action==='draw'){g.input.press('attack');p.arts.charge();app.simulate(.4);g.input.release('attack');}
             if(action==='flourish')p.arts.startSheath(true);
             let maxStep=0,previous=null;
-            for(let i=0;i<90;i++) {
+            for(let i=0;i<240;i++) {
                 app.simulate(1/60,1/60);app.scene.updateMatrixWorld(true);
                 const bone=p.character.getBone('RightHand'),at=bone.getWorldPosition(h.sheath.position.clone());
                 if(!at.toArray().every(Number.isFinite))throw Error('nonfinite hand '+action);
-                if(previous&&i>60)maxStep=Math.max(maxStep,at.distanceTo(previous));previous=at;
+                if(previous&&i>225)maxStep=Math.max(maxStep,at.distanceTo(previous));previous=at;
             }
             results.push({action,maxSettledHandStep:maxStep,mode:p.arts.mode,guard:p.guarding});
         }
@@ -133,7 +133,7 @@ with sync_playwright() as pw:
         const materials=new Map();h.sheath.traverse(n=>{for(const m of (Array.isArray(n.material)?n.material:[n.material]))if(m&&!materials.has(m)){materials.set(m,m.side);m.side=2;}});
         const rows=[];let previous=0;
         try {
-            for(const t of [.25,.35,.45,.55,.65,.85]) {
+            for(const t of [1,1.25,1.5,1.8,2.15,2.6]) {
                 app.simulate(t-previous,1/60);previous=t;app.scene.updateMatrixWorld(true);
                 const copy=h.katanaSheath.copy;let tested=0,outside=0;const examples=[];
                 copy.traverse(node=>{
@@ -161,12 +161,12 @@ with sync_playwright() as pw:
         const g=app.game,p=g.player,h=g.heroPresence;
         g.input.reset();p.arts.cancel();p.revive();p.setWeapon('katana');p.arts.startSheath();
         let maxGap=0,maxAxisGap=0;
-        for(let i=0;i<60;i++){
+        for(let i=0;i<90;i++){
             app.simulate(1/30,1/30);app.scene.updateMatrixWorld(true);
             const copy=h.katanaSheath.copy,hand=p.character.getBone('RightHand').getWorldPosition(copy.position.clone());
             const grip=copy.position.clone().set(0,0,-.1).applyQuaternion(copy.quaternion).add(copy.position);
-            maxGap=Math.max(maxGap,hand.distanceTo(grip));
-            if(i>7){const axis=grip.clone().set(0,0,1).applyQuaternion(copy.quaternion);maxAxisGap=Math.max(maxAxisGap,h.sheath.position.clone().sub(copy.position).cross(axis).length());}
+            if(h.katanaSheath.gripping!==false)maxGap=Math.max(maxGap,hand.distanceTo(grip));
+            if(p.arts.t>=h.katanaSheath.reference.align&&h.katanaSheath.gripping!==false){const axis=grip.clone().set(0,0,1).applyQuaternion(copy.quaternion);maxAxisGap=Math.max(maxAxisGap,h.sheath.position.clone().sub(copy.position).cross(axis).length());}
         }
         if(maxGap>.005)throw Error('30fps contact regression');
         return {fps:30,maxGap,maxAxisGap,mode:p.arts.mode};

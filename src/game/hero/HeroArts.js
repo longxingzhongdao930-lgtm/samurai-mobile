@@ -1,5 +1,5 @@
 import { MathUtils, Vector3 } from 'three';
-import { SHEATH_SECONDS, FLOURISH_SECONDS } from './KatanaSheath.js';
+import { SHEATH_REFERENCE, sheathDuration } from './SheathReference.js';
 import { PoseLayer } from '../combat/PoseLayer.js';
 import { sheathPose } from './SheathPose.js';
 
@@ -18,17 +18,18 @@ export class HeroArts {
   constructor(player) {
     this.p=player;this.g=player.game;
     this.pose=new PoseLayer(player.character.mixer,sheathPose(player.character.clips.get('crouchSlash'),player.character.clips.get('idle')),{blendIn:.12,blendOut:.1});
-    player.poses.push(this.pose);player.character.locomotion.overrides.push(this.pose);
+    this.restPose=new PoseLayer(player.character.mixer,player.character.clips.get('idle'),{blendIn:.16,blendOut:.12,loop:true});
+    player.poses.push(this.pose,this.restPose);player.character.locomotion.overrides.push(this.pose,this.restPose);
     this.reset();
   }
-  reset(){this.mode='';this.t=0;this.ready=0;this.link=0;this.returnGuard=0;this.evadeWindow=0;this.kickCd=0;this.rewardAvailable=false;this.transform=0;this.dirt=0;this.flourishQueued=false;this.pose?.cancel();}
-  cancel(){this.mode='';this.t=0;this.pose.stop();}
+  reset(){this.mode='';this.t=0;this.ready=0;this.link=0;this.returnGuard=0;this.evadeWindow=0;this.kickCd=0;this.rewardAvailable=false;this.transform=0;this.dirt=0;this.flourishQueued=false;this.pose?.cancel();this.restPose?.cancel();}
+  cancel(){this.mode='';this.t=0;this.pose.stop();this.restPose?.stop();}
   startSheath(flourish=false){
     const p=this.p;if(p.dead||!p._canCancel(.65))return false;
     for(const m of p.moves)m.release();p._toFree();p.guarding=false;p._guardLatched=false;p.guardPose.stop();
-    this.mode=flourish?'flourish':'sheath';this.t=0;this.pose.play(.02,.14,{seconds:.55});return true;
+    this.mode=flourish?'flourish':'sheath';this.t=0;this.pose.stop();this.restPose.hold(0);return true;
   }
-  charge(){for(const m of this.p.moves)m.release();this.p._toFree();this.mode='charge';this.t=0;this.pose.hold(.06);this.p.input.consume('attack');}
+  charge(){for(const m of this.p.moves)m.release();this.p._toFree();this.mode='charge';this.t=0;this.restPose.stop();this.pose.hold(.06);this.p.input.consume('attack');}
   stepToward(target, distance, side=0){
     if(!target?.alive)return;
     const at=this.p.character.position,delta=target.position.clone().sub(at).setY(0),d=delta.length();if(d<.01)return;
@@ -69,8 +70,8 @@ export class HeroArts {
     }
     if(input.pending('attack')){input.consume('attack');this.charge();this._chargeCue=false;return null;}
     if(input.moving){this.cancel();return undefined;}
-    if(this.mode!=='sheathed'&&this.t>=(g.weapons.swords?.id==='dual'?1.15:SHEATH_SECONDS)+(this.mode==='flourish'?FLOURISH_SECONDS:0)){
-      this.mode='sheathed';this.pose.hold(.06);
+    if(this.mode!=='sheathed'&&this.t>=sheathDuration(g.weapons.swords?.id==='dual')+(this.mode==='flourish'?(g.weapons.swords?.id==='dual'?SHEATH_REFERENCE.flourish:SHEATH_REFERENCE.single.flourish):0)){
+      this.mode='sheathed';this.pose.stop?.();this.restPose?.hold(0);
       if(this.rewardAvailable){this.rewardAvailable=false;this.ready=6;p.spirit.calm=Math.min(100,p.spirit.calm+(g._nearest(5)?24:12));g.heroStudio?.record('sheath');g.hud.notice('納刀成功 — 次の居合を強化',1.5);}
     }
     return null;

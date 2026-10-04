@@ -1,4 +1,6 @@
 import { sheathPose } from '../hero/SheathPose.js';
+import { jumpAttack } from '../data/jump-attacks.js';
+import { nextWeapon } from './WeaponCycle.js';
 import { HeroArts } from '../hero/HeroArts.js';
 import { WEAPON_TIPS } from './CombatCoach.js';
 import { comboLifetime, canSwitchInRecovery } from './CombatRhythm.js';
@@ -9,7 +11,7 @@ import { Attack } from '../../animation/Attack.js';
 import { settings } from '../../config/settings.js';
 import { PoseLayer } from './PoseLayer.js';
 import { BodyMotion } from './BodyMotion.js';
-import { WEAPONS, WEAPON_ORDER, DUAL_KATANA } from '../data/weapons.js';
+import { WEAPONS, DUAL_KATANA } from '../data/weapons.js';
 import { ELEMENTS, SPELLS, SPELL_ORDER } from '../data/elements.js';
 
 const _v = new Vector3();
@@ -98,7 +100,11 @@ export class PlayerCombat {
     const mixer = character.mixer;
     const clip = (name) => character.clips.get(name)?.clone() ?? null;
     const onStrike = (move, index) => this._onStrike(move, index);
-    const make = (config) => new Attack(mixer, config.dualPose ? sheathPose(clip(config.clip), character.clips.get('idle')) : clip(config.clip), character, { config, onStrike });
+    const make = (config) => {
+      const animation=config.dualPose ? sheathPose(clip(config.clip),character.clips.get('idle')) : clip(config.clip);
+      if(config.airborne&&animation)animation.tracks=animation.tracks.filter(track=>/(?:Spine\d*|(?:Left|Right)(?:Shoulder|Arm|ForeArm|Hand)(?:\w*))\.quaternion$/i.test(track.name));
+      return new Attack(mixer,animation,character,{config,onStrike});
+    };
 
     this._make = make;
     /** Built movesets, by weapon id: built once, kept for the next switch. */
@@ -112,7 +118,7 @@ export class PlayerCombat {
       cancelAt: 0.85, recoverAt: 0.9, trail: false, standoff: 99, maxWarp: 0, sfx: null
     });
     this.kickMove ??= makeKick(this);
-    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove];
+    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove, this.jumpMove];
     this._moveOverrides = [...this.moves];
 
     this.guardPose = new PoseLayer(mixer, character.clips.get('crouch'), { blendIn: 0.07, blendOut: 0.14 });
@@ -136,7 +142,8 @@ export class PlayerCombat {
         combo: weapon.combo.map(this._make),
         heavy: this._make(weapon.heavy),
         counter: this._make(weapon.counter),
-        execute: this._make(weapon.execute)
+        execute: this._make(weapon.execute),
+        jump: this._make(jumpAttack(weapon,dual))
       });
     }
     return this._sets.get(key);
@@ -145,6 +152,7 @@ export class PlayerCombat {
   /** Appearance selection changes the katana moves without changing save weapon IDs. */
   refreshSwordMoves() {
     if (this.weapon.id !== 'katana') return;
+    this.character.jump?.cancel();this.character.hop?.cancel();this._landingStrike=null;
     for (const move of this.moves) move.cancel();
     this.arts?.cancel();
     this._toFree();
@@ -155,7 +163,7 @@ export class PlayerCombat {
       if (index >= 0) overrides.splice(index, 1);
     }
     this._useSet(this._setFor(this.weapon));
-    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove];
+    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove, this.jumpMove];
     this._moveOverrides = [...this.moves];
     overrides.unshift(...this.moves);
     this.comboIndex = -1;
@@ -168,6 +176,7 @@ export class PlayerCombat {
     this.heavy = set.heavy;
     this.counter = set.counter;
     this.execute = set.execute;
+    this.jumpMove = set.jump;
   }
 
   /**
@@ -177,6 +186,7 @@ export class PlayerCombat {
   setWeapon(id) {
     const weapon = WEAPONS[id];
     if (!weapon?.available || weapon === this.weapon) return false;
+    this.character.jump?.cancel();this.character.hop?.cancel();this._landingStrike=null;
     this.air?.reset(); this._gauntletCharged = false;
     this._switchBoost = 0;
     for (const move of this.moves) move.cancel();
@@ -190,7 +200,7 @@ export class PlayerCombat {
     this.game.hud?.notice(WEAPON_TIPS[id], 2.8);
     this._useSet(this._setFor(weapon));
     this.kickMove ??= makeKick(this);
-    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove];
+    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove, this.jumpMove];
     this._moveOverrides = [...this.moves];
     overrides.unshift(...this.moves);
     this.comboIndex = -1;
@@ -199,18 +209,20 @@ export class PlayerCombat {
   }
 
   _readWeaponSwitch() {
-    if (this.dead || this.game.form?.active || this.game.cinematic || ['hurt', 'down', 'cast'].includes(this.state)) {
+    if (this.dead || this.character?.jump?.locked || this.character?.hop?.locked || this.game.form?.active || this.game.cinematic || ['hurt', 'down', 'cast'].includes(this.state)) {
       this._weaponQueue = 0;
       this.input.consume('weapon');
       return;
     }
     if (this.input.consume('weapon')) this._weaponQueue = 0.7;
     const recovery = canSwitchInRecovery(this);
-    if (this._weaponQueue <= 0 || (this.state !== 'free' && !recovery)) return;
+    if (this._swordSwitch || this._weaponQueue <= 0 || (this.state !== 'free' && !recovery)) return;
     this._weaponQueue = 0;
     const linked = recovery && this._linkHitTimer > 0;
-    const order = WEAPON_ORDER.filter((id) => WEAPONS[id]?.available);
-    const next = order[(order.indexOf(this.weapon.id) + 1) % order.length];
+    const next = nextWeapon(this);
+    if(next==='dual'||next==='katana'&&this.game.weapons?.swords.id==='dual'){
+      this._switchSword(next,linked);return;
+    }
     if (this.setWeapon(next)) {
       this._toFree();
       this._held.warp.active = false;
@@ -219,6 +231,24 @@ export class PlayerCombat {
       this.game.hud?.notice(linked ? `${this.weapon.name} — 持ち替え連携` : this.weapon.id === 'gauntlet' ? '飛ぶ手甲 — 攻撃で射出・長押しして離すと引き寄せ' : this.weapon.name, 2);
       this.game.audio?.play('select');
     }
+  }
+
+  async _switchSword(next, linked=false){
+    if(this._swordSwitch)return;
+    this._swordSwitch=true;
+    const g=this.game,swords=g.weapons.swords;
+    const id=next==='dual'?'dual':g.heroStudio?.singleSword??'mythical';
+    try{
+      const switched=await swords.select(id,{canApply:()=>!this.dead&&!g.form?.active&&!g.cinematic&&!this.character.jump?.locked&&!this.character.hop?.locked&&(this.state==='free'||canSwitchInRecovery(this))});
+      if(!switched)return;
+      if(this.weapon.id!=='katana')this.setWeapon('katana');
+      this._toFree();this._held.warp.active=false;
+      this._switchBoost=linked?2:0;this._linkHitTimer=0;
+      if(g.heroStudio){g.heroStudio.sword=id;g.heroStudio.save();}
+      g.hud?.notice(next==='dual'?'二刀流 — 左斬り・右斬り・交差斬り':'刀',2);
+      g.audio?.play('select');
+    }catch(error){g.hud?.notice('刀の読み込みに失敗しました。もう一度切り替えてください',2);}
+    finally{this._swordSwitch=false;}
   }
 
   _recordHit(count = 1) {
@@ -289,6 +319,11 @@ export class PlayerCombat {
       this.game.bow.end();
     }
 
+    if(this._landingStrike&&!this.character.jump?.locked&&!this.character.hop?.locked){
+      const strike=this._landingStrike;this._landingStrike=null;
+      if(this.state==='free'||this.state==='attack')this._onStrike(strike,0);
+    }
+
     if (this.air?.update(dt, input)) return this._hold();
 
     this._readElementChips();
@@ -319,6 +354,18 @@ export class PlayerCombat {
         return this._updateDodge(dt);
       default:
         break;
+    }
+
+    const jumping=this.character.jump?.locked||this.character.hop?.locked;
+    if(jumping||this.move===this.jumpMove&&this.state==='attack'){
+      this.arts.cancel();this.guarding=false;this.guardPose.stop();
+      for(const button of ['dodge','guard','magic','special','weapon'])input.consume(button);
+      if(jumping&&this.state==='free'&&input.consume('attack')&&!this._landingStrike){
+        this._startMove(this.jumpMove,null);this._held.warp.active=false;
+        this.game.hud?.notice(this.jumpMove.config.name,1);
+      }
+      if(this.state==='attack'&&this.move===this.jumpMove&&(!this.move.locked||this.move.phase>=this.move.config.recoverAt)){this.move.release();this._toFree();}
+      return null;
     }
 
     const artControl = this.arts?.control(dt, input);
@@ -553,6 +600,7 @@ export class PlayerCombat {
     if(bonus)move._config={...move._config,posture:move._config.posture+bonus};
     move._config = this.spirit.empowerMove(move._config, move === this.heavy);
     if (this.arts) move._config = this.arts.configure(move._config, move, target);
+    if(move.config.airborne)move._config={...move.config,maxWarp:0,lunge:0,passThrough:0,standoff:99};
     move.start(target?.alive ? target : null);
     this.move = move;
     this.state = move === this.cast ? 'cast' : 'attack';
@@ -600,6 +648,10 @@ export class PlayerCombat {
     if (this.state === 'cast' && move === this.combo[1]) return; // the special's pose only
     if (this.weapon.id === 'gauntlet' && move !== this.kickMove && move !== this.execute && this.game.weapons.fist) {
       this.game.weapons.fist.launch(config, move.target ?? this.lockTarget ?? this._autoTarget({ reach: 12, arc: 90 }));
+      return;
+    }
+    if(config.airLanding&&!config.landingResolved){
+      this._landingStrike={config:{...config,landingResolved:true},target:move.target};
       return;
     }
     if (config.throw) {
@@ -841,6 +893,7 @@ export class PlayerCombat {
   }
 
   _stagger(seconds, dx, dz, knock, knockdown) {
+    this.character?.jump?.cancel();this.character?.hop?.cancel();this._landingStrike=null;
     this.arts?.cancel();
     this._weaponQueue = this._switchBoost = this._linkHitTimer = 0;
     this.counterWindow = 0;
@@ -869,6 +922,7 @@ export class PlayerCombat {
   }
 
   _die(hit) {
+    this.character?.jump?.cancel();this.character?.hop?.cancel();this._landingStrike=null;
     this.arts?.cancel();
     this._weaponQueue = this._switchBoost = this._linkHitTimer = 0;
     this.state = 'dead';
@@ -965,6 +1019,7 @@ export class PlayerCombat {
 
   /** Back to full, standing — a retry from a checkpoint. */
   revive(hp = this.maxHp) {
+    this.character?.jump?.cancel();this.character?.hop?.cancel();this._landingStrike=null;
     this.spirit?.reset();
     this.arts?.reset();
     this._guardLatched = false;

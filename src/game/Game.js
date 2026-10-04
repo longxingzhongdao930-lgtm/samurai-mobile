@@ -85,6 +85,11 @@ export class Game {
     // the orbit); left enabled, it would grab the pointer on every click.
     app.rig.controls.enabled = false;
     this.input.canLock = () => !TOUCH && this.state === 'playing';
+    this.input.canJump=()=>{
+      const p=this.player;
+      if(this.state!=='playing'||this.cinematic||this.form.active||p.state!=='free'||p.air.active||p.character.jump?.locked||p.character.hop?.locked)return false;
+      p.arts.cancel();p.guarding=false;p.guardPose.stop();return true;
+    };
     // Esc releases the pointer before the page sees the key: treat that as
     // asking for the pause menu.
     this.input.onSuspend = () => this.pause();
@@ -349,7 +354,7 @@ export class Game {
       available: p.unlocked,
       weapon: this.form.active ? '銀竜' : p.weapon.id==='katana'&&this.weapons.swords.id==='dual'?'二刀流':p.weapon.name,
       attackGlyph: this.form.active ? '爪' : p.air?.airborne ? '撃' : p.weapon.glyph,
-      attackLabel: this.form.active ? '連撃' : p.air?.airborne ? '空中追撃' : p.weapon.verb
+      attackLabel: this.form.active ? '連撃' : p.air?.airborne ? '空中追撃' : p.character.jump?.locked||p.character.hop?.locked?'空中技':p.weapon.verb
     });
 
     this.audio.setListener(app.camera);
@@ -364,6 +369,12 @@ export class Game {
     const rig = this.app.rig;
     this.input.consumeLook(_look);
     const frame = lockFraming(this.playerPosition, this.state === 'playing' ? this.player.lockTarget : null, this.app.camera.aspect);
+    if(this.state==='playing'&&(this.player.character.jump?.weight>0||this.player.character.hop?.weight>0)){
+      const c=this.player.character;
+      c.root.updateMatrixWorld(true);
+      const rise=Math.min(1.5,Math.max(0,c.getBone('Hips').getWorldPosition(new Vector3()).y-c.position.y-c.height*.53));
+      frame.y+=rise*.4;frame.distance+=rise*.3;
+    }
     if(this.state==='playing'&&this.stage){
       const from=this.playerPosition.clone().add(new Vector3(0,1.3,0)),az=rig.azimuth;
       const desired=from.clone().add(new Vector3(Math.sin(az)*settings.camera.distance,1,Math.cos(az)*settings.camera.distance));

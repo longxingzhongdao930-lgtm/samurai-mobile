@@ -17,7 +17,8 @@ export class FlyingGauntlet {
   }
   home() {
     const c = this.game.app.character, yaw = c.facing;
-    return c.position.clone().add(new Vector3(-Math.cos(yaw) * 0.48 + Math.sin(yaw) * 0.12, 0.9, Math.sin(yaw) * 0.48 + Math.cos(yaw) * 0.12));
+    const rise=c.jump?.weight>0||c.hop?.weight>0?Math.max(0,c.getBone('Hips').getWorldPosition(new Vector3()).y-c.position.y-c.height*.53):0;
+    return c.position.clone().add(new Vector3(-Math.cos(yaw) * 0.48 + Math.sin(yaw) * 0.12, 0.9+rise, Math.sin(yaw) * 0.48 + Math.cos(yaw) * 0.12));
   }
   launch(config, target) {
     if (this.queue.length < 2) this.queue.push({ config, target: target?.alive ? target : null });

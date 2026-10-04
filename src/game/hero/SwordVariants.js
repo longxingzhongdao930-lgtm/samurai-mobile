@@ -20,13 +20,15 @@ export class SwordVariants {
     }).finally(() => this.pending.delete(name));
     this.pending.set(name, task); return task;
   }
-  async select(id) {
+  async select(id, {canApply=()=>true}={}) {
     if (!Object.hasOwn(SWORD_VARIANTS,id)) return false; const spec = SWORD_VARIANTS[id];
     const request = ++this.request;
     await Promise.all([this.load(spec.scabbard), spec.blade ? this.load(spec.blade) : Promise.resolve()]);
-    if (request !== this.request) return false;
+    if (request !== this.request || !canApply()) return false;
     const changed = this.id !== id;
-    this.id = id; this.clearBlade(); this.applyScabbard();
+    this.id = id;
+    if(id!=='dual'&&this.g.heroStudio)this.g.heroStudio.singleSword=id;
+    this.clearBlade(); this.applyScabbard();
     if (changed) this.g.player?.refreshSwordMoves?.();
     if (this.weapons.current === 'katana') this.equipBlade();
     this.g.heroPresence?.katanaSheath.invalidate();

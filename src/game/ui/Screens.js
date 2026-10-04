@@ -45,8 +45,8 @@ export class Screens {
 
   title({ onStart, quality, onContinue, onSettings, onPractice, onHero }) {
     const controls = this.touch
-      ? '<li><b>左</b> 移動スティック</li><li><b>右スワイプ</b> カメラ</li><li><b>斬</b> 攻撃（長押しで居合）</li><li><b>守</b> ガード / 直前で弾き</li><li><b>避</b> 回避</li><li><b>術</b> 魔法 · <b>奥義</b> 必殺</li><li><b>敵をタップ</b> ロックオン</li>'
-      : '<li><b>WASD</b> 移動 · <b>Shift</b> 歩き</li><li><b>マウス</b> カメラ</li><li><b>左クリック</b> 攻撃（長押しで居合）</li><li><b>右クリック</b> ガード · 直前で弾き</li><li><b>Space</b> 回避</li><li><b>Q</b> 魔法 · <b>1 2 3</b> 属性</li><li><b>R</b> 奥義 · <b>Tab / ホイール押し</b> ロックオン</li><li><b>Esc</b> ポーズ</li>';
+      ? '<li><b>左</b> 移動スティック</li><li><b>右スワイプ</b> カメラ</li><li><b>斬</b> 攻撃（長押しで居合）</li><li><b>守</b> ガード / 直前で弾き</li><li><b>避</b> 回避 · <b>跳</b> ジャンプ</li><li><b>空中で斬</b> 空中技</li><li><b>⇄</b> 武器変更 · <b>納</b> 納刀</li><li><b>術</b> 魔法 · <b>奥義</b> 必殺</li><li><b>敵をタップ</b> ロックオン</li>'
+      : '<li><b>WASD</b> 移動 · <b>Alt</b> 歩き</li><li><b>マウス</b> カメラ</li><li><b>左クリック</b> 攻撃（長押しで居合）</li><li><b>右クリック</b> ガード · 直前で弾き</li><li><b>Shift</b> 回避 · <b>Space</b> ジャンプ（空中で攻撃すると空中技）</li><li><b>E</b> 武器変更 · <b>C</b> 納刀 · <b>V</b> 蹴り</li><li><b>Q</b> 魔法 · <b>1 2 3</b> 属性</li><li><b>R</b> 奥義 · <b>Tab / ホイール押し</b> ロックオン</li><li><b>Esc</b> ポーズ</li>';
     const panel = this._panel(
       'gs-title',
       `<div class="gs-title__mark">影</div>

@@ -1,12 +1,13 @@
 import { Group, Mesh, MeshStandardMaterial, ConeGeometry, CylinderGeometry, SphereGeometry, BufferGeometry, Line, LineBasicMaterial, Vector3, DoubleSide } from 'three';
 import { DualKatana } from './DualKatana.js';
+import { SHEATH_REFERENCE } from './SheathReference.js';
 import { KatanaSheath } from './KatanaSheath.js';
 import { ik } from '../combat/WeaponMotion.js';
 
 /** Small, reversible pose offsets; no edits to the imported rig or animation tracks. */
 export class HeroPresence {
   constructor(game){
-    this.g=game;this.dualKatana=new DualKatana(this);this.katanaSheath=new KatanaSheath(this);this.originals=new Map();this.look=0;this.speed=0;this.sway=0;
+    this.g=game;this.dualKatana=new DualKatana(this);this.katanaSheath=new KatanaSheath(this,{reference:SHEATH_REFERENCE.single});this.originals=new Map();this.look=0;this.speed=0;this.sway=0;
     this.root=new Group();game.app.scene.add(this.root);
     const cloth=new MeshStandardMaterial({color:'#252f39',roughness:.95,side:DoubleSide});this.cloth=cloth;
     this.hat=new Mesh(new ConeGeometry(.43,.14,24),new MeshStandardMaterial({color:'#584632',roughness:1}));

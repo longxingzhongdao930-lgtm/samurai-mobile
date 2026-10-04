@@ -2,6 +2,7 @@ import { SWORD_VARIANTS } from './SwordVariants.js';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { readStored, writeStored } from '../progression/Storage.js';
 import { WEAPON_ORDER, WEAPONS } from '../data/weapons.js';
+import { weaponCycle } from '../combat/WeaponCycle.js';
 import { settings } from '../../config/settings.js';
 
 export const STYLES={draw:{name:'居合の型',key:'sheath',need:3,detail:'納刀強化時の踏み込み +1m'},return:{name:'手甲の型',key:'fist',need:5,detail:'手甲の帰還速度 +25%'},spell:{name:'流水の型',key:'parry',need:3,detail:'弾きで霊力 +5'}};
@@ -11,11 +12,11 @@ export function validateHero(raw={}){
   const build=STYLES[raw?.build]&&counts[STYLES[raw.build].key]>=STYLES[raw.build].need?raw.build:'none';
   const appearance=['plain','hat','mask','coat'].includes(raw?.appearance)?raw.appearance:'plain';
   const sets=Array.isArray(raw?.sets)?raw.sets.slice(0,3).filter(s=>WEAPON_ORDER.includes(s?.weapon)&&Number.isInteger(s.element)&&s.element>=0&&s.element<3).map(s=>({name:typeof s.name==='string'?s.name.slice(0,20):'',weapon:s.weapon,sword:Object.hasOwn(SWORD_VARIANTS,s.sword)?s.sword:null,element:s.element,build:STYLES[s.build]?s.build:'none',blessings:Array.isArray(s.blessings)?s.blessings.filter(x=>Array.isArray(x)&&['road','sanctum'].includes(x[0])&&['blade','step','dragon','flow','link'].includes(x[1])).slice(0,2):[]})):[];
-  return {counts,build,appearance,sets,sword:Object.hasOwn(SWORD_VARIANTS,raw?.sword)?raw.sword:'mythical'};
+  return {counts,build,appearance,sets,singleSword:['mythical','oni','classic'].includes(raw?.singleSword)?raw.singleSword:['mythical','oni','classic'].includes(raw?.sword)?raw.sword:'mythical',sword:Object.hasOwn(SWORD_VARIANTS,raw?.sword)?raw.sword:'mythical'};
 }
 export class HeroStudio {
   constructor(game){this.g=game;Object.assign(this,validateHero(readStored('hero',{})));this.clock={};this.photo=null;}
-  save(){writeStored('hero',{counts:this.counts,build:this.build,appearance:this.appearance,sets:this.sets,sword:this.sword});}
+  save(){writeStored('hero',{counts:this.counts,build:this.build,appearance:this.appearance,sets:this.sets,sword:this.sword,singleSword:this.singleSword});}
   saveSet(name=''){
     const p=this.g.player;
     const set={name:name.trim().slice(0,20),weapon:p.weapon.id,sword:this.sword,element:p.elementIndex,build:this.build,blessings:this.g.blessings.snapshot()};
@@ -39,7 +40,7 @@ export class HeroStudio {
   }
   menu(back){
     const g=this.g,j=g.journey;if(g.state==='playing')g.pause();
-    const panel=g.screens._panel('gs-settings','<h2 class="gs-h">主人公の支度</h2><p class="gs-tip">C／納：納刀・竜化解除　V／蹴：蹴り<br>居合の構え中は攻撃を離して抜刀、守で解除。</p>');
+    const panel=g.screens._panel('gs-settings','<h2 class="gs-h">主人公の支度</h2><p class="gs-tip">C／納：納刀・竜化解除　V／蹴：蹴り<br>居合の構え中は攻撃を離して抜刀、守で解除。<br>Shift：回避　Space／跳：ジャンプ、空中で攻撃すると空中技。</p>');
     const status=document.createElement('p');status.className='gs-tip';status.setAttribute('role','status');panel.append(status);
     const choose=(name,value,items,fn)=>{const label=document.createElement('label');label.textContent=name;const select=document.createElement('select');select.setAttribute('aria-label',name);for(const [id,text,disabled]of items){const o=document.createElement('option');o.value=id;o.textContent=text;o.disabled=!!disabled;o.selected=id===value;select.append(o)}select.onchange=()=>fn(select.value);label.append(select);panel.append(label);return select};
     const styleSelect=choose('戦いの型',this.build,[['none','基本'],...Object.entries(STYLES).map(([id,s])=>[id,`${s.name}：${s.detail}（${Math.min(s.need,this.counts[s.key])}/${s.need}）`,this.counts[s.key]<s.need])],v=>{this.build=v;this.save()});
@@ -64,7 +65,7 @@ export class HeroStudio {
   }
   trialMenu(){
     const g=this.g;g.pause();const p=g.screens._panel('gs-settings','<h2 class="gs-h">主人公の試着・試技</h2>');
-    for(const id of WEAPON_ORDER)g.journey.button(p,WEAPONS[id].name,()=>{g.form.clear();g.player.setWeapon(id);g.resume();g.after(2,()=>{if(g.journey.practice?.studio)this.trialMenu()})});
+    for(const id of weaponCycle())g.journey.button(p,id==='dual'?'二刀流':WEAPONS[id].name,async()=>{g.form.clear();if(id==='dual'||id==='katana'&&g.weapons.swords.id==='dual')await g.player._switchSword(id);else g.player.setWeapon(id);g.resume();g.after(2,()=>{if(g.journey.practice?.studio)this.trialMenu()})});
     g.journey.button(p,'攻撃モーション',()=>{g.resume();g.input.press('attack');g.input.release('attack');g.after(2,()=>{if(g.journey.practice?.studio)this.trialMenu()})});
     g.journey.button(p,'銀竜へ変身',()=>{g.resume();if(!g.form.begin())g.hud.notice('銀竜を読み込み中');g.after(2,()=>{if(g.journey.practice?.studio)this.trialMenu()})});
     g.journey.button(p,'自由に試す',()=>g.resume());g.journey.button(p,'外見・型を選ぶ',()=>this.menu(()=>this.trialMenu()));g.journey.button(p,'退出',()=>g.toTitle());

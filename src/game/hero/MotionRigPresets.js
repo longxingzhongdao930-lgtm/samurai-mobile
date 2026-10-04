@@ -1,4 +1,13 @@
 export const MOTION_RIG_PRESETS={
+  vergil: {
+    hips:'root_hips_Armature', spine:'spine_lower_Armature', spine1:'spine_middle_Armature', spine2:'spine_upper_Armature',
+    neck:'head_neck_middle_Armature', head:'head_neck_upper_Armature',
+    leftshoulder:'arm_left_shoulder_1_Armature', leftarm:'arm_left_shoulder_2_Armature', leftforearm:'arm_left_elbow_Armature', lefthand:'arm_left_wrist_Armature',
+    rightshoulder:'arm_right_shoulder_1_Armature', rightarm:'arm_right_shoulder_2_Armature', rightforearm:'arm_right_elbow_Armature', righthand:'arm_right_wrist_Armature',
+    leftupleg:'leg_left_thigh_Armature', leftleg:'leg_left_knee_Armature', leftfoot:'leg_left_ankle_Armature', lefttoebase:'leg_left_toes_Armature',
+    rightupleg:'leg_right_thigh_Armature', rightleg:'leg_right_knee_Armature', rightfoot:'leg_right_ankle_Armature', righttoebase:'leg_right_toes_Armature'
+  },
+
   "queen": {
     "hips": "pelvis_04",
     "spine": "spine_01_05",

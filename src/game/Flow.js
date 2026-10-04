@@ -202,8 +202,10 @@ export class Flow {
     if (!e) return;
     e.timer -= dt;
     const alive = this.game.director.aliveCount;
-    const cap = Math.min(e.cap, this.game.budget.maxEnemies);
-    if (e.queue.length && alive < cap && e.timer <= 0) {
+    const encounterAlive = e.agents.filter((a) => a.alive).length;
+    // Side-yard enemies and separately spawned bosses use the device budget,
+    // but must not consume this encounter's reinforcement slots.
+    if (e.queue.length && encounterAlive < e.cap && alive < this.game.budget.maxEnemies && e.timer <= 0) {
       const [type, x, z] = e.queue.shift();
       const agent = this._emerge(type, x, z, e.alert);
       if (agent) e.agents.push(agent);

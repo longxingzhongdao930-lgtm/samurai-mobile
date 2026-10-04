@@ -50,6 +50,32 @@ with sync_playwright() as pw:
     for mode, side in [('idle',False),('guard',False),('inserting',True),('sheathed',True),('charge',False),('draw',False)]:
         reports.append(page.evaluate('([m,s])=>captureKatana(m,s)', [mode, side]))
         page.screenshot(path=str(output / (mode+'.png')))
+    timeline = page.evaluate("""() => {
+        const g=app.game,p=g.player,h=g.heroPresence;
+        g.input.reset();p.arts.cancel();p.revive();p.arts.startSheath();
+        const rows=[];
+        for(let i=0;i<120;i++){
+            app.simulate(1/60,1/60);app.scene.updateMatrixWorld(true);
+            const mouth=h.sheath.position.clone();
+            const left=p.character.getBone('LeftHand').getWorldPosition(mouth.clone());
+            const right=p.character.getBone('RightHand').getWorldPosition(mouth.clone());
+            const copy=h.katanaSheath.copy;
+            const grip=mouth.clone().set(0,0,-.1).applyQuaternion(copy.quaternion).add(copy.position);
+            rows.push({t:(i+1)/60,mode:p.arts.mode,leftGap:left.distanceTo(mouth),rightGap:right.distanceTo(grip),
+                left:left.toArray(),right:right.toArray(),mouth:mouth.toArray(),guard:copy.position.toArray()});
+        }
+        return rows;
+    }""")
+    (output/'timeline.json').write_text(json.dumps(timeline,indent=2))
+    settled=[r for r in timeline if r['t']>1]
+    assert max(r['leftGap'] for r in settled)<.005, 'settled left-hand contact'
+    assert max(r['rightGap'] for r in settled)<.005, 'settled right-hand contact'
+    if os.environ.get('KATANA_RECORD') == '1':
+        frames=output/'frames';frames.mkdir(exist_ok=True)
+        page.evaluate("() => {const g=app.game;g.input.reset();g.player.arts.cancel();g.player.arts.startSheath();}")
+        for frame in range(60):
+            page.evaluate("() => {app.simulate(1/30,1/60);app.scene.updateMatrixWorld(true);app.post.render();}")
+            page.screenshot(path=str(frames/f'{frame:03d}.png'))
     print(json.dumps({'poses':reports,'pageErrors':errors}),flush=True)
     assert not errors
     browser.close()

@@ -11,14 +11,47 @@ export class KatanaSheath {
     const h = this.presence, g = h.g, p = g.player, c = p.character;
     const yaw = c.facing;
     const mouth = c.position.clone().add(new Vector3(Math.cos(yaw) * .25 + Math.sin(yaw) * .12, .95, -Math.sin(yaw) * .25 + Math.cos(yaw) * .12));
+    const hips = c.getBone('Hips');
+    if (hips) {
+      c.root.updateMatrixWorld(true);
+      const hipPosition = hips.getWorldPosition(new Vector3());
+      mouth.add(hipPosition.sub(c.position.clone().add(new Vector3(0, .95, 0))));
+      // Carry the mouth at the upper/front of the belt, within the left
+      // wrist's reach; the crouch otherwise puts it below a fully extended arm.
+      mouth.add(new Vector3(Math.sin(yaw) * .12, .12, Math.cos(yaw) * .12));
+      const arm = c.getBone('LeftArm'), forearm = c.getBone('LeftForeArm'), hand = c.getBone('LeftHand');
+      if (arm && forearm && hand) {
+        const shoulder = arm.getWorldPosition(new Vector3());
+        const elbow = forearm.getWorldPosition(new Vector3());
+        const wrist = hand.getWorldPosition(new Vector3());
+        const reach = shoulder.distanceTo(elbow) + elbow.distanceTo(wrist) - .008;
+        const offset = mouth.clone().sub(shoulder);
+        if (reach > 0 && offset.length() > reach) mouth.copy(shoulder).add(offset.setLength(reach));
+      }
+    }
     const axis = new Vector3(-Math.sin(yaw), -.16, -Math.cos(yaw)).normalize();
+    if (hips) {
+      // Both hands must reach the final pose: the right wrist holds the hilt
+      // 10 cm behind the mouth. Project the belt mount into their shared reach.
+      const chains = ['Left', 'Right'].map(side => {
+        const upper = c.getBone(side + 'Arm'), lower = c.getBone(side + 'ForeArm'), hand = c.getBone(side + 'Hand');
+        if (!upper || !lower || !hand) return null;
+        const shoulder = upper.getWorldPosition(new Vector3()), elbow = lower.getWorldPosition(new Vector3()), wrist = hand.getWorldPosition(new Vector3());
+        return { center: shoulder.clone().addScaledVector(axis, side === 'Right' ? .1 : 0), reach: shoulder.distanceTo(elbow) + elbow.distanceTo(wrist) - .008 };
+      });
+      for (let i = 0; i < 12; i++) for (const chain of chains) {
+        if (!chain || chain.reach <= 0) continue;
+        const offset = mouth.clone().sub(chain.center);
+        if (offset.length() > chain.reach) mouth.copy(chain.center).add(offset.setLength(chain.reach));
+      }
+    }
     const rotation = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), axis);
     // The imported scabbard is authored from its mouth along +Z. Keep one
     // transform at rest, during insertion, and during the draw: no hip jump.
     h.sheath.position.copy(mouth);
     h.sheath.quaternion.copy(rotation);
     h.sheath.scale.setScalar(1);
-    const source = g.weapons._slot()?.model;
+    const source = g.weapons.blade?.() ?? g.weapons._slot()?.model;
     const active = p.weapon.id === 'katana' && ['sheath', 'flourish', 'sheathed', 'charge'].includes(p.arts.mode) && !p.dead && !g.form.active;
     if (!source) return;
     if (!active) {
@@ -70,10 +103,14 @@ export class KatanaSheath {
     const guard = mouth.clone().addScaledVector(axis, -this.length * (1 - insert));
     this.copy.position.copy(this.from).lerp(guard, align);
     this.copy.quaternion.copy(this.rotation).slerp(rotation, align);
-    for (const [side, target] of [['Left', mouth], ['Right', this.copy.position.clone().addScaledVector(axis, -.1)]]) {
+    // During alignment the blade has not reached the scabbard's orientation.
+    // Follow its current hilt rather than the final insertion axis.
+    const grip = new Vector3(0, 0, -.1).applyQuaternion(this.copy.quaternion).add(this.copy.position);
+    for (const [side, target] of [['Left', mouth], ['Right', grip]]) {
       this._hand(side, target, align);
     }
   }
+  invalidate() { this.copy?.removeFromParent(); this.copy = null; this.active = false; this.drawFromSheath = false; }
   _hand(side, target, weight) {
     const h = this.presence, c = h.g.player.character;
     const upper = c.getBone(side + 'Arm'), lower = c.getBone(side + 'ForeArm'), hand = c.getBone(side + 'Hand');

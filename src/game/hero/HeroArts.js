@@ -1,6 +1,7 @@
 import { MathUtils, Vector3 } from 'three';
 import { SHEATH_SECONDS } from './KatanaSheath.js';
 import { PoseLayer } from '../combat/PoseLayer.js';
+import { sheathPose } from './SheathPose.js';
 
 export function attackDirection(heading, facing) {
   if (heading == null) return 'neutral';
@@ -16,7 +17,7 @@ export function behind(enemy, position) {
 export class HeroArts {
   constructor(player) {
     this.p=player;this.g=player.game;
-    this.pose=new PoseLayer(player.character.mixer,player.character.clips.get('crouchSlash'),{blendIn:.12,blendOut:.1});
+    this.pose=new PoseLayer(player.character.mixer,sheathPose(player.character.clips.get('crouchSlash'),player.character.clips.get('idle')),{blendIn:.12,blendOut:.1});
     player.poses.push(this.pose);player.character.locomotion.overrides.push(this.pose);
     this.reset();
   }

@@ -88,3 +88,39 @@ test('scabbard mouth stays on the hip across rest and draw; left-hand hold relea
   player.state = 'free'; motion.update();
   assert.ok(h.sheath.position.equals(mouth));assert.equal(source.visible, true);
 });
+
+test('right hand follows the rotating hilt throughout sheath alignment', () => {
+  const source = new Group();
+  source.position.set(-.3, 1.2, .5);
+  source.rotation.set(.4, .8, -.5);
+  const player = { weapon: { id: 'katana' }, arts: { mode: 'sheath', t: 0 },
+    character: { position: new Vector3(), facing: 0, getBone: () => null } };
+  const h = { root: new Group(), sheath: new Group(), g: { player, form: { active: false },
+    weapons: { _slot: () => ({ model: source }) } } };
+  const motion = new KatanaSheath(h);
+  let grip;
+  motion._hand = (side, target) => { if (side === 'Right') grip = target.clone(); };
+  for (const t of [0, .05, .11, .17, .22, .4, .65]) {
+    player.arts.t = t;
+    motion.update();
+    const expected = new Vector3(0, 0, -.1).applyQuaternion(motion.copy.quaternion).add(motion.copy.position);
+    assert.ok(grip.distanceTo(expected) < 1e-9, `hilt contact at ${t}`);
+  }
+});
+
+test('scabbard follows a crouching hip without editing the lower body', () => {
+  const root = new Group(), hips = new Group();
+  root.add(hips); hips.position.set(.03, .62, -.04);
+  const source = new Group();
+  const player = { weapon: { id: 'katana' }, arts: { mode: 'sheathed', t: 1 },
+    character: { root, position: new Vector3(), facing: 0, getBone: name => name === 'Hips' ? hips : null } };
+  const h = { root: new Group(), sheath: new Group(), g: { player, form: { active: false }, weapons: { _slot: () => ({ model: source }) } } };
+  const motion = new KatanaSheath(h);
+  motion._hand = () => {};
+  const original = hips.position.clone();
+  motion.update();
+  assert.ok(Math.abs(h.sheath.position.y - .74) < 1e-9);
+  assert.ok(hips.position.equals(original), 'do not change the hip animation');
+  hips.position.y = .82; motion.update();
+  assert.ok(Math.abs(h.sheath.position.y - .94) < 1e-9);
+});

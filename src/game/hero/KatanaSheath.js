@@ -1,5 +1,6 @@
 import { Box3, Quaternion, Vector3 } from 'three';
 import { ik } from '../combat/WeaponMotion.js';
+import { bladeCurve, curvedInsertion } from './SheathCurve.js';
 
 const smooth = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 export const SHEATH_SECONDS = .75;
@@ -55,6 +56,14 @@ export class KatanaSheath {
     const source = g.weapons.blade?.() ?? g.weapons._slot()?.model;
     const active = p.weapon.id === 'katana' && ['sheath', 'flourish', 'sheathed', 'charge'].includes(p.arts.mode) && !p.dead && !g.form.active;
     if (!source) return;
+    if (p.weapon.id === 'katana' && source.parent && c.getBone('RightHand')) {
+      c.root.updateMatrixWorld(true);
+      const hand = c.getBone('RightHand').getWorldPosition(new Vector3());
+      const localHand = source.parent.worldToLocal(hand);
+      const localGrip = new Vector3(0, 0, -.1).multiply(source.scale).applyQuaternion(source.quaternion);
+      source.position.copy(localHand.sub(localGrip));
+      source.updateMatrixWorld(true);
+    }
     if (!active) {
       if (this.active) {
         this.drawFromSheath = p.move === p.heavy && p.state === 'attack';
@@ -70,6 +79,13 @@ export class KatanaSheath {
         source.updateWorldMatrix(true, false);
         this.copy.position.copy(this.release.position).lerp(source.getWorldPosition(new Vector3()), blend);
         this.copy.quaternion.copy(this.release.rotation).slerp(source.getWorldQuaternion(new Quaternion()), blend);
+        const rightHand = c.getBone('RightHand');
+        if (rightHand) {
+          c.root.updateMatrixWorld(true);
+          const hand = rightHand.getWorldPosition(new Vector3());
+          this.copy.position.copy(hand).add(new Vector3(0, 0, .1).applyQuaternion(this.copy.quaternion));
+          this._orientHand(source, rightHand, this.copy.quaternion, 1);
+        }
         this.copy.visible = blend < 1; source.visible = blend >= 1;
         if (blend >= 1) this.release = null;
       } else {
@@ -95,16 +111,17 @@ export class KatanaSheath {
       // Equipment's origin is the guard, with the blade along +Z. A longer
       // handle must not lengthen the insertion or leave a curved edge exposed.
       this.copy.updateMatrixWorld(true);
-      const blade = new Box3(), vertex = new Vector3();
+      const blade = new Box3(), vertex = new Vector3(), points = [];
       this.copy.traverse(node => {
         const positions = node.geometry?.attributes.position;
         if (!positions) return;
         for (let i = 0; i < positions.count; i++) {
           vertex.fromBufferAttribute(positions, i).applyMatrix4(node.matrixWorld);
-          if (vertex.z > .02) blade.expandByPoint(vertex);
+          if (vertex.z > .02) { blade.expandByPoint(vertex); points.push(vertex.clone()); }
         }
       });
       this.length = blade.isEmpty() ? .82 : Math.max(.5, blade.max.z);
+      this.curve = bladeCurve(points, this.length);
       this.width = blade.isEmpty() ? .06 : Math.max(.06, 2 * Math.max(Math.abs(blade.min.x), Math.abs(blade.max.x)) + .012);
       this.depth = blade.isEmpty() ? .065 : Math.max(.065, 2 * Math.max(Math.abs(blade.min.y), Math.abs(blade.max.y)) + .012);
       h.root.add(this.copy);
@@ -150,29 +167,33 @@ export class KatanaSheath {
       const towardMouth = mouth.clone().sub(actualGrip);
       if (towardMouth.lengthSq() > 1e-8) {
         const aimed = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), towardMouth.normalize());
-        this.copy.quaternion.copy(this.rotation).slerp(aimed, align);
+        const insertion = curvedInsertion(this.curve, actualGrip.distanceTo(mouth), this.length);
+        const bendFrame = new Quaternion().setFromUnitVectors(insertion.grip.clone().normalize(), new Vector3(0, 0, -1));
+        const scabbardRotation = aimed.clone().multiply(bendFrame);
+        const bladeRotation = scabbardRotation.clone().multiply(insertion.rotation);
+        this.copy.quaternion.copy(this.rotation).slerp(bladeRotation, align);
         const heldAxis = new Vector3(0, 0, 1).applyQuaternion(this.copy.quaternion);
         this.copy.position.copy(actualGrip).addScaledVector(heldAxis, .1);
         // Once aligned, insertion follows one physical line through the mouth.
         // Its depth is the actual distance between the two hands, not an
         // unreachable straight-line target that detaches the rigid blade.
-        h.sheath.quaternion.copy(rotation).slerp(aimed, align);
+        h.sheath.quaternion.copy(rotation).slerp(scabbardRotation, align);
         // Keep the wrist's grip orientation consistent with the mounted sword.
         // Position-only IK otherwise leaves the rigid blade turned in the palm.
-        if (rightHand.parent) {
-          h.turn?.(rightHand);
-          source.updateWorldMatrix(true, false);
-          const desiredHand = this.copy.quaternion.clone()
-            .multiply(source.getWorldQuaternion(new Quaternion()).invert())
-            .multiply(rightHand.getWorldQuaternion(new Quaternion()));
-          const local = rightHand.parent.getWorldQuaternion(new Quaternion()).invert().multiply(desiredHand);
-          rightHand.quaternion.slerp(local, align);
-          rightHand.updateMatrixWorld(true);
-        }
+        this._orientHand(source, rightHand, this.copy.quaternion, align);
       } else this.copy.position.add(actualGrip.sub(grip));
     }
   }
   invalidate() { this.copy?.removeFromParent(); this.copy = null; this.active = false; this.drawFromSheath = false; this.release = null; this.flourishing = false; }
+  _orientHand(source, hand, rotation, weight) {
+    if (!hand.parent) return;
+    this.presence.turn?.(hand);
+    source.updateWorldMatrix(true, false);
+    const desired = rotation.clone().multiply(source.getWorldQuaternion(new Quaternion()).invert()).multiply(hand.getWorldQuaternion(new Quaternion()));
+    const local = hand.parent.getWorldQuaternion(new Quaternion()).invert().multiply(desired);
+    hand.quaternion.slerp(local, weight);
+    hand.updateMatrixWorld(true);
+  }
   _hand(side, target, weight) {
     const h = this.presence, c = h.g.player.character;
     const upper = c.getBone(side + 'Arm'), lower = c.getBone(side + 'ForeArm'), hand = c.getBone(side + 'Hand');

@@ -74,8 +74,8 @@ with sync_playwright() as pw:
     assert max(r['leftGap'] for r in settled)<.005, 'settled left-hand contact'
     assert max(r['rightGap'] for r in timeline)<.005, 'right hand keeps its grip throughout insertion'
     aligned=[r for r in timeline if r['t']>=.23]
-    assert max(r['mouthAxisGap'] for r in aligned)<.005, 'blade passes through the scabbard mouth'
-    assert max(r['axisAngle'] for r in aligned)<.005, 'blade and scabbard share an insertion axis'
+    # Curved insertion intentionally turns the blade relative to the mouth axis.
+    assert max(r['axisAngle'] for r in aligned)<.2, 'curved insertion stays within a modest angle'
     assert max(r['wristAngle'] for r in aligned)<.005, 'wrist follows the mounted blade orientation'
     transitions=page.evaluate("""() => {
         const g=app.game,p=g.player,h=g.heroPresence,results=[];
@@ -99,6 +99,55 @@ with sync_playwright() as pw:
         return results;
     }""")
     (output/'transitions.json').write_text(json.dumps(transitions,indent=2))
+    draw_grip=page.evaluate("""() => {
+        const g=app.game,p=g.player,h=g.heroPresence;
+        g.input.reset();p.arts.cancel();p.revive();p.setWeapon('katana');
+        g.input.press('attack');p.arts.charge();app.simulate(.4);g.input.release('attack');
+        const rows=[];
+        for(let i=0;i<20;i++){
+            app.simulate(1/60,1/60);app.scene.updateMatrixWorld(true);
+            const source=g.weapons.blade?.()??g.weapons._slot().model;
+            const visible=h.katanaSheath.copy?.visible?h.katanaSheath.copy:source;
+            const grip=visible.localToWorld(visible.position.clone().set(0,0,-.1));
+            const hand=p.character.getBone('RightHand').getWorldPosition(grip.clone());
+            rows.push({t:(i+1)/60,gap:grip.distanceTo(hand),copyVisible:h.katanaSheath.copy?.visible,wristAngle:visible.getWorldQuaternion(visible.quaternion.clone()).angleTo(source.getWorldQuaternion(source.quaternion.clone()))});
+        }
+        return rows;
+    }""")
+    (output/'draw-grip.json').write_text(json.dumps(draw_grip,indent=2))
+    assert max(r['gap'] for r in draw_grip)<.005, 'grip contact throughout draw display handover'
+    assert max(r['wristAngle'] for r in draw_grip)<.005, 'wrist orientation throughout draw display handover'
+    enclosure=page.evaluate("""() => {
+        const g=app.game,p=g.player,h=g.heroPresence;
+        g.input.reset();p.arts.cancel();p.revive();p.setWeapon('katana');p.arts.startSheath();
+        const ray=new app.characterScreen.raycaster.constructor();
+        const materials=new Map();h.sheath.traverse(n=>{for(const m of (Array.isArray(n.material)?n.material:[n.material]))if(m&&!materials.has(m)){materials.set(m,m.side);m.side=2;}});
+        const rows=[];let previous=0;
+        try {
+            for(const t of [.25,.35,.45,.55,.65,.85]) {
+                app.simulate(t-previous,1/60);previous=t;app.scene.updateMatrixWorld(true);
+                const copy=h.katanaSheath.copy;let tested=0,outside=0;const examples=[];
+                copy.traverse(node=>{
+                    const attr=node.geometry?.attributes.position;if(!attr)return;
+                    for(let i=0;i<attr.count;i++){
+                        const vertex=copy.position.clone().fromBufferAttribute(attr,i);if(vertex.z<=.02)continue;
+                        const world=vertex.applyMatrix4(node.matrixWorld),local=h.sheath.worldToLocal(world.clone());
+                        if(local.z<.02)continue;tested++;
+                        let enclosed=true;
+                        for(const a of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0]]){
+                            ray.set(world,world.clone().set(...a).transformDirection(h.sheath.matrixWorld));
+                            if(!ray.intersectObject(h.sheath,true).length){enclosed=false;break;}
+                        }
+                        if(!enclosed){outside++;if(examples.length<3)examples.push(local.toArray());}
+                    }
+                });
+                rows.push({t,tested,outside,examples});
+            }
+        } finally {for(const [m,side] of materials)m.side=side;}
+        return rows;
+    }""")
+    (output/'enclosure.json').write_text(json.dumps(enclosure,indent=2))
+    assert all(r['tested']>0 and r['outside']==0 for r in enclosure), 'native scabbard encloses the inserted blade'
     low_fps=page.evaluate("""() => {
         const g=app.game,p=g.player,h=g.heroPresence;
         g.input.reset();p.arts.cancel();p.revive();p.setWeapon('katana');p.arts.startSheath();
@@ -110,7 +159,7 @@ with sync_playwright() as pw:
             maxGap=Math.max(maxGap,hand.distanceTo(grip));
             if(i>7){const axis=grip.clone().set(0,0,1).applyQuaternion(copy.quaternion);maxAxisGap=Math.max(maxAxisGap,h.sheath.position.clone().sub(copy.position).cross(axis).length());}
         }
-        if(maxGap>.005||maxAxisGap>.005)throw Error('30fps contact regression');
+        if(maxGap>.005)throw Error('30fps contact regression');
         return {fps:30,maxGap,maxAxisGap,mode:p.arts.mode};
     }""")
     (output/'low-fps.json').write_text(json.dumps(low_fps,indent=2))
@@ -120,6 +169,6 @@ with sync_playwright() as pw:
         for frame in range(int(os.environ.get('KATANA_RECORD_FRAMES', '60'))):
             page.evaluate("() => {app.simulate(1/30,1/60);const at=app.game.player.character.position,c=app.rig.camera;c.position.set(at.x+3.1,at.y+1.55,at.z+.4);c.lookAt(at.x,at.y+1.08,at.z);c.fov=42;c.updateProjectionMatrix();app.scene.updateMatrixWorld(true);app.post.render();}")
             page.screenshot(path=str(frames/f'{frame:03d}.png'))
-    print(json.dumps({'poses':reports,'transitions':transitions,'lowFps':low_fps,'pageErrors':errors}),flush=True)
+    print(json.dumps({'poses':reports,'transitions':transitions,'lowFps':low_fps,'enclosure':enclosure,'pageErrors':errors}),flush=True)
     assert not errors
     browser.close()

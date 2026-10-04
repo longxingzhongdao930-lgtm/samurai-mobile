@@ -211,3 +211,21 @@ test('wrist rotation keeps the mounted blade aligned with the sheath presentatio
     assert.ok(source.getWorldQuaternion(motion.copy.quaternion.clone()).angleTo(motion.copy.quaternion)<1e-7);
   }
 });
+
+test('normalized live blade is mounted at the same grip used for sheath and draw', () => {
+  const root=new Group(),hand=new Group(),source=new Group();
+  root.add(hand);hand.position.set(-.2,1,.3);hand.add(source);
+  source.position.set(-.051,.102,.052);source.rotation.set(-2.9,1.46,-.01);
+  const player={weapon:{id:'katana'},arts:{mode:'',t:0},character:{root,position:new Vector3(),facing:0,getBone:name=>name==='RightHand'?hand:null}};
+  const h={root:new Group(),sheath:new Group(),g:{player,form:{active:false},weapons:{_slot:()=>({model:source})}}};
+  const motion=new KatanaSheath(h);motion._hand=()=>{};
+  motion.update();root.updateMatrixWorld(true);
+  assert.ok(source.localToWorld(new Vector3(0,0,-.1)).distanceTo(hand.getWorldPosition(new Vector3()))<1e-9);
+  player.arts.mode='sheathed';motion.update();
+  player.arts.mode='';
+  for(const dt of [1/60,1/60,.12]){
+    motion.update(dt);root.updateMatrixWorld(true);h.root.updateMatrixWorld(true);
+    const visible=motion.copy.visible?motion.copy:source;
+    assert.ok(visible.localToWorld(new Vector3(0,0,-.1)).distanceTo(hand.getWorldPosition(new Vector3()))<1e-9);
+  }
+});

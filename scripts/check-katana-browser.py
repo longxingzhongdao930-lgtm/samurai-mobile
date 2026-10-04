@@ -75,12 +75,31 @@ with sync_playwright() as pw:
     aligned=[r for r in timeline if r['t']>=.23]
     assert max(r['mouthAxisGap'] for r in aligned)<.005, 'blade passes through the scabbard mouth'
     assert max(r['axisAngle'] for r in aligned)<.005, 'blade and scabbard share an insertion axis'
+    transitions=page.evaluate("""() => {
+        const g=app.game,p=g.player,h=g.heroPresence,results=[];
+        for(const action of ['guard','draw','flourish']) {
+            g.input.reset();p.arts.cancel();p.revive();p.arts.startSheath();app.simulate(1);
+            if(action==='guard')g.input.press('guard');
+            if(action==='draw'){g.input.press('attack');p.arts.charge();app.simulate(.4);g.input.release('attack');}
+            if(action==='flourish')p.arts.startSheath(true);
+            let maxStep=0,previous=null;
+            for(let i=0;i<90;i++) {
+                app.simulate(1/60,1/60);app.scene.updateMatrixWorld(true);
+                const bone=p.character.getBone('RightHand'),at=bone.getWorldPosition(h.sheath.position.clone());
+                if(!at.toArray().every(Number.isFinite))throw Error('nonfinite hand '+action);
+                if(previous&&i>60)maxStep=Math.max(maxStep,at.distanceTo(previous));previous=at;
+            }
+            results.push({action,maxSettledHandStep:maxStep,mode:p.arts.mode,guard:p.guarding});
+        }
+        return results;
+    }""")
+    (output/'transitions.json').write_text(json.dumps(transitions,indent=2))
     if os.environ.get('KATANA_RECORD') == '1':
         frames=output/'frames';frames.mkdir(exist_ok=True)
         page.evaluate("() => {const g=app.game;g.input.reset();g.player.arts.cancel();g.player.arts.startSheath();}")
         for frame in range(60):
-            page.evaluate("() => {app.simulate(1/30,1/60);app.scene.updateMatrixWorld(true);app.post.render();}")
+            page.evaluate("() => {app.simulate(1/30,1/60);const at=app.game.player.character.position,c=app.rig.camera;c.position.set(at.x+3.1,at.y+1.55,at.z+.4);c.lookAt(at.x,at.y+1.08,at.z);c.fov=42;c.updateProjectionMatrix();app.scene.updateMatrixWorld(true);app.post.render();}")
             page.screenshot(path=str(frames/f'{frame:03d}.png'))
-    print(json.dumps({'poses':reports,'pageErrors':errors}),flush=True)
+    print(json.dumps({'poses':reports,'transitions':transitions,'pageErrors':errors}),flush=True)
     assert not errors
     browser.close()

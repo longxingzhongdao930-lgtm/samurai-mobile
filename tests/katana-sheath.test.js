@@ -18,7 +18,7 @@ test('real katana slides into the scabbard and restores the held blade on interr
   player.arts.mode = 'sheathed'; motion.update();
   assert.ok(inserted.distanceTo(motion.copy.position) < 1e-6);
   const count = h.root.children.length;
-  for (const mode of ['', 'charge', '', 'sheath', '']) { player.arts.mode = mode; motion.update(); }
+  for (const mode of ['', 'charge', '', 'sheath', '']) { player.arts.mode = mode; motion.update(.2); }
   assert.equal(h.root.children.length, count, 'reuse the visual copy');
   assert.equal(source.visible, true); assert.equal(motion.copy.visible, false);
   assert.equal(source.parent, null, 'do not reparent the combat blade');
@@ -83,7 +83,7 @@ test('scabbard mouth stays on the hip across rest and draw; left-hand hold relea
   assert.deepEqual(hands.map(x => x.side), ['Left']);
   assert.ok(hands[0].weight > .5 && hands[0].target.equals(mouth));
   assert.ok(h.sheath.position.equals(mouth));assert.ok(h.sheath.quaternion.angleTo(orientation) < 1e-7);
-  heavy.phase = .3; hands.length = 0; motion.update();
+  heavy.phase = .3; hands.length = 0; motion.update(.2);
   assert.equal(hands.length, 0);assert.equal(motion.drawFromSheath, false);
   player.state = 'free'; motion.update();
   assert.ok(h.sheath.position.equals(mouth));assert.equal(source.visible, true);
@@ -153,4 +153,20 @@ test('aligned blade passes through the mouth on the same axis as its scabbard', 
     assert.ok(toMouth.cross(axis).length() < 1e-9, 'mouth lies on blade line');
     assert.ok(motion.copy.quaternion.angleTo(h.sheath.quaternion) < 1e-7);
   }
+});
+
+test('leaving the sheath blends to the held weapon without a one-frame teleport', () => {
+  const source = new Group(); source.position.set(-.4, 1.3, .7);
+  const player = { weapon: { id: 'katana' }, arts: { mode: 'sheathed', t: 1 },
+    character: { position: new Vector3(), facing: 0, getBone: () => null } };
+  const h = { root: new Group(), sheath: new Group(), g: { player, form: { active: false }, weapons: { _slot: () => ({ model: source }) } } };
+  const motion = new KatanaSheath(h); motion.update();
+  const start = motion.copy.position.clone();
+  player.arts.mode = ''; motion.update(1/60);
+  assert.equal(source.visible, false); assert.equal(motion.copy.visible, true);
+  assert.ok(motion.copy.position.distanceTo(start) < source.position.distanceTo(start) * .1);
+  motion.update(.12);
+  assert.equal(source.visible, true); assert.equal(motion.copy.visible, false);
+  assert.ok(motion.copy.position.distanceTo(source.position) < 1e-9);
+  assert.equal(motion.release, null);
 });

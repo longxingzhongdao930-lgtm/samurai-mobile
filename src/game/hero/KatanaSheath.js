@@ -7,7 +7,7 @@ export const SHEATH_SECONDS = .75;
 /** Original game choreography, not a retarget of the supplied MMD motion. */
 export class KatanaSheath {
   constructor(presence) { this.presence = presence; this.active = false; }
-  update() {
+  update(dt = 1 / 60) {
     const h = this.presence, g = h.g, p = g.player, c = p.character;
     const yaw = c.facing;
     const mouth = c.position.clone().add(new Vector3(Math.cos(yaw) * .25 + Math.sin(yaw) * .12, .95, -Math.sin(yaw) * .25 + Math.cos(yaw) * .12));
@@ -55,17 +55,32 @@ export class KatanaSheath {
     const active = p.weapon.id === 'katana' && ['sheath', 'flourish', 'sheathed', 'charge'].includes(p.arts.mode) && !p.dead && !g.form.active;
     if (!source) return;
     if (!active) {
-      if (this.active) this.drawFromSheath = p.move === p.heavy && p.state === 'attack';
+      if (this.active) {
+        this.drawFromSheath = p.move === p.heavy && p.state === 'attack';
+        this.release = { position: this.copy.position.clone(), rotation: this.copy.quaternion.clone(), t: 0 };
+      }
       if (this.drawFromSheath) {
         if (p.move !== p.heavy || p.state !== 'attack' || p.move.phase >= .28) this.drawFromSheath = false;
         else this._hand('Left', mouth, 1 - smooth(p.move.phase / .28));
       }
-      if (this.copy) this.copy.visible = false;
-      if (p.weapon.id === 'katana') source.visible = true;
+      if (this.release && this.copy && p.weapon.id === 'katana' && !p.dead && !g.form.active) {
+        this.release.t += dt;
+        const blend = smooth(this.release.t / .12);
+        source.updateWorldMatrix(true, false);
+        this.copy.position.copy(this.release.position).lerp(source.getWorldPosition(new Vector3()), blend);
+        this.copy.quaternion.copy(this.release.rotation).slerp(source.getWorldQuaternion(new Quaternion()), blend);
+        this.copy.visible = blend < 1; source.visible = blend >= 1;
+        if (blend >= 1) this.release = null;
+      } else {
+        this.release = null;
+        if (this.copy) this.copy.visible = false;
+        if (p.weapon.id === 'katana') source.visible = true;
+      }
       this.active = false;
       return;
     }
     this.drawFromSheath = false;
+    this.release = null;
     if (!this.copy) {
       this.copy = source.clone(true);
       this.copy.name = 'Katana sheath presentation';
@@ -129,7 +144,7 @@ export class KatanaSheath {
       } else this.copy.position.add(actualGrip.sub(grip));
     }
   }
-  invalidate() { this.copy?.removeFromParent(); this.copy = null; this.active = false; this.drawFromSheath = false; }
+  invalidate() { this.copy?.removeFromParent(); this.copy = null; this.active = false; this.drawFromSheath = false; this.release = null; }
   _hand(side, target, weight) {
     const h = this.presence, c = h.g.player.character;
     const upper = c.getBone(side + 'Arm'), lower = c.getBone(side + 'ForeArm'), hand = c.getBone(side + 'Hand');

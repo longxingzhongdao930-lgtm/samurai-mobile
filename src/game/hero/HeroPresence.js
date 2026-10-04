@@ -52,7 +52,7 @@ export class HeroPresence {
         }
       }
     }
-    if(arts.mode==='flourish')this.turn(c.getBone('RightHand'),0,Math.sin(arts.t*20)*.15,0);
+    if(arts.mode==='flourish')this.turn(c.getBone('RightHand'),0,Math.sin(Math.PI*Math.min(1,arts.t/.22))*.15,0);
     const cfg=p.move?.config;
     if(p.state==='attack'&&cfg){
       const pulse=Math.sin(Math.PI*Math.min(1,p.move.phase));
@@ -84,7 +84,7 @@ export class HeroPresence {
     this.cloth.color.setRGB(.025*(1-arts.dirt*.35),.035*(1-arts.dirt*.35),.045*(1-arts.dirt*.35));
     this.sheath.visible=p.weapon.id==='katana';
     const blade=g.weapons._slot()?.model;if(blade&&p.weapon.id==='katana')blade.visible=!['sheath','sheathed','charge'].includes(arts.mode);
-    this.katanaSheath.update();
+    this.katanaSheath.update(dt);
     const fist=g.weapons.fist,f=fist?.flight;
     this.tether.visible=!!f&&(f.time<.2||f.returning||f.grabbed);
     if(this.tether.visible){const a=this.tether.geometry.attributes.position,home=fist.home();a.setXYZ(0,home.x,home.y,home.z);a.setXYZ(1,f.pos.x,f.pos.y,f.pos.z);a.needsUpdate=true;}

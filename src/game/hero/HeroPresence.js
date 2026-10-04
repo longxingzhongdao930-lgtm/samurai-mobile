@@ -1,6 +1,8 @@
-import { Group, Mesh, MeshStandardMaterial, ConeGeometry, CylinderGeometry, BoxGeometry, SphereGeometry, BufferGeometry, Line, LineBasicMaterial, Vector3, DoubleSide } from 'three';
+import { Group, Mesh, MeshStandardMaterial, ConeGeometry, CylinderGeometry, SphereGeometry, BufferGeometry, Line, LineBasicMaterial, Vector3, DoubleSide } from 'three';
 import { KatanaSheath } from './KatanaSheath.js';
 import { ik } from '../combat/WeaponMotion.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { recoverLoad } from '../../loaders/RecoverLoad.js';
 
 /** Small, reversible pose offsets; no edits to the imported rig or animation tracks. */
 export class HeroPresence {
@@ -12,10 +14,15 @@ export class HeroPresence {
     this.mask=new Mesh(new SphereGeometry(.115,12,8),new MeshStandardMaterial({color:'#8e3929',roughness:.6}));this.mask.scale.set(1,.72,.32);
     this.coat=new Group();this.flaps=[];
     for(const side of [-1,1]){const f=new Mesh(new CylinderGeometry(.255,.31,.6,12,4,true,side<0?.55:Math.PI,Math.PI-.55),cloth);f.position.set(0,-.17,0);this.flaps.push(f);this.coat.add(f);}
-    this.sheath=new Mesh(new BoxGeometry(.06,.065,.82),new MeshStandardMaterial({color:'#191b20',roughness:.5,metalness:.3}));
+    this.sheath=new Group();this.sheath.name='Mythical scabbard mount';
     this.root.add(this.hat,this.mask,this.coat,this.sheath);
     this.sleeves=['Left','Right'].map(side=>{const mesh=new Mesh(new CylinderGeometry(.14,.12,.24,10,1,true),cloth);this.root.add(mesh);return {side,mesh};});
     this.tether=new Line(new BufferGeometry().setFromPoints([new Vector3(),new Vector3()]),new LineBasicMaterial({color:'#9dd8eb',transparent:true,opacity:.5}));this.tether.frustumCulled=false;this.root.add(this.tether);
+  }
+  async loadScabbard(){
+    const gltf=await recoverLoad('刀の鞘',()=>new GLTFLoader().loadAsync('./models/weapons/mythical-scabbard.glb'));
+    gltf.scene.traverse(node=>{if(node.isMesh){node.castShadow=true;node.receiveShadow=true;}});
+    this.sheath.add(gltf.scene);
   }
   restore(){for(const [bone,q] of this.originals)bone.quaternion.copy(q);this.originals.clear();}
   turn(bone,x=0,y=0,z=0){if(!bone)return;if(!this.originals.has(bone))this.originals.set(bone,bone.quaternion.clone());bone.rotateX(x);bone.rotateY(y);bone.rotateZ(z);}
@@ -75,7 +82,7 @@ export class HeroPresence {
     this.sway+=(Math.min(.22,speed*.035)-this.sway)*Math.min(1,dt*5);
     for(let i=0;i<this.flaps.length;i++)this.flaps[i].rotation.x=-this.sway+Math.sin(g.elapsed*3+i)*.025;
     this.cloth.color.setRGB(.025*(1-arts.dirt*.35),.035*(1-arts.dirt*.35),.045*(1-arts.dirt*.35));
-    this.sheath.visible=p.weapon.id==='katana';this.sheath.position.copy(c.position).add(new Vector3(Math.cos(c.facing)*.25,.9,-Math.sin(c.facing)*.25));this.sheath.rotation.set(0,c.facing+.25,-.12);
+    this.sheath.visible=p.weapon.id==='katana';
     const blade=g.weapons._slot()?.model;if(blade&&p.weapon.id==='katana')blade.visible=!['sheath','sheathed','charge'].includes(arts.mode);
     this.katanaSheath.update();
     const fist=g.weapons.fist,f=fist?.flight;

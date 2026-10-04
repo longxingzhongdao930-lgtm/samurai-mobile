@@ -34,13 +34,16 @@ with sync_playwright() as pw:
             const held=['inserting','sheathed','charge'].includes(mode);
             if(model.visible===held||held&&!copy?.visible)throw Error('incorrect blade visibility '+mode);
             if(held&&(h.katanaSheath.length<.95||h.katanaSheath.length>.99||h.katanaSheath.width>.12))throw Error('incorrect sheath bounds');
+            let covers=0;h.sheath.traverse(n=>{if(n.isMesh)covers++;});if(covers!==2)throw Error('native scabbard missing');
             let meshes=0;model.traverse(n=>{if(n.isMesh&&n.name.startsWith('katana_blade')){meshes++;if(!n.material.map&&!n.material.name.startsWith('Scratched_Gold'))throw Error('missing texture '+n.material.name);}});
             if(meshes!==4)throw Error('cover leaked into hand');
             const c=app.rig.camera,at=p.character.position;
             c.position.set(at.x+(side?3.1:1.7),at.y+1.55,at.z+(side?.4:2.8));
             c.lookAt(at.x,at.y+1.08,at.z);c.fov=42;c.updateProjectionMatrix();
             app.scene.updateMatrixWorld(true);app.post.render();
-            return {mode,side,meshes,length:h.katanaSheath.length,sourceVisible:model.visible,copyVisible:copy?.visible??false};
+            const leftGap=held?p.character.getBone('LeftHand').getWorldPosition(h.sheath.position.clone()).distanceTo(h.sheath.position):null;
+            if(['sheathed','charge'].includes(mode)&&leftGap>.12)throw Error('left hand floats from scabbard '+leftGap);
+            return {mode,side,meshes,covers,leftGap,length:h.katanaSheath.length,sourceVisible:model.visible,copyVisible:copy?.visible??false};
         };
     }''')
     reports=[]

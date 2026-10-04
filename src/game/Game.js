@@ -151,6 +151,7 @@ export class Game {
     this.coach = new CombatCoach(this);
     this.heroStudio = new HeroStudio(this);
     this.heroPresence = new HeroPresence(this);
+    await this.heroPresence.loadScabbard();
     this.hud.setVisible(false);
     this.touch.setVisible(false);
 

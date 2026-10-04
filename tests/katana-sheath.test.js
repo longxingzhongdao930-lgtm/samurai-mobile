@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BoxGeometry, Group, Mesh, MeshBasicMaterial, Vector3 } from 'three';
+import { BoxGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, Raycaster, Vector3 } from 'three';
 import { loadRig } from './helpers/load-rig.js';
 import { KatanaSheath } from '../src/game/hero/KatanaSheath.js';
 
@@ -34,6 +34,9 @@ test('replacement blade is correctly sized, cover-free and fully enclosed after 
   source.add(fireHull);
   const player = { weapon: { id: 'katana' }, arts: { mode: 'sheathed', t: 1 }, character: { position: new Vector3(), facing: 0, getBone: () => null } };
   const h = { root: new Group(), sheath: new Group(), g: { player, form: { active: false }, weapons: { _slot: () => ({ model: source }) } } };
+  const cover = (await loadRig(new URL('../public/models/weapons/mythical-scabbard.glb', import.meta.url))).scene;
+  cover.traverse(node => { if (node.isMesh) node.material.side = DoubleSide; });
+  h.sheath.add(cover);
   h.root.add(h.sheath);
   const motion = new KatanaSheath(h);
   motion.update(); h.root.updateMatrixWorld(true);
@@ -50,10 +53,38 @@ test('replacement blade is correctly sized, cover-free and fully enclosed after 
       if (local.z < -.05) { handleVertices++; continue; }
       if (local.z <= .02) continue;
       const inside = h.sheath.worldToLocal(local.clone().applyMatrix4(node.matrixWorld));
-      assert.ok(Math.abs(inside.x) < .03 && Math.abs(inside.y) < .0325 && Math.abs(inside.z) < .41,
-        'curved blade must fit inside the scabbard in the completed pose');
+      if (i % 8 === 0) {
+        // Real mesh enclosure, not merely its rectangular bounding box.
+        for (const axis of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0]]) {
+          const direction = new Vector3(...axis).transformDirection(h.sheath.matrixWorld);
+          const ray = new Raycaster(h.sheath.localToWorld(inside.clone()), direction);
+          assert.ok(ray.intersectObject(h.sheath, true).length > 0, 'native scabbard encloses the blade on all four sides');
+        }
+      }
       bladeVertices++;
     }
   });
   assert.ok(bladeVertices > 100 && handleVertices > 100, 'both blade and visible hilt retained');
+});
+
+test('scabbard mouth stays on the hip across rest and draw; left-hand hold releases with the draw', () => {
+  const heavy = { phase: .05 };
+  const player = { weapon: { id: 'katana' }, arts: { mode: 'sheathed', t: 1 },
+    state: 'free', heavy, move: null, character: { position: new Vector3(3,0,7), facing: .7, getBone: () => null } };
+  const source = new Group();
+  const h = { root: new Group(), sheath: new Group(), g: { player, form: { active: false }, weapons: { _slot: () => ({ model: source }) } } };
+  const motion = new KatanaSheath(h), hands = [];
+  motion._hand = (side, target, weight) => hands.push({side, target: target.clone(), weight});
+  motion.update();
+  const mouth = h.sheath.position.clone(), orientation = h.sheath.quaternion.clone();
+  assert.ok(mouth.distanceTo(player.character.position.clone().setY(.95)) < .3);
+  player.arts.mode = ''; player.move = heavy; player.state = 'attack'; hands.length = 0;
+  motion.update();
+  assert.deepEqual(hands.map(x => x.side), ['Left']);
+  assert.ok(hands[0].weight > .5 && hands[0].target.equals(mouth));
+  assert.ok(h.sheath.position.equals(mouth));assert.ok(h.sheath.quaternion.angleTo(orientation) < 1e-7);
+  heavy.phase = .3; hands.length = 0; motion.update();
+  assert.equal(hands.length, 0);assert.equal(motion.drawFromSheath, false);
+  player.state = 'free'; motion.update();
+  assert.ok(h.sheath.position.equals(mouth));assert.equal(source.visible, true);
 });

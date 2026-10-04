@@ -19,7 +19,7 @@
   Cache-Control: no-cache
 
 /animations/*
-  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+  Cache-Control: public, max-age=0, must-revalidate
 
 /hdri/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800

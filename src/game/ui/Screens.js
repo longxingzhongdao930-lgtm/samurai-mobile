@@ -1,3 +1,4 @@
+import { BUILD_REVISION } from '../../core/BuildVersion.js';
 /**
  * The full-screen layers: title, pause, defeat and the result.
  *
@@ -57,7 +58,7 @@ export class Screens {
        <div class="gs-menu-row"><button class="gs-btn" data-action="settings">設定</button><button class="gs-btn" data-action="practice">稽古・再戦</button><button class="gs-btn" data-action="hero">主人公</button></div>
        <a class="gs-character-link" href="./characters.html">追加キャラクター6体を見る</a>
        <ul class="gs-controls">${controls}</ul>
-       <p class="gs-fine">画質: ${quality} · ヘッドホン推奨${this.touch ? '' : ' · マウスで視点 · Escでカーソル解放'}</p>`
+       <p class="gs-fine">更新版: ${BUILD_REVISION} · 画質: ${quality} · ヘッドホン推奨${this.touch ? '' : ' · マウスで視点 · Escでカーソル解放'}</p>`
     );
     this._bind(panel, { start: onStart, continue: onContinue, settings: onSettings, practice: onPractice, hero: onHero });
   }

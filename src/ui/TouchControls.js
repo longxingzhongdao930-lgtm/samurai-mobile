@@ -70,7 +70,9 @@ export class TouchControls {
     this.weapon = document.createElement('button');
     this.weapon.type = 'button';
     this.weapon.className = 'tc-weapon';
-    this.weapon.innerHTML = '<span class="tc-weapon__name">刀</span><span class="tc-weapon__swap">⇄</span><kbd class="tc-key">E</kbd>';
+    this.weapon.innerHTML = '<span class="tc-weapon__name">刀</span>';
+    this.weapon.disabled = true;
+    this.weapon.setAttribute('aria-label', '装備：刀');
     this.root.appendChild(this.weapon);
     this._bindButton(this.weapon, 'weapon');
 

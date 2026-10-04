@@ -17,12 +17,12 @@ function fixture() {
   });
   return { p, press: () => { pressed = true; } };
 }
-test('switch press waits through windup and switches in recovery with a bounded follow-up', () => {
+test('single-katana switch input cannot cancel attacks or grant a switch boost', () => {
   const { p, press } = fixture(); press(); p._readWeaponSwitch();
   assert.equal(p.weapon.id, 'katana');
   p.move.phase = .65; p._readWeaponSwitch();
-  assert.notEqual(p.weapon.id, 'katana'); assert.equal(p._switchBoost, 2);
-  assert.equal(p.state, 'free'); assert.equal(p._held.warp.active, false);
+  assert.equal(p.weapon.id, 'katana'); assert.equal(p._switchBoost, 0);
+  assert.equal(p.state, 'attack'); assert.equal(p._held.warp.active, true);
   assert.equal(p._weaponQueue, 0);
 });
 test('whiffed moves allow recovery switching without a reward; executions cannot be cancelled', () => {

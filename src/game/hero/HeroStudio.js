@@ -5,13 +5,13 @@ import { WEAPON_ORDER, WEAPONS } from '../data/weapons.js';
 import { weaponCycle } from '../combat/WeaponCycle.js';
 import { settings } from '../../config/settings.js';
 
-export const STYLES={draw:{name:'居合の型',key:'sheath',need:3,detail:'納刀強化時の踏み込み +1m'},return:{name:'手甲の型',key:'fist',need:5,detail:'手甲の帰還速度 +25%'},spell:{name:'流水の型',key:'parry',need:3,detail:'弾きで霊力 +5'}};
+export const STYLES={draw:{name:'居合の型',key:'sheath',need:3,detail:'納刀強化時の踏み込み +1m'},spell:{name:'流水の型',key:'parry',need:3,detail:'弾きで霊力 +5'}};
 export function heroTitle(stats){return stats.damageTaken===0?'無傷の帰還':stats.parries>=8?'不動':stats.maxCombo>=12?'百芸':stats.perfectDodges>=5?'風渡り':'黒雨を歩む者';}
 export function validateHero(raw={}){
   const counts={};for(const k of ['hits','sheath','fist','parry','dodge','spacing','tip','cut'])counts[k]=Number.isFinite(raw?.counts?.[k])?Math.min(9999,Math.max(0,Math.floor(raw.counts[k]))):0;
   const build=STYLES[raw?.build]&&counts[STYLES[raw.build].key]>=STYLES[raw.build].need?raw.build:'none';
   const appearance=['plain','hat','mask','coat'].includes(raw?.appearance)?raw.appearance:'plain';
-  const sets=Array.isArray(raw?.sets)?raw.sets.slice(0,3).filter(s=>WEAPON_ORDER.includes(s?.weapon)&&Number.isInteger(s.element)&&s.element>=0&&s.element<3).map(s=>({name:typeof s.name==='string'?s.name.slice(0,20):'',weapon:s.weapon,sword:Object.hasOwn(SWORD_VARIANTS,s.sword)?s.sword:s.sword==='dual'?(Object.hasOwn(SWORD_VARIANTS,raw.singleSword)?raw.singleSword:'mythical'):null,element:s.element,build:STYLES[s.build]?s.build:'none',blessings:Array.isArray(s.blessings)?s.blessings.filter(x=>Array.isArray(x)&&['road','sanctum'].includes(x[0])&&['blade','step','dragon','flow','link'].includes(x[1])).slice(0,2):[]})):[];
+  const sets=Array.isArray(raw?.sets)?raw.sets.slice(0,3).filter(s=>!!WEAPONS[s?.weapon]?.combo&&Number.isInteger(s.element)&&s.element>=0&&s.element<3).map(s=>({name:typeof s.name==='string'?s.name.slice(0,20):'',weapon:'katana',sword:Object.hasOwn(SWORD_VARIANTS,s.sword)?s.sword:s.sword==='dual'?(Object.hasOwn(SWORD_VARIANTS,raw.singleSword)?raw.singleSword:'mythical'):null,element:s.element,build:STYLES[s.build]?s.build:'none',blessings:Array.isArray(s.blessings)?s.blessings.filter(x=>Array.isArray(x)&&['road','sanctum'].includes(x[0])&&['blade','step','dragon','flow','link'].includes(x[1])).slice(0,2):[]})):[];
   return {counts,build,appearance,sets,singleSword:['mythical','oni','classic'].includes(raw?.singleSword)?raw.singleSword:['mythical','oni','classic'].includes(raw?.sword)?raw.sword:'mythical',sword:Object.hasOwn(SWORD_VARIANTS,raw?.sword)?raw.sword:raw?.sword==='dual'&&Object.hasOwn(SWORD_VARIANTS,raw?.singleSword)?raw.singleSword:'mythical'};
 }
 export class HeroStudio {
@@ -27,7 +27,7 @@ export class HeroStudio {
     if(!await this.g.weapons.swords.select(sword))return false;
     const p=this.g.player;this.sword=sword;p.setWeapon(set.weapon);
     if(p.unlocked[set.element])p.elementIndex=set.element;
-    if(set.build==='none')this.build='none';
+    if(!STYLES[set.build])this.build='none';
     else if(STYLES[set.build]&&this.counts[STYLES[set.build].key]>=STYLES[set.build].need)this.build=set.build;
     if(this.g.journey.practice)this.g.blessings.restore(set.blessings);
     this.save();return true;

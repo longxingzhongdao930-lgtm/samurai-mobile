@@ -74,7 +74,7 @@ export class Journey {
   menu(back) {
     if (this.game.state === 'playing') { this.game.state='paused';this.game.app.paused=true;this.game.input.reset();this.game.touch.setVisible(false); }
     const g=this.game,p=g.screens._panel('gs-settings','<h2 class="gs-h">稽古と強敵再戦</h2><p class="gs-tip">旅のセーブには影響しません。ポーズから退出できます。</p>');
-    for(const [id,label] of [['ashigaru','弾き・回避の稽古'],['queen','飛剣返しの稽古'],['samurai','手甲の引き寄せ稽古'],['mage','レーザー回避の稽古']])this.button(p,label,()=>this.startPractice(id,true));
+    for(const [id,label] of [['ashigaru','弾き・回避の稽古'],['queen','飛剣返しの稽古'],['samurai','刀の間合い稽古'],['mage','レーザー回避の稽古']])this.button(p,label,()=>this.startPractice(id,true));
     for(const def of [...TOWN_CHARACTERS,{id:'tarislandDragon',name:'黒雨の古竜'}])if(this.records.has(def.id))this.button(p,`${def.name}と再戦`,()=>this.startPractice(def.id,false));
     this.button(p,'戻る',back);
   }

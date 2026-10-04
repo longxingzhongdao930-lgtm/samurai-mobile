@@ -289,4 +289,7 @@ WEAPONS.shuriken = {
 };
 
 /** The order the weapon button cycles through. */
-export const WEAPON_ORDER = ['katana', 'odachi', 'spear', 'naginata', 'kusarigama', 'gauntlet', 'shuriken'];
+// The current player moveset is single-katana only. Retain older definitions
+// for saved-data recognition; they cannot be equipped or cycled.
+for (const weapon of Object.values(WEAPONS)) weapon.available = weapon.id === 'katana';
+export const WEAPON_ORDER = ['katana'];

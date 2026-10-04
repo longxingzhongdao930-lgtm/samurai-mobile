@@ -5,10 +5,10 @@ import { SwordVariants } from '../src/game/hero/SwordVariants.js';
 import { GameInput } from '../src/game/GameInput.js';
 import { validateHero } from '../src/game/hero/HeroStudio.js';
 
-test('weapon cycle omits removed dual loadout',()=>{
- assert.deepEqual(weaponCycle().slice(0,3),['katana','odachi','spear']);
+test('weapon cycle is single katana only',()=>{
+ assert.deepEqual(weaponCycle(),['katana']);
  const p={weapon:{id:'katana'},game:{weapons:{swords:{id:'oni'}}}};
- assert.equal(nextWeapon(p),'odachi');p.game.weapons.swords.id='dual';assert.equal(nextWeapon(p),'odachi');
+ assert.equal(nextWeapon(p),'katana');p.game.weapons.swords.id='dual';assert.equal(nextWeapon(p),'katana');
  p.weapon.id='shuriken';assert.equal(nextWeapon(p),'katana');
 });
 test('an asynchronously loaded sword cannot apply after the player becomes unavailable',async()=>{
@@ -31,3 +31,9 @@ test('single sword memory survives a saved dual loadout and rejects invalid IDs'
 });
 
 test('removed dual sword cannot be loaded or selected',async()=>{const swords=new SwordVariants({},{});swords.load=()=>{throw Error('must not load removed assets');};assert.equal(await swords.select('dual'),false);});
+
+test('older weapon loadouts migrate to katana without losing sword choice or counts',()=>{
+ const h=validateHero({sword:'oni',build:'return',counts:{hits:19,fist:8},sets:[{weapon:'gauntlet',element:0,build:'return'},{weapon:'odachi',sword:'classic',element:1}]});
+ assert.equal(h.counts.hits,19);assert.equal(h.counts.fist,8);assert.equal(h.build,'none');assert.equal(h.sword,'oni');
+ assert.deepEqual(h.sets.map(s=>s.weapon),['katana','katana']);assert.equal(h.sets[1].sword,'classic');
+});

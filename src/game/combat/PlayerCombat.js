@@ -219,6 +219,7 @@ export class PlayerCombat {
     this._weaponQueue = 0;
     const linked = recovery && this._linkHitTimer > 0;
     const next = nextWeapon(this);
+    if(next===this.weapon.id)return;
     if (this.setWeapon(next)) {
       this._toFree();
       this._held.warp.active = false;
@@ -658,7 +659,7 @@ export class PlayerCombat {
       const executing = move === this.execute;
       const result = this.game.damageEnemy(enemy, {
         damage: config.damage,
-        posture: config.posture+(this.arts?.postureBonus(distance,reach)??0),
+        posture: config.posture+(move===this.counter?(this.game.blessings?.linkBonus??0):0)+(this.arts?.postureBonus(distance,reach)??0),
         knockback: config.knockback,
         launch: config.launch,
         dirX: distance > 1e-3 ? dx / distance : fx,

@@ -260,7 +260,7 @@ function aimBone(bone, child, dir, weight) {
 }
 
 /** Analytic two-bone IK: shoulder → elbow → wrist reaching `target`. */
-function ik(upper, lower, end, target, pole, weight) {
+export function ik(upper, lower, end, target, pole, weight) {
   const S = upper.getWorldPosition(new Vector3());
   const E = lower.getWorldPosition(new Vector3());
   const W = end.getWorldPosition(new Vector3());

@@ -407,6 +407,7 @@ export class EnemyAgent {
     const dx = player.x - enemy.position.x;
     const dz = player.z - enemy.position.z;
     const distance = Math.hypot(dx, dz);
+    this.game.player.arts?.nearMiss(this,spec,distance);
     if (Math.abs(player.y - enemy.position.y) > (this.type.elite ? 2.6 : 1.5) || distance > spec.reach + 0.35) {
       this.game.audio?.play('whoosh', { pos: enemy.position, volume: 0.6 });
       return;

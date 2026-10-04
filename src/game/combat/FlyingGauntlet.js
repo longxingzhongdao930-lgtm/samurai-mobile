@@ -13,6 +13,11 @@ export class FlyingGauntlet {
     this.model.scale.setScalar(1.35);
     this.model.name = 'Flying Daedric Gauntlet';
     game.app.scene.add(model);
+    this.grip=0;this.fingers=[];
+    model.traverse(o=>{if(!o.isMesh||!o.geometry?.attributes.position)return;
+      o.geometry=o.geometry.clone();const a=o.geometry.attributes.position,n=o.geometry.attributes.normal;
+      this.fingers.push({geometry:o.geometry,positions:a.array.slice(),normals:n?.array.slice()});
+    });
     this.down = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), new Vector3(0, -1, 0));
   }
   home() {
@@ -21,6 +26,10 @@ export class FlyingGauntlet {
   }
   launch(config, target) {
     if (this.queue.length < 2) this.queue.push({ config, target: target?.alive ? target : null });
+  }
+  recall(guard=false) {
+    if(!this.flight)return;this._releaseGrab(false);this.flight.returning=true;this.flight.recallGuard=guard;this.queue.length=0;
+    this.flight.curve=(this.game.input?.sample().x??0)*.6;
   }
   restoreHand() {
     if (this.handScale) this.hand.scale.copy(this.handScale);
@@ -34,6 +43,8 @@ export class FlyingGauntlet {
       const { config, target } = this.queue.shift(), from = this.home();
       const aim = target ? target.position.clone().add(new Vector3(0, Math.min(2.6, (target.agent?.type.height ?? 1.8) * 0.55), 0))
         : from.clone().add(new Vector3(Math.sin(g.app.character.facing) * 12, 0.3, Math.cos(g.app.character.facing) * 12));
+      const steer=(g.input?.sample().x??0)*.18;
+      aim.add(new Vector3(Math.cos(g.app.character.facing)*steer*5,0,-Math.sin(g.app.character.facing)*steer*5));
       this.flight = { config, target, pos: from, direction: aim.sub(from).normalize(), distance: 0, time: 0, returning: false };
       g.audio?.play('whoosh');
     }
@@ -42,8 +53,21 @@ export class FlyingGauntlet {
     if (f.grabbed) { this._pull(dt); return; }
     if (f.returning) {
       const home = this.home(), delta = home.clone().sub(f.pos), d = delta.length();
-      if (d < dt * 24 || f.time > 1.6) { this.flight = null; return; }
-      f.pos.addScaledVector(delta, dt * 24 / d); return;
+      const speed=24*(g.heroStudio?.build==='return'?1.25:1);
+      if (d < dt * speed || f.time > 1.6) {
+        if(p.arts){p.arts.link=f.hit?2:0;p.arts.returnGuard=f.recallGuard?.5:0;if(f.recallGuard){p.invulnerable=Math.max(p.invulnerable,.18);p.guardTime=0;}}
+        this.flight = null; return;
+      }
+      const oldReturn=f.pos.clone();
+      if(f.curve==null)f.curve=(g.input?.sample().x??0)*.6;
+      f.pos.addScaledVector(delta, dt * speed / d);
+      if(f.curve){const bend=Math.sin(Math.min(1,f.time)*Math.PI)*f.curve*dt*4;f.pos.x+=Math.cos(p.character.facing)*bend;f.pos.z-=Math.sin(p.character.facing)*bend;}
+      if(Math.abs(f.curve)>.1&&!f.returnHit&&(g.stage?.projectileFraction(oldReturn,f.pos)??1)>=1){
+        for(const e of g.enemies.enemies){if(!e.alive||!e.agent)continue;const center=e.position.clone().add(new Vector3(0,Math.min(2.6,e.agent.type.height*.55),0));
+          if(segmentSphereHit(center,e.agent.radius+.2,oldReturn,f.pos)!==Infinity){g.damageEnemy(e,{damage:f.config.damage*.4,posture:8,dirX:delta.x/d,dirZ:delta.z/d,knockback:.2,source:'thrown'});f.returnHit=true;break;}
+        }
+      }
+      return;
     }
     const old = f.pos.clone(), step = Math.min(dt * 22, Math.max(0, 12 - f.distance));
     f.pos.addScaledVector(f.direction, step); f.distance += step;
@@ -62,7 +86,11 @@ export class FlyingGauntlet {
       const result = g.damageEnemy(enemy, { damage: f.config.damage, posture: f.config.posture + (f.config.gripPull && (enemy.agent.type.elite || enemy.agent.type.boss) ? 20 : 0), knockback: f.config.knockback ?? 0,
         dirX: f.direction.x, dirZ: f.direction.z, source: 'thrown', force: null, slice: false, launch: false });
       if (result?.damage > 0) {
-        p.onRangedHit(f.config);
+        f.hit=true;p.onRangedHit(f.config);g.heroStudio?.record('fist');
+        if (f.config.gripPull && (enemy.agent.type.elite || enemy.agent.type.boss)) p.arts?.stepToward(enemy,3);
+        if (enemy.agent.move && enemy.agent.move.phase < (enemy.agent.move.spec.windupTo??.3)) {
+          enemy.agent._setFacing(enemy.facing+.22); // deflect, never cancel an entire boss move
+        }
         if (f.config.gripPull && !result.killed && !p.air.active && canLaunch(enemy.agent, opening || result.broke)) {
           this._grab(enemy, opening || result.broke);
         } else if (f.config.airLauncher && !result.killed && enemy.position.distanceTo(g.playerPosition) < 3.8) p.air.launch(enemy, opening || result.broke);
@@ -122,10 +150,20 @@ export class FlyingGauntlet {
     // lower-arm segment too, while leaving the left hand intact.
     this.hand?.scale.setScalar(0.001);
     this.forearm?.scale.setScalar(0.001);
+    const grip=this.flight?.grabbed?1:this.flight&&!this.flight.returning?.65:.08;
+    if(Math.abs(grip-this.grip)>.001){this.grip+=(grip-this.grip)*(g.app.paused?0:.3);
+      for(const data of this.fingers){const a=data.geometry.attributes.position,n=data.geometry.attributes.normal;
+        for(let i=0;i<a.count;i++){const j=i*3,z=data.positions[j+2],w=Math.max(0,Math.min(1,(z-.075)/.1)),angle=this.grip*w*.65;
+          const y=data.positions[j+1],dz=z-.075,co=Math.cos(angle),si=Math.sin(angle);
+          a.setXYZ(i,data.positions[j],y*co-dz*si,.075+y*si+dz*co);
+          if(n&&data.normals)n.setXYZ(i,data.normals[j],data.normals[j+1]*co-data.normals[j+2]*si,data.normals[j+1]*si+data.normals[j+2]*co);
+        }a.needsUpdate=true;if(n)n.needsUpdate=true;
+      }
+    }
     this.model.position.copy(this.flight?.pos ?? this.home());
     if (this.flight && !this.flight.returning) this.model.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), this.flight.direction);
     else this.model.quaternion.copy(this.down);
   }
   clear() { this._releaseGrab(false); this.flight = null; this.queue.length = 0; this.restoreHand(); }
-  dispose() { this.clear(); this.model.removeFromParent(); }
+  dispose() { this.clear(); for(const d of this.fingers)d.geometry.dispose();this.model.removeFromParent(); }
 }

@@ -81,6 +81,10 @@ export class TouchControls {
     this.root.appendChild(this.pause);
     this._bindButton(this.pause, 'pause');
 
+    const arts = div('tc-arts', this.root);
+    for (const [id,text] of [['sheath','納'],['kick','蹴']]) {
+      const b=document.createElement('button');b.className='tc-chip';b.textContent=text;b.setAttribute('aria-label',id==='sheath'?'納刀・変身解除':'蹴り');arts.append(b);this._bindButton(b,id);
+    }
     this._stickId = null;
     this._stickOrigin = { x: 0, y: 0 };
     this._looks = new Map();

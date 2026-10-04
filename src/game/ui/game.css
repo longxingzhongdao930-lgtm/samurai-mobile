@@ -855,3 +855,8 @@ body.game .loader__status {
 .gs-settings select { background: #211b16; color: var(--washi); border: 1px solid #786447; border-radius: 4px; padding: 4px; }
 .gs-settings input[type=file] { max-width: 100%; color: var(--washi); }
 .gs-settings input::file-selector-button { background: #211b16; color: var(--washi); border: 1px solid #786447; min-height: 44px; }
+
+.tc-arts { position:absolute; bottom:calc(14px + var(--safe-b)); left:calc(50% - 50px); display:flex; gap:6px; pointer-events:auto; }
+.tc-arts .tc-chip { position:static; width:46px; height:46px; min-width:44px; min-height:44px; }
+.tc--desktop .tc-arts { display:none; }
+.hero-photo { margin-left:auto; margin-right:12px; width:min(330px,48vw); background:#100e0cd9; }

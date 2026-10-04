@@ -1,3 +1,4 @@
+import { HeroArts } from '../hero/HeroArts.js';
 import { WEAPON_TIPS } from './CombatCoach.js';
 import { comboLifetime, canSwitchInRecovery } from './CombatRhythm.js';
 import { DualSpirit } from './DualSpirit.js';
@@ -84,6 +85,7 @@ export class PlayerCombat {
     this._build();
     this.air = new GauntletAir(this);
     this.spirit = new DualSpirit(this);
+    this.arts = new HeroArts(this);
   }
 
   /* ------------------------------------------------------------------ */
@@ -108,7 +110,8 @@ export class PlayerCombat {
       id: 'cast', clipFrom: 0.04, clipTo: 0.24, timeScale: 0.62, hits: [0.74], lunge: 0,
       cancelAt: 0.85, recoverAt: 0.9, trail: false, standoff: 99, maxWarp: 0, sfx: null
     });
-    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast];
+    this.kickMove ??= makeKick(this);
+    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove];
     this._moveOverrides = [...this.moves];
 
     this.guardPose = new PoseLayer(mixer, character.clips.get('crouch'), { blendIn: 0.07, blendOut: 0.14 });
@@ -157,10 +160,12 @@ export class PlayerCombat {
       const i = overrides.indexOf(move);
       if (i >= 0) overrides.splice(i, 1);
     }
+    if (this.arts) { this.arts.cancel(); this.arts.switchFrom = this.weapon.id; }
     this.weapon = weapon;
     this.game.hud?.notice(WEAPON_TIPS[id], 2.8);
     this._useSet(this._setFor(weapon));
-    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast];
+    this.kickMove ??= makeKick(this);
+    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove];
     this._moveOverrides = [...this.moves];
     overrides.unshift(...this.moves);
     this.comboIndex = -1;
@@ -200,6 +205,7 @@ export class PlayerCombat {
 
   /** A thrown star landed: the same rewards a blade's hit gives. */
   onRangedHit(config) {
+    if(this.arts)this.arts.rewardAvailable=true;
     this._recordHit();
     this.special = Math.min(1, this.special + 0.02);
     this.mp = Math.min(this.maxMp, this.mp + 1.2);
@@ -289,6 +295,9 @@ export class PlayerCombat {
       default:
         break;
     }
+
+    const artControl = this.arts?.control(dt, input);
+    if (artControl !== undefined) return artControl;
 
     // Transformed: the dragon takes every button but the dodge.
     if (this.game.form?.active) {
@@ -404,6 +413,7 @@ export class PlayerCombat {
       this._chargeTime += dt;
       if (this._chargeTime > 0.34 && this.move.phase >= Math.min(0.55, this.move.config.cancelAt)) {
         this._chargeTime = 0;
+        if (this.weapon.id === 'katana') { this.arts.charge(); return null; }
         this.game.hud?.notice('溜め攻撃', .8);
         this._startMove(this.heavy, this.lockTarget ?? this._autoTarget(this.heavy.config, 9));
         this.game.audio?.play('charge');
@@ -428,7 +438,8 @@ export class PlayerCombat {
 
   /** How fast the stick may move the body right now (the guard walks). */
   get moveScale() {
-    if (this.game.form?.active) return 1.2;
+    if (this.arts?.mode === 'charge') return .28;
+    if (this.game.form?.active) return this.game.form.guarding ? .4 : 1.2;
     return this.guarding ? this.weapon.guard.moveScale : 1;
   }
 
@@ -516,6 +527,7 @@ export class PlayerCombat {
     const bonus=(id==='odachi'&&move===this.heavy)?10:(id==='spear'&&gap>2.5)?6:(id==='kusarigama'&&move===this.heavy)?8:0;
     if(bonus)move._config={...move._config,posture:move._config.posture+bonus};
     move._config = this.spirit.empowerMove(move._config, move === this.heavy);
+    if (this.arts) move._config = this.arts.configure(move._config, move, target);
     move.start(target?.alive ? target : null);
     this.move = move;
     this.state = move === this.cast ? 'cast' : 'attack';
@@ -561,7 +573,7 @@ export class PlayerCombat {
       return;
     }
     if (this.state === 'cast' && move === this.combo[1]) return; // the special's pose only
-    if (this.weapon.id === 'gauntlet' && move !== this.execute && this.game.weapons.fist) {
+    if (this.weapon.id === 'gauntlet' && move !== this.kickMove && move !== this.execute && this.game.weapons.fist) {
       this.game.weapons.fist.launch(config, move.target ?? this.lockTarget ?? this._autoTarget({ reach: 12, arc: 90 }));
       return;
     }
@@ -583,7 +595,7 @@ export class PlayerCombat {
       const dz = enemy.position.z - origin.z;
       const distance = Math.hypot(dx, dz);
       const reach = config.reach + (enemy.agent.radius ?? 0.4) * 0.6;
-      if (distance > reach) continue;
+      if (distance > reach || this.game.targetVisible?.(enemy) === false) continue;
       if (distance > 0.3 && config.arc < 360 && (dx * fx + dz * fz) / distance < halfArc) continue;
 
       if (Math.abs(enemy.position.y - origin.y) > 1.6) continue;
@@ -591,7 +603,7 @@ export class PlayerCombat {
       const executing = move === this.execute;
       const result = this.game.damageEnemy(enemy, {
         damage: config.damage,
-        posture: config.posture,
+        posture: config.posture+(this.arts?.postureBonus(distance,reach)??0),
         knockback: config.knockback,
         launch: config.launch,
         dirX: distance > 1e-3 ? dx / distance : fx,
@@ -602,7 +614,7 @@ export class PlayerCombat {
         source: 'melee',
         heavy: move === this.heavy || move === this.combo[4]
       });
-      if (result?.damage > 0 && !result.evaded) landed++;
+      if (result?.damage > 0 && !result.evaded) { landed++; this.arts?.landed(enemy,config,distance,reach); }
       if (config.airLauncher && result?.damage > 0 && !result.killed) {
         this.air.launch(enemy, opening || result.broke || move === this.counter);
       }
@@ -621,13 +633,14 @@ export class PlayerCombat {
     }
 
     if (landed > 0) {
+      this.body.impulse(-.35,.25);
       this._recordHit(landed);
       this.special = Math.min(1, this.special + 0.025 * landed);
       this.mp = Math.min(this.maxMp, this.mp + 1.6 * landed);
       this.game.hitStop(config.hitStop, config.hitStopScale);
       this.game.rig.shake(config.shake);
     } else if (index === 0 && config.sfx === 'slash') {
-      // Nothing there: the blade still says it went through the air.
+      this.body.impulse(.3,-.2); // Carry the momentum through an empty swing.
     }
   }
 
@@ -716,6 +729,7 @@ export class PlayerCombat {
    * @returns {'parry'|'block'|'evade'|'hit'|'break'|'ignored'}
    */
   receiveHit(hit) {
+    if (this.arts?.cutProjectile(hit)) return 'cut';
     if (this.state === 'dead' || this.game.cinematic) return 'ignored';
     const position = this.character.position;
     if (this.game.form?.active && this.invulnerable <= 0) {
@@ -723,6 +737,10 @@ export class PlayerCombat {
       return 'hit';
     }
 
+    if (this.arts?.returnGuard>0 && !hit.unparryable && hit.from &&
+      (hit.from.x-position.x)*Math.sin(this.character.facing)+(hit.from.z-position.z)*Math.cos(this.character.facing)>=0) {
+      this.arts.returnGuard=0;this.stats.parries++;this.counterWindow=1.2;this.counterTarget=hit.attacker;this.game.onParry(hit);return 'parry';
+    }
     if (this.invulnerable > 0) {
       if (this.state === 'dodge' && !this._dodge.perfect) {
         this._dodge.perfect = true;
@@ -797,6 +815,7 @@ export class PlayerCombat {
   }
 
   _stagger(seconds, dx, dz, knock, knockdown) {
+    this.arts?.cancel();
     this._weaponQueue = this._switchBoost = this._linkHitTimer = 0;
     this.counterWindow = 0;
     this._gauntletCharged = false;
@@ -824,6 +843,7 @@ export class PlayerCombat {
   }
 
   _die(hit) {
+    this.arts?.cancel();
     this._weaponQueue = this._switchBoost = this._linkHitTimer = 0;
     this.state = 'dead';
     this.stateTime = 0;
@@ -920,6 +940,7 @@ export class PlayerCombat {
   /** Back to full, standing — a retry from a checkpoint. */
   revive(hp = this.maxHp) {
     this.spirit?.reset();
+    this.arts?.reset();
     this._guardLatched = false;
     this._weaponQueue = this._switchBoost = this._linkHitTimer = 0;
     this.hitCombo = this._hitComboTimer = this._comboGrace = 0;
@@ -958,4 +979,8 @@ export class PlayerCombat {
   bladePoint(out = _v) {
     return out;
   }
+}
+
+function makeKick(p) {
+  return p._make({ ...p.weapon.combo[0], id:'heroKick',clip:'kick',clipFrom:.1,clipTo:.7,timeScale:1.3,hits:[.5],damage:5,posture:8,reach:1.7,arc:75,knockback:2.3,maxWarp:.2,lunge:0,standoff:1,trail:false,sfx:'kick',heroKick:true });
 }

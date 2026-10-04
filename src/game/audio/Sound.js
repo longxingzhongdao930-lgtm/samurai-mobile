@@ -421,6 +421,9 @@ const RECIPES = {
       return 0.8;
     }
   },
+  breath: {
+    play(s,out,t){s.noise(out,t,{duration:.65,type:'bandpass',freq:650,freqEnd:350,q:.7,level:.2,attack:.15});return .7;}
+  },
   hurt: {
     play(s, out, t) {
       s.tone(out, t, { freq: 140, freqEnd: 60, duration: 0.22, level: 0.8 });

@@ -13,9 +13,11 @@
 /** Seconds an unconsumed press stays valid. Generous enough to chain a combo. */
 const BUFFER = 0.32;
 
-export const BUTTONS = ['attack', 'dodge', 'guard', 'magic', 'special', 'lock', 'el0', 'el1', 'el2', 'weapon', 'pause'];
+export const BUTTONS = ['attack', 'dodge', 'guard', 'magic', 'special', 'lock', 'el0', 'el1', 'el2', 'weapon', 'sheath', 'kick', 'pause'];
 
 const KEY_BUTTONS = {
+  KeyC: 'sheath',
+  KeyV: 'kick',
   KeyJ: 'attack',
   Space: 'dodge',
   KeyL: 'guard',

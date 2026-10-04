@@ -58,6 +58,7 @@ export class Journey {
     });
     const file=document.createElement('input');file.type='file';file.accept='.json,application/json';file.setAttribute('aria-label','旅の記録を読み込む');
     file.onchange=async()=>{try{const f=file.files[0];if(!f||f.size>32000)throw Error();const data=validateRun(JSON.parse(await f.text()));if(!data)throw Error();if(!writeStored('run',data)){status.textContent='保存できませんでした';return}this.importPending=true;status.textContent='読み込みました。タイトルの「続きから」で再開できます';}catch{status.textContent='対応する旅の記録ではありません'}};panel.append(file);
+    this.button(panel,'主人公の支度',()=>g.heroStudio.menu(()=>this.settings(back)));
     this.button(panel,'街の記録',()=>this.journal(()=>this.settings(back)));
     this.button(panel,'戻る',back);
   }
@@ -103,7 +104,7 @@ export class Journey {
     if(!this.practice||this.game.state!=='playing')return;
     const g=this.game;
     if(this.practice.training){g.player.hp=g.player.maxHp;g.player.mp=g.player.maxMp;g.player.special=1;}
-    if(!g.director.aliveCount){this.practice.respawn+=dt;if(this.practice.respawn>3&&this.practice.id!=='tarislandDragon'){this.practice.respawn=0;if(this.practice.training){g.director.clear();this.spawnPractice()}else{this.menu(()=>g.toTitle())}}}
+    if(!this.practice.studio&&!g.director.aliveCount){this.practice.respawn+=dt;if(this.practice.respawn>3&&this.practice.id!=='tarislandDragon'){this.practice.respawn=0;if(this.practice.training){g.director.clear();this.spawnPractice()}else{this.menu(()=>g.toTitle())}}}
   }
   onKill(agent){if(this.practice)return;this.records.add(agent.type.id);writeStored('records',[...this.records]);}
 }

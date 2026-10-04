@@ -90,6 +90,7 @@ export class DragonForm {
         model.scale.setScalar(HEIGHT / height);
         model.position.y = -box.min.y * (HEIGHT / height);
         this.group.add(model);
+        this.wings=['Wing_L01_028','Wing_R01_030'].map(n=>model.getObjectByName(n)).filter(Boolean);
         this.mixer = new AnimationMixer(model);
         this.actions = {};
         for (const clip of prepareDragonClips(gltf.animations)) {
@@ -108,7 +109,8 @@ export class DragonForm {
     if (!this.ready || this.active) return false;
     const game = this.game;
     const p = game.player;
-    this.active = true;
+    this.active = true;this.reveal=.24;this.guarding=false;this.guardReserve=100;this.guardExhausted=false;
+    this.originWeapon=p.weapon.id;if(p.arts)p.arts.transform=.3;
     this.duration = DURATION + (game.blessings?.dragonBonus ?? 0);
     this.time = this.duration;
     this.attack = null;
@@ -118,11 +120,11 @@ export class DragonForm {
     this._comboIdle = 0;
     this.mixer.stopAllAction();
     this._current = null;
-    this.character.tilt.visible = false;
-    this.group.visible = true;
+    this.character.tilt.visible = true;
+    this.group.visible = false;
     this._place();
     this._loop('Btl_Std01', 0);
-    this._oneShot({ clip: 'Btl_Skl01', speed: 1.4, hitAt: 0.5, end: 0.8, reach: 4.5, arc: 360, damage: 30, posture: 50, knockback: 4, launch: true, ring: true, burst: '#bfe6ff' });
+    this._oneShot({ clip: this.originWeapon==='gauntlet'?'Btl_Atk02':this.originWeapon==='odachi'?'Btl_Atk04':'Btl_Atk01', speed: 1.4, hitAt: 0.5, end: 0.8, reach: 4.5, arc: 360, damage: 30, posture: 50, knockback: 4, launch: true, ring: true, burst: '#bfe6ff' });
     this._camera = settings.camera.distance;
     settings.camera.distance = this._camera * 1.3;
     const at = this.character.position;
@@ -139,7 +141,7 @@ export class DragonForm {
     return true;
   }
 
-  end() {
+  end(manual=false) {
     if (!this.active) return;
     const game = this.game;
     this.active = false;
@@ -153,8 +155,11 @@ export class DragonForm {
     game.fx.dust(at, 2);
     game.fx.glow.burst(_v.copy(at).setY(at.y + 1), '#cfe8ff', 30, { speed: 6, size: 0.07, life: 0.7, up: 2, gravity: -4 });
     game.audio.play('shatter', { volume: 0.6 });
-    game.player.special = 0;
+    game.player.special = manual ? Math.min(.65,Math.max(0,this.time/this.duration)*.65) : 0;
+    this.guarding=false;
+    if(manual)game.hud.notice('竜化解除 — 力の一部を温存',1.5);
     game.player.invulnerable = Math.max(game.player.invulnerable, 0.6);
+    if(game.state==='playing'&&!game.player.dead)game.player.arts?.startSheath();
   }
 
   /**
@@ -166,9 +171,13 @@ export class DragonForm {
     this.time -= dt;
     p.special = Math.max(0, this.time / (this.duration ?? DURATION));
     this._skillCd -= dt;
+    if(!input.held?.guard&&this.guardReserve>=25)this.guardExhausted=false;
+    this.guarding=!!input.held?.guard&&!this.attack&&this.guardReserve>0&&!this.guardExhausted;
+    this.guardReserve=Math.max(0,Math.min(100,this.guardReserve+dt*(this.guarding?-16:9)));
+    if(this.guardReserve===0&&!this.guardExhausted){this.guardExhausted=true;this.game.hud?.notice('翼が疲弊 — 守を解いて回復',2);}
     this._comboIdle += dt;
     if (this._comboIdle > 1.1) this.combo = 0;
-    if (this.time <= 0) {
+    if (this.time <= 0 && (!this.attack || this.attack.struck || this.time <= -1)) {
       this.end();
       return null;
     }
@@ -182,7 +191,7 @@ export class DragonForm {
         this._strike(a.spec);
       }
       // Chains: the next press takes over once the blow is out.
-      const chain = a.struck && u > a.spec.hitAt + 0.08;
+      const chain = this.time > 0 && a.struck && u > a.spec.hitAt + 0.08;
       if (chain && input.pending('special') && this._skillCd <= 0) return this._press(input);
       if (chain && input.pending('attack') && !a.spec.burst) return this._press(input);
       if (u >= a.spec.end) {
@@ -308,7 +317,9 @@ export class DragonForm {
   /** Blows taken while transformed: cut down, and never a stagger. */
   absorb(hit) {
     const p = this.game.player;
-    const damage = (hit.damage ?? 10) * 0.4;
+    const defending=this.guarding&&!hit.unblockable&&this.guardReserve>0&&!this.guardExhausted;
+    const damage = (hit.damage ?? 10) * (defending?.16:.4);
+    if(defending){this.guardReserve=Math.max(0,this.guardReserve-(hit.damage??10)*1.5);if(this.guardReserve===0){this.guardExhausted=true;this.game.hud?.notice('翼が疲弊 — 守を解いて回復',2);}}
     p.hp = Math.max(0, p.hp - damage);
     p.stats.damageTaken += damage;
     this.game.fx.block?.(_v.copy(this.character.position).setY(this.character.position.y + 1.5), 0, 0);
@@ -333,7 +344,15 @@ export class DragonForm {
       const speed = this.game.app.controller.speed ?? 0;
       this._loop(speed > 3.5 ? 'Btl_Run01' : speed > 0.4 ? 'Btl_Walk01' : 'Btl_Std01');
     }
+    for(const [wing,q] of this._wingRest??[])wing.quaternion.copy(q);
     this.mixer.update(dt);
+    this._wingRest=(this.wings??[]).map(w=>[w,w.quaternion.clone()]);
+    this.reveal=Math.max(0,(this.reveal??0)-dt);this.group.visible=this.reveal===0;if(this.character.tilt)this.character.tilt.visible=this.reveal>0;
+    const at=this.character.position,side=new Vector3(Math.cos(this.character.facing)*2,1.5,-Math.sin(this.character.facing)*2);
+    const from=at.clone().add(new Vector3(0,1.5,0));
+    const narrow=(this.game.stage?.projectileFraction(from,at.clone().add(side))??1)<1||(this.game.stage?.projectileFraction(from,at.clone().add(side.clone().multiplyScalar(-1).setY(1.5)))??1)<1;
+    for(let i=0;i<(this.wings?.length??0);i++)this.wings[i].rotateY((i?1:-1)*(narrow?.35:this.guarding?.2:0));
+
   }
 
   clear() {

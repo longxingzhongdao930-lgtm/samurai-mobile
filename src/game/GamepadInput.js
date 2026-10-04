@@ -1,4 +1,4 @@
-const ACTIONS={0:'attack',1:'dodge',2:'magic',3:'weapon',4:'guard',5:'lock',6:'special',7:'attack',9:'pause'};
+const ACTIONS={0:'attack',1:'dodge',2:'magic',3:'weapon',4:'guard',5:'lock',6:'special',7:'attack',9:'pause',10:'sheath',11:'kick'};
 export class GamepadInput {
   constructor(game){this.game=game;this.previous=new Set();this.menuTime=0;this.connected=false;this.neutral=true;}
   poll(dt){

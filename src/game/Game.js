@@ -1,3 +1,5 @@
+import { HeroStudio, heroTitle } from './hero/HeroStudio.js';
+import { HeroPresence } from './hero/HeroPresence.js';
 import { GamepadInput } from './GamepadInput.js';
 import { CombatCoach, defeatAdvice } from './combat/CombatCoach.js';
 import { Journey } from './progression/Journey.js';
@@ -147,6 +149,8 @@ export class Game {
     this.playerTarget = { position: app.character.position, alive: true };
     this.hud = new HUD(this);
     this.coach = new CombatCoach(this);
+    this.heroStudio = new HeroStudio(this);
+    this.heroPresence = new HeroPresence(this);
     this.hud.setVisible(false);
     this.touch.setVisible(false);
 
@@ -171,7 +175,8 @@ export class Game {
       onStart: () => this.start(),
       onContinue: readRun() ? () => this.journey.continueRun() : null,
       onSettings: () => this.journey.settings(() => this.ready()),
-      onPractice: () => this.journey.menu(() => this.ready())
+      onPractice: () => this.journey.menu(() => this.ready()),
+      onHero: () => this.heroStudio.menu(() => this.ready())
     });
   }
 
@@ -246,6 +251,7 @@ export class Game {
 
   /** Before anything moves: input edges, pause, slow-motion clock. */
   preUpdate(raw) {
+    this.heroPresence?.restore();
     if (this.playerPosition) (this._beforeMove ??= new Vector3()).copy(this.playerPosition);
     this.gamepad?.poll(raw);
     this.input.tick(raw);
@@ -320,6 +326,7 @@ export class Game {
     this.weapons.fist?.lateUpdate();
     this.bow.update(dt, this.player.castTarget);
     this.player.spirit.lateUpdate();
+    this.heroPresence?.update(dt);
     this.fx.update(dt, this.elapsed);
     this.fx.ribbons.update(dt);
     this._camera(raw);
@@ -356,6 +363,16 @@ export class Game {
     const rig = this.app.rig;
     this.input.consumeLook(_look);
     const frame = lockFraming(this.playerPosition, this.state === 'playing' ? this.player.lockTarget : null, this.app.camera.aspect);
+    if(this.state==='playing'&&this.stage){
+      const from=this.playerPosition.clone().add(new Vector3(0,1.3,0)),az=rig.azimuth;
+      const desired=from.clone().add(new Vector3(Math.sin(az)*settings.camera.distance,1,Math.cos(az)*settings.camera.distance));
+      const base=this.stage.projectileFraction(from,desired);
+      if(base<.9){
+        let best=base,side=0;
+        for(const sign of [-1,1]){const probe=desired.clone().add(new Vector3(Math.cos(az)*sign*.6,0,-Math.sin(az)*sign*.6)),clear=this.stage.projectileFraction(from,probe);if(clear>best+.02){best=clear;side=sign;}}
+        frame.x+=Math.cos(az)*side*.45;frame.z-=Math.sin(az)*side*.45;
+      }
+    }
     const blend = 1 - Math.exp(-Math.max(0, raw) * 5);
     rig.framingOffset.lerp(_v.set(frame.x, frame.y, frame.z), blend);
     rig.distanceBonus += (frame.distance - rig.distanceBonus) * blend;
@@ -613,6 +630,7 @@ export class Game {
     }
     this.flow?.onKill(agent);
     this.journey.onKill(agent);
+    if (!this.director.aliveCount && this.player.arts) this.player.arts.flourishQueued=true;
     if (agent.type.elite && this.director.aliveCount === 0) { this.audio.setCombat(0); this.hud.notice('雨音が戻った — 刀を収め、先へ', 3); }
   }
 
@@ -640,6 +658,7 @@ export class Game {
   }
 
   onParry(hit) {
+    this.player.arts?.parry(hit);
     const position = this.playerPosition;
     const dx = hit.from.x - position.x;
     const dz = hit.from.z - position.z;
@@ -681,6 +700,7 @@ export class Game {
 
   onPlayerHurt(hit) {
     this.coach?.hurt(hit);
+    if (this.player.arts) this.player.arts.dirt = Math.min(1,this.player.arts.dirt+.12);
     this.audio.play('hurt');
     this.hitStop(0.06, 0.1);
     this.rig.shake(hit.knockdown ? 0.3 : 0.14);
@@ -690,6 +710,7 @@ export class Game {
   }
 
   onPerfectDodge(hit) {
+    this.player.arts?.perfect(hit);
     const p = this.player;
     if (!this.form?.active) {
       p.counterWindow = Math.max(p.counterWindow, 1.4);
@@ -814,6 +835,7 @@ export class Game {
   _showPause() {
     this.screens.pause({
       muted: this._muted,
+      onHero: () => this.heroStudio.menu(() => this._showPause()),
       onSettings: () => this.journey.settings(() => this._showPause()),
       onPractice: () => this.journey.menu(() => this._showPause()),
       onResume: () => this.resume(),
@@ -834,6 +856,8 @@ export class Game {
   }
 
   resume() {
+    if (this.heroStudio?.photo) { this.heroStudio.closePhoto(); return; }
+    this.player.arts?.cancel();
     this.screens.close();
     this.state = 'playing';
     this.app.paused = false;
@@ -842,6 +866,7 @@ export class Game {
   }
 
   _resetTransientCombat() {
+    this.player?.arts?.cancel();
     this.input.reset();
     this.coach?.clear();
     if (this.player) this.player._guardLatched = false;
@@ -856,6 +881,7 @@ export class Game {
     this._resetTransientCombat();
     this.retries++;
     this._timers.length = 0;
+    this.player.arts?.cancel();
     this.screens.close();
     this.state = 'playing';
     this.app.paused = false;
@@ -873,6 +899,7 @@ export class Game {
   }
 
   toTitle() {
+    if (this.heroStudio?.photo) this.heroStudio.closePhoto();
     if (!this.journey.practice && this.state !== 'result') this.journey.save();
     this.journey.leavePractice();
     this._resetTransientCombat();
@@ -904,6 +931,7 @@ export class Game {
     points += this.magic.reactionCount * 50;
     points -= stats.damageTaken * 2 + this.retries * 300;
     const rank = points > 2600 ? 'S' : points > 1700 ? 'A' : points > 900 ? 'B' : 'C';
+    const title = heroTitle(stats);
     const comment = {
       S: '見事。黒雨はやんだ。',
       A: '良い太刀筋だ。弾きを極めれば、さらに高みへ。',
@@ -926,7 +954,7 @@ export class Game {
         damageTaken: stats.damageTaken,
         retries: this.retries,
         rank,
-        comment
+        comment: `${title} — ${comment}`
       },
       onAgain: () => {
         this.toTitle();

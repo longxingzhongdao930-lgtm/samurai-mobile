@@ -50,7 +50,8 @@ export class DualSpirit {
     this.game.app.scene.add(arm);
   }
   lateUpdate() {
-    const visible = this.pulse > 0 && !this.player.dead && !this.game.form?.active;
+    const partial=this.player.arts?.transform??0;
+    const visible = (partial>0 || this.pulse > 0 && !this.game.form?.active) && !this.player.dead;
     if (!visible) { if (this.arm) this.arm.visible = false; return; }
     if (!this.arm) this._buildArm();
     const c = this.player.character, elbow = c.getBone('LeftForeArm'), hand = c.getBone('LeftHand');
@@ -59,6 +60,6 @@ export class DualSpirit {
     const from = elbow.getWorldPosition(new Vector3()), direction = hand.getWorldPosition(new Vector3()).sub(from).normalize();
     this.arm.position.copy(from); this.arm.quaternion.copy(new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), direction));
     this.arm.scale.setScalar(1 + Math.sin(this.pulse / 0.8 * Math.PI) * 0.25);
-    this.armMaterial.opacity = Math.min(0.7, this.pulse * 2);
+    this.armMaterial.opacity = Math.min(0.7, Math.max(this.pulse,partial) * 3);
   }
 }

@@ -116,7 +116,17 @@ export class KatanaSheath {
     if (rightHand) {
       c.root.updateMatrixWorld(true);
       const actualGrip = rightHand.getWorldPosition(new Vector3());
-      this.copy.position.add(actualGrip.sub(grip));
+      const towardMouth = mouth.clone().sub(actualGrip);
+      if (towardMouth.lengthSq() > 1e-8) {
+        const aimed = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), towardMouth.normalize());
+        this.copy.quaternion.copy(this.rotation).slerp(aimed, align);
+        const heldAxis = new Vector3(0, 0, 1).applyQuaternion(this.copy.quaternion);
+        this.copy.position.copy(actualGrip).addScaledVector(heldAxis, .1);
+        // Once aligned, insertion follows one physical line through the mouth.
+        // Its depth is the actual distance between the two hands, not an
+        // unreachable straight-line target that detaches the rigid blade.
+        if (align >= 1) h.sheath.quaternion.copy(this.copy.quaternion);
+      } else this.copy.position.add(actualGrip.sub(grip));
     }
   }
   invalidate() { this.copy?.removeFromParent(); this.copy = null; this.active = false; this.drawFromSheath = false; }

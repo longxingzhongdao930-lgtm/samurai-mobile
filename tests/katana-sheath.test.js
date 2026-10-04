@@ -139,3 +139,18 @@ test('blade remains in the real right hand when insertion IK cannot reach its ta
     assert.ok(grip.distanceTo(hand.getWorldPosition(new Vector3())) < 1e-9);
   }
 });
+
+test('aligned blade passes through the mouth on the same axis as its scabbard', () => {
+  const root = new Group(), hand = new Group(); root.add(hand); hand.position.set(-.2,1,.3);
+  const player = { weapon: { id: 'katana' }, arts: { mode: 'sheath', t: 0 },
+    character: { root, position: new Vector3(), facing: .5, getBone: name => name === 'RightHand' ? hand : null } };
+  const h = { root: new Group(), sheath: new Group(), g: { player, form: { active: false }, weapons: { _slot: () => ({ model: new Group() }) } } };
+  const motion = new KatanaSheath(h); motion._hand = () => {};
+  for (const t of [.22,.3,.4,.5,.65]) {
+    player.arts.t = t; motion.update();
+    const axis = new Vector3(0,0,1).applyQuaternion(motion.copy.quaternion);
+    const toMouth = h.sheath.position.clone().sub(motion.copy.position);
+    assert.ok(toMouth.cross(axis).length() < 1e-9, 'mouth lies on blade line');
+    assert.ok(motion.copy.quaternion.angleTo(h.sheath.quaternion) < 1e-7);
+  }
+});

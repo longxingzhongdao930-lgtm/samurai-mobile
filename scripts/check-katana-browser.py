@@ -62,7 +62,9 @@ with sync_playwright() as pw:
             const copy=h.katanaSheath.copy;
             const grip=mouth.clone().set(0,0,-.1).applyQuaternion(copy.quaternion).add(copy.position);
             rows.push({t:(i+1)/60,mode:p.arts.mode,leftGap:left.distanceTo(mouth),rightGap:right.distanceTo(grip),
-                left:left.toArray(),right:right.toArray(),mouth:mouth.toArray(),guard:copy.position.toArray()});
+                left:left.toArray(),right:right.toArray(),mouth:mouth.toArray(),guard:copy.position.toArray(),
+                mouthAxisGap:mouth.clone().sub(copy.position).cross(grip.clone().set(0,0,1).applyQuaternion(copy.quaternion)).length(),
+                axisAngle:copy.quaternion.angleTo(h.sheath.quaternion)});
         }
         return rows;
     }""")
@@ -70,6 +72,9 @@ with sync_playwright() as pw:
     settled=[r for r in timeline if r['t']>1]
     assert max(r['leftGap'] for r in settled)<.005, 'settled left-hand contact'
     assert max(r['rightGap'] for r in timeline)<.005, 'right hand keeps its grip throughout insertion'
+    aligned=[r for r in timeline if r['t']>=.23]
+    assert max(r['mouthAxisGap'] for r in aligned)<.005, 'blade passes through the scabbard mouth'
+    assert max(r['axisAngle'] for r in aligned)<.005, 'blade and scabbard share an insertion axis'
     if os.environ.get('KATANA_RECORD') == '1':
         frames=output/'frames';frames.mkdir(exist_ok=True)
         page.evaluate("() => {const g=app.game;g.input.reset();g.player.arts.cancel();g.player.arts.startSheath();}")

@@ -224,6 +224,7 @@ export class Effects {
         this.glow.burst(_hand,'#9bbdff',this.game.quality.name==='low'?4:7,{speed:1.8,size:.025,life:.18,up:.1,gravity:0});
       }
     }else{this._iaiDraw=false;this._iaiCut=false;}
+    if(sword&&p.move.config.referenceMotion){const hit=p.move.config.hits[0],open=p.move.phase>=Math.max(0,hit-.1)&&p.move.phase<=hit+.07;if(open&&!this.trail.active)this.trail.begin(.8);else if(!open)this.trail.end();}
     this.trail.update(dt);
     if(iai)uniforms.uStrength.value=this._iaiStrength;
     this.leftTrail.update(dt);

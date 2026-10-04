@@ -3,7 +3,7 @@ import { AnimationClip } from 'three';
 export async function loadImportedAttacks(character){
  const results=await Promise.allSettled(['quick-slash','heavenly-strike-2'].map(async id=>{
   const response=await fetch('./animations/imported/'+id+'.json');if(!response.ok)throw new Error(id+': '+response.status);
-  const data=await response.json();const clip=AnimationClip.parse(data);character.clips.set(id,clip);return id;
+  const data=await response.json();const clip=AnimationClip.parse(data);clip.userData=data.source;character.clips.set(id,clip);return id;
  }));
  for(const result of results)if(result.status==='rejected')console.warn('[ImportedAttacks] existing animation fallback',result.reason);
 }

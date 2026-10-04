@@ -5,7 +5,7 @@
  * Dual: 0617-29, left sheath 2.1–3.3s, right sheath 4.8–6.6s.
  */
 export const SHEATH_REFERENCE = {
-  single: {flourish:.22,lift:.16,retract:.32,align:.42,insert:1.08,relax:1.16,end:1.42,handheld:true}
+  single: {flourish:.18,lift:.13,retract:.26,align:.34,insert:.86,relax:.93,end:1.14,handheld:true}
 };
 export const sheathDuration = () => SHEATH_REFERENCE.single.end;
 export function smoothPhase(t,start,end){const x=Math.max(0,Math.min(1,(t-start)/(end-start)));return x*x*(3-2*x);}

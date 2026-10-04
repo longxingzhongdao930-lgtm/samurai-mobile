@@ -114,7 +114,7 @@ export class PlayerCombat {
     const make = (config) => {
       let animation=config.swordMotion?swordBodyClip(character.clips.get('idle'),config.id,undefined,character.clips.get('crouch'),character.clips.get('walk')):clip(config.clip);
       const imported=config.referenceMotion??(config.id==='heavy'&&this.weapon.id==='katana'?'heavenly-strike-2':null);
-      if(imported&&character.clips.has(imported)){animation=clip(imported);config={...config,referenceMotion:imported,clipFrom:0,clipTo:1,timeScale:1};}else if(config.referenceMotion){config={...config,referenceMotion:null};}
+      if(imported&&character.clips.has(imported)){animation=clip(imported);const hit=character.clips.get(imported).userData?.hitPhase??config.hits[0];config={...config,referenceMotion:imported,clipFrom:0,clipTo:1,timeScale:1,hits:[hit],warpAt:hit,autoSheath:true,recoverAt:1,cancelAt:1};}else if(config.referenceMotion){config={...config,referenceMotion:null};}
       if(!config.referenceMotion&&config.id==='heavy'&&this.weapon.id==='katana'&&config.clip==='crouchSlash')animation=vergilIaiCut(animation,vergilIaiStance(character.clips.get('crouch'),character.clips.get('idle')),character.clips.get('idle'),1.25);
       if(config.airborne&&animation)animation.tracks=animation.tracks.filter(track=>/(?:Spine\d*|(?:Left|Right)(?:Shoulder|Arm|ForeArm|Hand)(?:\w*))\.quaternion$/i.test(track.name));
       return new Attack(mixer,nameMotion(animation,config.id),character,{config,onStrike});
@@ -497,6 +497,7 @@ export class PlayerCombat {
       const move = this.move;
       if (!move || !move.locked) {
         this._toFree();
+        if(move?.config.autoSheath)this.arts.startSheath();
         return null;
       }
       this._held.warp = move.warp;

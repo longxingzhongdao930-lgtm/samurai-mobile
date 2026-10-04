@@ -28,7 +28,11 @@ export class VergilIaiMotion {
   update(){
     const h=this.h,g=h.g,p=g.player,c=p.character;
     if(p.weapon.id!=='katana'||p.state!=='attack'||(!p.move?.config.swordMotion&&p.move!==p.heavy)||p.dead||g.form.active)return;
-    if(p.move.config.referenceMotion)return;
+    if(p.move.config.referenceMotion){
+      const data=c.clips.get(p.move.config.referenceMotion)?.userData,hand=c.getBone('RightHand'),source=g.weapons.blade();
+      if(data&&hand&&source){const end=data.holdStart/p.move.action.getClip().duration,w=smoothPhase(p.move.phase,end*.8,end),yaw=c.facing,direction=new Vector3(-Math.cos(yaw)*.7+Math.sin(yaw)*.1,1,Math.sin(yaw)*.7+Math.cos(yaw)*.1).normalize();if(w>0)h.katanaSheath._orientHand(source,hand,new Quaternion().setFromUnitVectors(new Vector3(0,0,1),direction),w);}
+      return;
+    }
     const heavy=p.move===p.heavy,keys=heavy?KEYS:(PATHS[p.move.config.id]??PATHS.k1);
     const phase=p.move.phase,w=heavy?smoothPhase(phase,.14,.24)*(1-smoothPhase(phase,.88,.99)):smoothPhase(phase,0,.12)*(1-smoothPhase(phase,.88,1));
     if(w<=0)return;

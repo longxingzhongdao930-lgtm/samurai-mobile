@@ -11,7 +11,11 @@ with sync_playwright() as pw:
  result={}
  result['quick']=p.evaluate('''()=>{const g=app.game,p=g.player;g.input.press('attack');app.simulate(.05);g.input.release('attack');app.simulate(.03);return {move:p.move?.config.id,source:p.move?.config.referenceMotion,mode:p.arts.mode};}''')
  assert result['quick']['move']=='quickDraw' and result['quick']['source']=='quick-slash',result
- p.evaluate('app.simulate(.14);captureAttack()');p.screenshot(path=str(out/'quick-hit.png'))
+ result['hold']=p.evaluate('''()=>{const g=app.game,p=g.player,m=p.quickDraw,data=p.character.clips.get('quick-slash').userData;app.simulate(Math.max(0,data.holdStart+.02-m.action.time));const arm=p.character.getBone('RightArm'),hand=p.character.getBone('RightHand'),q=arm.quaternion.clone(),at=hand.getWorldPosition(p.character.position.clone());app.simulate(.05);return {angle:q.angleTo(arm.quaternion),handHeight:at.y-arm.getWorldPosition(p.character.position.clone()).y,trail:g.fx.trail.active};}''')
+ assert result['hold']['angle']<.001 and result['hold']['handHeight']>0 and result['hold']['trail']==False,result
+ p.evaluate('captureAttack()');p.screenshot(path=str(out/'quick-hit.png'))
+ result['directSheath']=p.evaluate('''()=>{app.simulate(.12);return app.game.player.arts.mode;}''')
+ assert result['directSheath']=='sheath',result
  p.evaluate('app.simulate(1.4);cleanAttack();app.game.input.press("attack");app.simulate(.7);captureAttack()');p.screenshot(path=str(out/'charge.png'))
  result['charge']=p.evaluate('({mode:app.game.player.arts.mode,ring:app.game.heroPresence.chargeRing.visible,state:app.game.player.state})')
  assert result['charge']['mode']=='charge' and result['charge']['ring']

@@ -110,7 +110,7 @@ export class SlashTrail {
     _inv.copy(object.matrixWorld).invert();
     _box.makeEmpty();
     object.traverse((node) => {
-      if (!node.isMesh) return;
+      if (!node.isMesh || node.userData.isFireVolume) return;
       node.geometry.computeBoundingBox();
       const b = node.geometry.boundingBox.clone().applyMatrix4(node.matrixWorld).applyMatrix4(_inv);
       _box.union(b);

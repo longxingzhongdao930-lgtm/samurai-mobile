@@ -1,4 +1,5 @@
 import { HeroStudio, heroTitle } from './hero/HeroStudio.js';
+import { VergilRig } from './hero/VergilRig.js';
 import { HeroPresence } from './hero/HeroPresence.js';
 import { GamepadInput } from './GamepadInput.js';
 import { CombatCoach, defeatAdvice } from './combat/CombatCoach.js';
@@ -161,6 +162,7 @@ export class Game {
     this.heroStudio = new HeroStudio(this);
     this.heroPresence = new HeroPresence(this);
     await this.heroPresence.loadScabbard();
+    if(new URLSearchParams(location.search).get('hero')!=='samurai'){this.vergil=new VergilRig(this);try{await this.vergil.load();}catch(e){this.vergil?.restore();console.warn('[VergilRig] keeping existing hero',e);}}
     this.hud.setVisible(false);
     this.touch.setVisible(false);
 
@@ -338,6 +340,7 @@ export class Game {
     this.bow.update(dt, this.player.castTarget);
     this.player.spirit.lateUpdate();
     this.heroPresence?.update(dt);
+    this.vergil?.update(dt);
     this.fx.update(dt, this.elapsed);
     this.fx.ribbons.update(dt);
     this._camera(raw);

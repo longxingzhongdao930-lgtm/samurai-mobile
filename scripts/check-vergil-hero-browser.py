@@ -1,0 +1,10 @@
+from playwright.sync_api import sync_playwright
+with sync_playwright() as pw:
+ b=pw.chromium.launch(executable_path='/usr/bin/chromium',args=['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']);p=b.new_page(viewport={'width':1100,'height':750});errors=[];p.on('pageerror',lambda e:errors.append(str(e)));p.goto('http://127.0.0.1:4181/?q=low&dyn=0');p.wait_for_function('window.app?.game?.state==="title"',timeout=240000);p.evaluate('app.stop()');p.get_by_role('button',name='はじめる',exact=True).click();p.evaluate('''()=>{const g=app.game;g.flow.update=()=>{};g.director.clear();g.flow._place(g.playerPosition.clone().set(0,0,124),0);g.player.invulnerable=999;g.hud.setVisible(false);g.touch.setVisible(false);window.camera=()=>{const at=g.player.character.position,c=app.rig.camera;c.position.set(at.x+2,at.y+1.6,at.z+3);c.lookAt(at.x,at.y+.95,at.z);c.fov=42;c.updateProjectionMatrix();app.scene.updateMatrixWorld(true);app.post.render();};app.simulate(.5);camera();}''');p.screenshot(path='/tmp/vergil-hero-idle.png');print('idle',p.evaluate('app.game.vergil.metrics'))
+ p.evaluate('app.game.player.arts.startSheath();app.simulate(3);camera()');p.screenshot(path='/tmp/vergil-hero-sheathed.png');assert p.evaluate('app.game.player.arts.mode')=='sheathed'
+ for key,time,name in [('j',.4,'charge')]:
+  if key=='j':p.keyboard.down(key)
+  else:p.keyboard.press(key)
+  p.evaluate(f'app.simulate({time});camera()');p.screenshot(path='/tmp/vergil-hero-'+name+'.png');print(name,p.evaluate('app.game.vergil.metrics'))
+ p.keyboard.up('j');p.evaluate('app.simulate(.7);camera()');p.screenshot(path='/tmp/vergil-hero-cut.png');p.evaluate('app.simulate(3);camera()');p.screenshot(path='/tmp/vergil-hero-recovered.png');p.keyboard.down('w');p.evaluate('app.simulate(.4);camera()');p.screenshot(path='/tmp/vergil-hero-walk.png');p.keyboard.up('w');metrics=p.evaluate('app.game.vergil.metrics');assert max(metrics[k] for k in ['lefthand','righthand','leftfoot','rightfoot'])<.03,metrics
+ print('errors',errors);assert not errors;b.close()

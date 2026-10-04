@@ -12,3 +12,5 @@
 `motions.html` の確認ボットで骨格表示、キャラ切替、GLB読込、速度・位置確認、対応表と軸補正、補正済みJSON保存ができます。「元骨格・全モーションを一括保存」でマスター骨格と21クリップ、対応表をまとめて保存します。元モデルのスキニングやメッシュはこのJSONには含まれません。
 
 検証：npm test、npm run build、scripts/check-motion-bot-browser.py、scripts/check-vergil-techniques-browser.py。ブラウザスクリプトはローカルpreviewを4181番で起動して使用します。
+
+バージル専用の全598ボーン版を `public/animations/vergil/` に追加。詳細は [vergil-full-rig.md](vergil-full-rig.md)。確認ボットでバージルを選ぶとこの21クリップへ切り替わります。

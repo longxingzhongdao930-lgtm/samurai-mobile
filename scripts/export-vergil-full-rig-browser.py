@@ -1,0 +1,39 @@
+"""Play the katana techniques through real inputs; save captures and reusable clips."""
+import json,os
+from pathlib import Path
+from playwright.sync_api import sync_playwright
+out=Path('/tmp/vergil-full-rig');out.mkdir(exist_ok=True)
+with sync_playwright() as pw:
+ b=pw.chromium.launch(executable_path='/usr/bin/chromium',args=['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader'])
+ p=b.new_page(viewport={'width':960,'height':640});errors=[];p.on('pageerror',lambda e:errors.append(str(e)))
+ p.goto(os.environ.get('GAME_URL','http://127.0.0.1:4181/')+'?q=low&dyn=0');p.wait_for_function('window.app?.game?.state==="title"',timeout=240000);p.evaluate('app.stop()');p.get_by_role('button',name='はじめる',exact=True).click()
+ p.evaluate('''()=>{const g=app.game;g.flow.update=()=>{};g.director.clear();g.magic.clear();g.flow._place(g.playerPosition.clone().set(0,0,124),0);g.hud.setVisible(false);g.touch.setVisible(false);app.simulate(.5);window.clean=()=>{g.input.reset();g.player.revive();g.player.invulnerable=999;g.player.special=1;g.player.mp=100;g.flow._place(g.playerPosition.clone().set(0,0,124),0);app.simulate(.3);};window.camera=()=>{const at=g.player.character.position,c=app.rig.camera;c.position.set(at.x+2,at.y+1.6,at.z+3);c.lookAt(at.x,at.y+1,at.z);c.fov=42;c.updateProjectionMatrix();app.scene.updateMatrixWorld(true);app.post.render();};}''')
+ results={}
+ # A real distant target, with AI frozen, proves remote damage and projectile contact.
+ p.evaluate('''()=>{const g=app.game,a=g.director.spawn('infinian',0,130,Math.PI);a.hp=a.maxHp=10000;a.cooldown=999;a.maxPosture=10000;a.update=()=>{};g.player.lockTarget=a.enemy;window.target=a;app.simulate(.2);}''')
+ for key,label in [('e','judgement'),('f','end')]:
+  p.evaluate('clean()');before=p.evaluate('target.hp');p.keyboard.press(key);p.evaluate('app.simulate(.48);camera()');p.screenshot(path=str(out/(label+'.png')));p.evaluate('app.simulate(1.3)');after=p.evaluate('target.hp')
+  assert after<before,(label,before,after)
+  assert p.evaluate('app.game.player.techniques.ritual===null'),label
+  results[label]={'damage':before-after,'state':p.evaluate('app.game.player.state')}
+ p.evaluate('clean()');p.keyboard.press('r');p.evaluate('app.simulate(.1);camera()');assert p.evaluate('app.game.player.arts.transform')>7;p.screenshot(path=str(out/'dragon-human.png'));assert p.evaluate('!app.game.form.active');p.keyboard.press('r');p.evaluate('app.simulate(.1)');assert p.evaluate('app.game.player.arts.transform')==0
+ for key,mode in [('1',0),('2',1),('3',2)]:
+  p.evaluate('clean()');p.keyboard.press(key);p.evaluate('app.simulate(.03)');assert p.evaluate('app.game.player.techniques.mode')==mode
+  before=p.evaluate('target.hp');p.keyboard.press('q');p.evaluate('app.simulate(.1);camera()');p.screenshot(path=str(out/f'phantom-{mode}.png'));p.evaluate('app.simulate(1.8)');after=p.evaluate('target.hp');assert after<before,(mode,before,after);assert p.evaluate('app.game.player.techniques.projectiles.length')==0;results['phantom-'+str(mode)]={'damage':before-after}
+ p.evaluate('clean()');p.keyboard.down('q');p.evaluate('app.simulate(.6)');assert p.evaluate('app.game.player.techniques.projectiles.length')>1;p.keyboard.up('q');p.evaluate('app.simulate(2)')
+ p.evaluate('clean()');p.keyboard.down('k');p.keyboard.press('q');p.evaluate('app.simulate(.1)');assert p.evaluate('app.game.player.techniques.projectiles.length')==4;p.keyboard.up('k');p.evaluate('app.simulate(2)')
+ p.evaluate('clean()');p.keyboard.press('e');p.evaluate('app.simulate(.1)');p.keyboard.press('k');p.evaluate('app.simulate(.05)');assert p.evaluate('app.game.player.techniques.ritual===null')
+ for key in ['v','j']:
+  p.evaluate('clean()');p.keyboard.press(key);p.evaluate('app.simulate(.3);camera()');p.screenshot(path=str(out/('launcher.png' if key=='v' else 'combo.png')));p.evaluate('app.simulate(1)');assert p.evaluate('app.game.player.state')=='free'
+ p.evaluate('clean()');p.keyboard.press('Space');p.evaluate('app.simulate(.06)');p.keyboard.down('j');p.evaluate('app.simulate(.35);camera()');p.screenshot(path=str(out/'air-dive.png'));p.keyboard.up('j');p.evaluate('app.simulate(2)');assert p.evaluate('app.game.player.state')=='free'
+ # Export real runtime local bone tracks, including IK corrections, at 30 fps.
+ export=p.evaluate('''()=>{const g=app.game,p=g.player,c=p.character,clips=[];g.player.lockTarget=null;g.director.clear();const names={k1:'黒雨・抜き付け',k2:'黒雨・斬り返し',k3:'黒雨・立ち上がり斬り',k4:'黒雨・二連斬',k5:'黒雨・袈裟締め',branchB:'黒雨・間合い二連',branchC:'黒雨・三連返し',heavy:'黒雨・疾走居合',launcher:'黒雨・昇竜斬',rising:'黒雨・疾走昇斬','jump-katana':'黒雨・空中二連','dive-katana':'黒雨・落下斬',counter:'黒雨・弾き返し',execute:'黒雨・止め斬り'};
+ for(const m of [...p.combo,p.heavy,p.counter,p.execute,p.launcher,p.risingMove,p.jumpMove,p.diveMove,p.branchB,p.branchC]){clean();const id=m.config.id,duration=m.action.getClip().duration*(m.config.clipTo-m.config.clipFrom)/m.config.timeScale,frames=Math.ceil(duration*30),bones=[...g.vergil.bones.values()],tracks=bones.map(b=>({name:b.name+'.quaternion',type:'quaternion',times:[],values:[]}));const hips=g.vergil.target.get('hips'),hip={name:hips.name+'.position',type:'vector',times:[],values:[]};if(m.config.airborne)c.hop.start();p._startMove(m,null);for(let i=0;i<=frames;i++){if(i)app.simulate(1/30);for(let j=0;j<bones.length;j++){tracks[j].times.push(i/30);tracks[j].values.push(...bones[j].quaternion.toArray().map(v=>+v.toFixed(6)));}hip.times.push(i/30);hip.values.push(...hips.position.toArray().map(v=>+v.toFixed(6)));}clips.push({id,name:names[id],duration:frames/30,fps:30,tracks:[...tracks,hip],reconstruction:true,rootMotion:'Movement and airborne travel remain controlled by gameplay; local bone clip only.'});}
+ clean();p.arts.charge();app.simulate(.4);const bones=[...g.vergil.bones.values()];clips.push({id:'stance',name:'黒雨・次元斬の構え',duration:1,fps:30,reconstruction:true,tracks:bones.map(b=>({name:b.name+'.quaternion',type:'quaternion',times:[0,1],values:[...b.quaternion.toArray(),...b.quaternion.toArray()]}))});const sample=(id,name,seconds,begin,step=()=>{})=>{clean();begin();const bones=[...g.vergil.bones.values()],tracks=bones.map(b=>({name:b.name+'.quaternion',type:'quaternion',times:[],values:[]})),hip=g.vergil.target.get('hips'),ht={name:hip.name+'.position',type:'vector',times:[],values:[]},count=Math.ceil(seconds*30);for(let i=0;i<=count;i++){if(i){step(i/30);app.simulate(1/30);}for(let j=0;j<bones.length;j++){tracks[j].times.push(i/30);tracks[j].values.push(...bones[j].quaternion.toArray().map(v=>+v.toFixed(6)));}ht.times.push(i/30);ht.values.push(...hip.position.toArray().map(v=>+v.toFixed(6)));}clips.push({id,name,duration:count/30,fps:30,tracks:[...tracks,ht],reconstruction:true,rootMotion:'Gameplay movement is not included.'});};
+ sample('judgement','黒雨・次元斬',.75,()=>p.techniques.startRitual(false));sample('end','黒雨・次元斬絶',1.4,()=>p.techniques.startRitual(true));sample('sheath','黒雨・納刀所作',2.8,()=>p.arts.startSheath());sample('sheathed','黒雨・納刀直立',4.2,()=>{p.arts.startSheath();app.simulate(3);});sample('walk','黒雨・鞘携行歩き',1.3,()=>{p.arts.startSheath();app.simulate(3);g.input.keys.add('KeyW');},()=>{});g.input.keys.delete('KeyW');sample('dodge','黒雨・残影回避',.7,()=>p._startDodge());
+ const bind={};for(const[b,r]of g.vergil.rest)bind[b.name]={position:r.p.toArray(),quaternion:r.q.toArray(),scale:r.s.toArray(),parent:b.parent?.isBone?b.parent.name:null};for(const clip of clips){clip.sourceRest=bind;clip.rig='vergil-598';} return clips;}''')
+ root=Path('public/animations/vergil');root.mkdir(parents=True,exist_ok=True)
+ for clip in export:
+  ident=clip.pop('id');(root/(ident+'.json')).write_text(json.dumps(clip,ensure_ascii=False,separators=(',',':'))+'\n')
+ assert not errors,errors
+ results['clips']=len(export);results['errors']=errors;(out/'results.json').write_text(json.dumps(results,indent=2));print(json.dumps(results));b.close()

@@ -2,7 +2,7 @@
 export function sheathPose(crouch, idle) {
   if (!crouch || !idle) return crouch;
   const clip = crouch.clone();
-  const torso = /(?:^|[^a-z])(?:mixamorig:?|mixamorig_)?Spine\d*\.quaternion$/i;
+  const torso = /(?:^|[^a-z])(?:mixamorig:?|mixamorig_)?(?:Hips|Spine\d*)\.quaternion$/i;
   clip.tracks = clip.tracks.map(track => {
     if (!torso.test(track.name)) return track;
     const rest = idle.tracks.find(candidate => candidate.name === track.name);

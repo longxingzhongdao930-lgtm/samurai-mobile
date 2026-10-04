@@ -3,6 +3,7 @@ import { ik } from '../combat/WeaponMotion.js';
 
 const smooth = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 export const SHEATH_SECONDS = .75;
+export const FLOURISH_SECONDS = .22;
 
 /** Original game choreography, not a retarget of the supplied MMD motion. */
 export class KatanaSheath {
@@ -80,6 +81,7 @@ export class KatanaSheath {
       return;
     }
     this.drawFromSheath = false;
+    const returning = this.release;
     this.release = null;
     if (!this.copy) {
       this.copy = source.clone(true);
@@ -107,13 +109,27 @@ export class KatanaSheath {
       this.depth = blade.isEmpty() ? .065 : Math.max(.065, 2 * Math.max(Math.abs(blade.min.y), Math.abs(blade.max.y)) + .012);
       h.root.add(this.copy);
     }
-    if (!this.active) {
+    if (p.arts.mode === 'flourish' && p.arts.t < FLOURISH_SECONDS) {
       source.updateWorldMatrix(true, false);
-      this.from = source.getWorldPosition(new Vector3());
-      this.rotation = source.getWorldQuaternion(new Quaternion());
+      this.copy.position.copy(source.getWorldPosition(new Vector3()));
+      this.copy.quaternion.copy(source.getWorldQuaternion(new Quaternion()));
+      source.visible = false; this.copy.visible = true;
+      this.flourishing = true; this.active = true;
+      return;
+    }
+    if (this.flourishing) { this.flourishing = false; this.active = false; }
+    if (!this.active) {
+      if (returning && this.copy.visible) {
+        this.from = this.copy.position.clone();
+        this.rotation = this.copy.quaternion.clone();
+      } else {
+        source.updateWorldMatrix(true, false);
+        this.from = source.getWorldPosition(new Vector3());
+        this.rotation = source.getWorldQuaternion(new Quaternion());
+      }
     }
     this.active = true; source.visible = false; this.copy.visible = true;
-    const t = ['sheathed', 'charge'].includes(p.arts.mode) ? SHEATH_SECONDS : p.arts.t;
+    const t = ['sheathed', 'charge'].includes(p.arts.mode) ? SHEATH_SECONDS : p.arts.t - (p.arts.mode === 'flourish' ? FLOURISH_SECONDS : 0);
     const align = smooth(t / .22), insert = smooth((t - .22) / .43);
     const guard = mouth.clone().addScaledVector(axis, -this.length * (1 - insert));
     this.copy.position.copy(this.from).lerp(guard, align);
@@ -140,11 +156,23 @@ export class KatanaSheath {
         // Once aligned, insertion follows one physical line through the mouth.
         // Its depth is the actual distance between the two hands, not an
         // unreachable straight-line target that detaches the rigid blade.
-        if (align >= 1) h.sheath.quaternion.copy(this.copy.quaternion);
+        h.sheath.quaternion.copy(rotation).slerp(aimed, align);
+        // Keep the wrist's grip orientation consistent with the mounted sword.
+        // Position-only IK otherwise leaves the rigid blade turned in the palm.
+        if (rightHand.parent) {
+          h.turn?.(rightHand);
+          source.updateWorldMatrix(true, false);
+          const desiredHand = this.copy.quaternion.clone()
+            .multiply(source.getWorldQuaternion(new Quaternion()).invert())
+            .multiply(rightHand.getWorldQuaternion(new Quaternion()));
+          const local = rightHand.parent.getWorldQuaternion(new Quaternion()).invert().multiply(desiredHand);
+          rightHand.quaternion.slerp(local, align);
+          rightHand.updateMatrixWorld(true);
+        }
       } else this.copy.position.add(actualGrip.sub(grip));
     }
   }
-  invalidate() { this.copy?.removeFromParent(); this.copy = null; this.active = false; this.drawFromSheath = false; this.release = null; }
+  invalidate() { this.copy?.removeFromParent(); this.copy = null; this.active = false; this.drawFromSheath = false; this.release = null; this.flourishing = false; }
   _hand(side, target, weight) {
     const h = this.presence, c = h.g.player.character;
     const upper = c.getBone(side + 'Arm'), lower = c.getBone(side + 'ForeArm'), hand = c.getBone(side + 'Hand');

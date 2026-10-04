@@ -64,7 +64,8 @@ with sync_playwright() as pw:
             rows.push({t:(i+1)/60,mode:p.arts.mode,leftGap:left.distanceTo(mouth),rightGap:right.distanceTo(grip),
                 left:left.toArray(),right:right.toArray(),mouth:mouth.toArray(),guard:copy.position.toArray(),
                 mouthAxisGap:mouth.clone().sub(copy.position).cross(grip.clone().set(0,0,1).applyQuaternion(copy.quaternion)).length(),
-                axisAngle:copy.quaternion.angleTo(h.sheath.quaternion)});
+                axisAngle:copy.quaternion.angleTo(h.sheath.quaternion),
+                wristAngle:copy.quaternion.angleTo((g.weapons.blade?.()??g.weapons._slot().model).getWorldQuaternion(copy.quaternion.clone()))});
         }
         return rows;
     }""")
@@ -75,11 +76,15 @@ with sync_playwright() as pw:
     aligned=[r for r in timeline if r['t']>=.23]
     assert max(r['mouthAxisGap'] for r in aligned)<.005, 'blade passes through the scabbard mouth'
     assert max(r['axisAngle'] for r in aligned)<.005, 'blade and scabbard share an insertion axis'
+    assert max(r['wristAngle'] for r in aligned)<.005, 'wrist follows the mounted blade orientation'
     transitions=page.evaluate("""() => {
         const g=app.game,p=g.player,h=g.heroPresence,results=[];
-        for(const action of ['guard','draw','flourish']) {
-            g.input.reset();p.arts.cancel();p.revive();p.arts.startSheath();app.simulate(1);
+        for(const action of ['guard','draw','flourish','dodge','weapon','hurt']) {
+            g.input.reset();p.arts.cancel();p.revive();p.setWeapon('katana');p.arts.startSheath();app.simulate(.35);
             if(action==='guard')g.input.press('guard');
+            if(action==='dodge')g.input.press('dodge');
+            if(action==='weapon')p.setWeapon('gauntlet');
+            if(action==='hurt'){p.state='hurt';p.arts.cancel();}
             if(action==='draw'){g.input.press('attack');p.arts.charge();app.simulate(.4);g.input.release('attack');}
             if(action==='flourish')p.arts.startSheath(true);
             let maxStep=0,previous=null;
@@ -94,12 +99,27 @@ with sync_playwright() as pw:
         return results;
     }""")
     (output/'transitions.json').write_text(json.dumps(transitions,indent=2))
+    low_fps=page.evaluate("""() => {
+        const g=app.game,p=g.player,h=g.heroPresence;
+        g.input.reset();p.arts.cancel();p.revive();p.setWeapon('katana');p.arts.startSheath();
+        let maxGap=0,maxAxisGap=0;
+        for(let i=0;i<60;i++){
+            app.simulate(1/30,1/30);app.scene.updateMatrixWorld(true);
+            const copy=h.katanaSheath.copy,hand=p.character.getBone('RightHand').getWorldPosition(copy.position.clone());
+            const grip=copy.position.clone().set(0,0,-.1).applyQuaternion(copy.quaternion).add(copy.position);
+            maxGap=Math.max(maxGap,hand.distanceTo(grip));
+            if(i>7){const axis=grip.clone().set(0,0,1).applyQuaternion(copy.quaternion);maxAxisGap=Math.max(maxAxisGap,h.sheath.position.clone().sub(copy.position).cross(axis).length());}
+        }
+        if(maxGap>.005||maxAxisGap>.005)throw Error('30fps contact regression');
+        return {fps:30,maxGap,maxAxisGap,mode:p.arts.mode};
+    }""")
+    (output/'low-fps.json').write_text(json.dumps(low_fps,indent=2))
     if os.environ.get('KATANA_RECORD') == '1':
         frames=output/'frames';frames.mkdir(exist_ok=True)
-        page.evaluate("() => {const g=app.game;g.input.reset();g.player.arts.cancel();g.player.arts.startSheath();}")
-        for frame in range(60):
+        page.evaluate("flourish => {const g=app.game;g.input.reset();g.player.arts.cancel();g.player.arts.startSheath(flourish);}", os.environ.get('KATANA_MODE') == 'flourish')
+        for frame in range(int(os.environ.get('KATANA_RECORD_FRAMES', '60'))):
             page.evaluate("() => {app.simulate(1/30,1/60);const at=app.game.player.character.position,c=app.rig.camera;c.position.set(at.x+3.1,at.y+1.55,at.z+.4);c.lookAt(at.x,at.y+1.08,at.z);c.fov=42;c.updateProjectionMatrix();app.scene.updateMatrixWorld(true);app.post.render();}")
             page.screenshot(path=str(frames/f'{frame:03d}.png'))
-    print(json.dumps({'poses':reports,'transitions':transitions,'pageErrors':errors}),flush=True)
+    print(json.dumps({'poses':reports,'transitions':transitions,'lowFps':low_fps,'pageErrors':errors}),flush=True)
     assert not errors
     browser.close()

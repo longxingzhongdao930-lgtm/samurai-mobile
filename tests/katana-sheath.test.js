@@ -170,3 +170,44 @@ test('leaving the sheath blends to the held weapon without a one-frame teleport'
   assert.ok(motion.copy.position.distanceTo(source.position) < 1e-9);
   assert.equal(motion.release, null);
 });
+
+test('flourish follows the live held blade before beginning insertion', () => {
+  const source = new Group(); source.position.set(-.4,1.2,.7);
+  const player = { weapon: { id: 'katana' }, arts: { mode: 'flourish', t: .1 },
+    character: { position: new Vector3(), facing: 0, getBone: () => null } };
+  const h = { root: new Group(), sheath: new Group(), g: { player, form: { active: false }, weapons: { _slot: () => ({ model: source }) } } };
+  const motion = new KatanaSheath(h); motion.update();
+  assert.ok(motion.copy.position.equals(source.position));
+  source.position.x += .1; source.rotation.y = .3; player.arts.t = .15; motion.update();
+  assert.ok(motion.copy.position.equals(source.position));
+  assert.ok(motion.copy.quaternion.angleTo(source.quaternion)<1e-7);
+  player.arts.t = .3; motion.update();
+  assert.equal(motion.flourishing,false);
+  assert.ok(!motion.copy.position.equals(source.position));
+});
+
+test('restarting sheath during its exit uses the visible blade instead of the hidden combat blade', () => {
+  const source = new Group(); source.position.set(-.4,1.3,.7);
+  const player = { weapon: { id: 'katana' }, arts: { mode: 'sheathed', t: 1 },
+    character: { position: new Vector3(), facing: 0, getBone: () => null } };
+  const h = { root: new Group(), sheath: new Group(), g: { player, form: { active: false }, weapons: { _slot: () => ({ model: source }) } } };
+  const motion = new KatanaSheath(h); motion.update();
+  player.arts.mode = ''; motion.update(1/60);
+  const visible = motion.copy.position.clone();
+  player.arts.mode = 'sheath'; player.arts.t = 0; motion.update();
+  assert.ok(motion.copy.position.distanceTo(visible)<1e-9);
+  assert.equal(source.visible,false); assert.equal(motion.release,null);
+});
+
+test('wrist rotation keeps the mounted blade aligned with the sheath presentation', () => {
+  const root = new Group(), hand = new Group(), source = new Group();
+  root.add(hand); hand.position.set(-.2,1,.3); hand.add(source); source.rotation.set(.4,.8,-.2);
+  const player = { weapon: { id: 'katana' }, arts: { mode: 'sheath', t: 0 },
+    character: { root, position: new Vector3(), facing: .5, getBone: name => name === 'RightHand' ? hand : null } };
+  const h = { root: new Group(), sheath: new Group(), turn() {}, g: { player, form: { active: false }, weapons: { _slot: () => ({ model: source }) } } };
+  const motion = new KatanaSheath(h); motion._hand = () => {};
+  for (const t of [.22,.4,.65]) {
+    player.arts.t = t; motion.update(); root.updateMatrixWorld(true);
+    assert.ok(source.getWorldQuaternion(motion.copy.quaternion.clone()).angleTo(motion.copy.quaternion)<1e-7);
+  }
+});

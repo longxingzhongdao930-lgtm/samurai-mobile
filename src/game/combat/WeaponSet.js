@@ -1,4 +1,5 @@
 import { recoverLoad } from '../../loaders/RecoverLoad.js';
+import { SwordVariants } from '../hero/SwordVariants.js';
 import { FlyingGauntlet } from './FlyingGauntlet.js';
 import { Color, Group, Quaternion, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -27,6 +28,7 @@ export class WeaponSet {
     this.models = new Map(); // id → Object3D (template)
     this.pending = new Map(); // id → Promise
     this.current = 'katana';
+    this.swords = new SwordVariants(game, this);
     this.shown = null; // { id, objects: [] }
     this.stars = [];
     this.group = new Group();
@@ -37,6 +39,8 @@ export class WeaponSet {
   _slot() {
     return this.game.app.characterScreen?.equipment.get('sword') ?? null;
   }
+
+  blade() { return this.current === 'katana' ? this.swords.blade ?? this._slot()?.model : this.shown?.objects[0] ?? this._slot()?.model; }
 
   load(id) {
     if (this.models.has(id)) return Promise.resolve(this.models.get(id));
@@ -79,8 +83,8 @@ export class WeaponSet {
     const slot = this._slot();
     this._clear();
     if (spec.id === 'katana' || !spec.model) {
-      if (slot?.model) slot.model.visible = true;
-      this._rebindTrail(slot?.model, spec);
+      this.swords.equipBlade();
+      this._rebindTrail(this.blade(), spec);
       return;
     }
     const template = await this.load(spec.id);
@@ -125,6 +129,7 @@ export class WeaponSet {
   }
 
   _clear() {
+    this.swords.clearBlade();
     this.fist?.dispose(); this.fist = null;
     if (!this.shown) return;
     for (const o of this.shown.objects) o.removeFromParent();

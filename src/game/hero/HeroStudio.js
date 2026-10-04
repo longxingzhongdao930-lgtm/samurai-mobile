@@ -1,3 +1,4 @@
+import { SWORD_VARIANTS } from './SwordVariants.js';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { readStored, writeStored } from '../progression/Storage.js';
 import { WEAPON_ORDER, WEAPONS } from '../data/weapons.js';
@@ -10,11 +11,11 @@ export function validateHero(raw={}){
   const build=STYLES[raw?.build]&&counts[STYLES[raw.build].key]>=STYLES[raw.build].need?raw.build:'none';
   const appearance=['plain','hat','mask','coat'].includes(raw?.appearance)?raw.appearance:'plain';
   const sets=Array.isArray(raw?.sets)?raw.sets.slice(0,3).filter(s=>WEAPON_ORDER.includes(s?.weapon)&&Number.isInteger(s.element)&&s.element>=0&&s.element<3).map(s=>({name:typeof s.name==='string'?s.name.slice(0,20):'',weapon:s.weapon,element:s.element,build:STYLES[s.build]?s.build:'none',blessings:Array.isArray(s.blessings)?s.blessings.filter(x=>Array.isArray(x)&&['road','sanctum'].includes(x[0])&&['blade','step','dragon','flow','link'].includes(x[1])).slice(0,2):[]})):[];
-  return {counts,build,appearance,sets};
+  return {counts,build,appearance,sets,sword:SWORD_VARIANTS[raw?.sword]?raw.sword:'mythical'};
 }
 export class HeroStudio {
   constructor(game){this.g=game;Object.assign(this,validateHero(readStored('hero',{})));this.clock={};this.photo=null;}
-  save(){writeStored('hero',{counts:this.counts,build:this.build,appearance:this.appearance,sets:this.sets});}
+  save(){writeStored('hero',{counts:this.counts,build:this.build,appearance:this.appearance,sets:this.sets,sword:this.sword});}
   record(key){
     if(!(key in this.counts))return;
     const now=this.g.elapsed;if(now-(this.clock[key]??-Infinity)<.25)return;this.clock[key]=now;
@@ -25,9 +26,11 @@ export class HeroStudio {
     const g=this.g,j=g.journey;if(g.state==='playing')g.pause();
     const panel=g.screens._panel('gs-settings','<h2 class="gs-h">主人公の支度</h2><p class="gs-tip">C／納：納刀・竜化解除　V／蹴：蹴り<br>居合の構え中は攻撃を離して抜刀、守で解除。</p>');
     const status=document.createElement('p');status.className='gs-tip';status.setAttribute('role','status');panel.append(status);
-    const choose=(name,value,items,fn)=>{const label=document.createElement('label');label.textContent=name;const select=document.createElement('select');select.setAttribute('aria-label',name);for(const [id,text,disabled]of items){const o=document.createElement('option');o.value=id;o.textContent=text;o.disabled=!!disabled;o.selected=id===value;select.append(o)}select.onchange=()=>fn(select.value);label.append(select);panel.append(label)};
+    const choose=(name,value,items,fn)=>{const label=document.createElement('label');label.textContent=name;const select=document.createElement('select');select.setAttribute('aria-label',name);for(const [id,text,disabled]of items){const o=document.createElement('option');o.value=id;o.textContent=text;o.disabled=!!disabled;o.selected=id===value;select.append(o)}select.onchange=()=>fn(select.value);label.append(select);panel.append(label);return select};
     choose('戦いの型',this.build,[['none','基本'],...Object.entries(STYLES).map(([id,s])=>[id,`${s.name}：${s.detail}（${Math.min(s.need,this.counts[s.key])}/${s.need}）`,this.counts[s.key]<s.need])],v=>{this.build=v;this.save()});
     choose('外見',this.appearance,[['plain','通常'],['hat','旅笠'],['mask','朱の半面'],['coat','雨除け羽織']],v=>{this.appearance=v;this.save()});
+    let swordRequest=0;
+    const swordSelect=choose('単刀',this.sword,Object.entries(SWORD_VARIANTS).map(([id,s])=>[id,s.name]),async v=>{const request=++swordRequest;status.textContent='刀と鞘を読み込み中…';try{if(await g.weapons.swords.select(v)){this.sword=v;this.save();g.player.setWeapon('katana');status.textContent='刀と鞘を変更しました';}}catch(e){if(request===swordRequest){swordSelect.value=this.sword;status.textContent='読み込みに失敗しました。再度選んでください';}}});
     const setName=document.createElement('input');setName.type='text';setName.maxLength=20;setName.placeholder='装備名（任意）';setName.setAttribute('aria-label','装備名');panel.append(setName);
     j.button(panel,'装備セットを保存',()=>{const p=g.player;this.sets.unshift({name:setName.value.trim().slice(0,20),weapon:p.weapon.id,element:p.elementIndex,build:this.build,blessings:g.blessings.snapshot()});this.sets.length=Math.min(3,this.sets.length);this.save();this.menu(back)});
     this.sets.forEach((s,i)=>j.button(panel,`装備 ${i+1}：${s.name||WEAPONS[s.weapon].name}`,()=>{

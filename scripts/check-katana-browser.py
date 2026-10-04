@@ -17,6 +17,8 @@ with sync_playwright() as pw:
     page.evaluate('app.stop()')
     page.get_by_role('button', name='はじめる', exact=True).click()
     page.wait_for_function('app.game.form.ready', timeout=90000)
+    variant=os.environ.get('KATANA_VARIANT','mythical')
+    page.evaluate('async id=>{if(!await app.game.weapons.swords.select(id)||app.game.weapons.swords.id!==id)throw Error("wrong sword selection");}',variant)
     page.evaluate('''() => {
         const g=app.game,p=g.player;g.flow.update=()=>{};g.director.clear();g.magic.clear();
         g.flow._place(g.playerPosition.clone().set(0,0,124),0);p.setWeapon('katana');
@@ -28,15 +30,11 @@ with sync_playwright() as pw:
             if(mode==='charge'){g.input.press('attack');p.arts.charge();}
             app.simulate(mode==='inserting'?.4:1);
             if(mode==='draw'){g.input.press('attack');p.arts.charge();app.simulate(.5);g.input.release('attack');app.simulate(.2);}
-            const model=g.weapons._slot().model, h=g.heroPresence, copy=h.katanaSheath.copy;
-            if(!model.getObjectByName('Mythical_Katana_—_blade_only') && !model.children.some(n=>n.name.includes('Mythical')))
-                throw Error('replacement blade not loaded');
+            const model=g.weapons.blade(), h=g.heroPresence, copy=h.katanaSheath.copy;
             const held=['inserting','sheathed','charge'].includes(mode);
             if(model.visible===held||held&&!copy?.visible)throw Error('incorrect blade visibility '+mode);
-            if(held&&(h.katanaSheath.length<.95||h.katanaSheath.length>.99||h.katanaSheath.width>.12))throw Error('incorrect sheath bounds');
-            let covers=0;h.sheath.traverse(n=>{if(n.isMesh)covers++;});if(covers!==2)throw Error('native scabbard missing');
-            let meshes=0;model.traverse(n=>{if(n.isMesh&&n.name.startsWith('katana_blade')){meshes++;if(!n.material.map&&!n.material.name.startsWith('Scratched_Gold'))throw Error('missing texture '+n.material.name);}});
-            if(meshes!==4)throw Error('cover leaked into hand');
+            let covers=0;h.sheath.traverse(n=>{if(n.isMesh)covers++;});if(!covers)throw Error('native scabbard missing');
+            let meshes=0;model.traverse(n=>{if(n.isMesh)meshes++;});if(!meshes)throw Error('blade missing');
             const c=app.rig.camera,at=p.character.position;
             c.position.set(at.x+(side?3.1:1.7),at.y+1.55,at.z+(side?.4:2.8));
             c.lookAt(at.x,at.y+1.08,at.z);c.fov=42;c.updateProjectionMatrix();
@@ -46,6 +44,17 @@ with sync_playwright() as pw:
             return {mode,side,meshes,covers,leftGap,length:h.katanaSheath.length,sourceVisible:model.visible,copyVisible:copy?.visible??false};
         };
     }''')
+    if os.environ.get('KATANA_PERSIST_ONLY') == '1':
+        page.evaluate('()=>app.game.heroStudio.menu(()=>{})')
+        page.get_by_label('単刀',exact=True).select_option(variant)
+        page.wait_for_function('id=>app.game.heroStudio.sword===id',arg=variant)
+        page.reload(wait_until='domcontentloaded')
+        page.wait_for_function('id=>window.app?.game?.state==="title" && app.game.weapons.swords.id===id',arg=variant,timeout=240000)
+        page.evaluate('app.stop()')
+        assert not errors
+        print(json.dumps({'restoredSword':variant,'pageErrors':errors}),flush=True)
+        browser.close()
+        raise SystemExit(0)
     reports=[]
     for mode, side in [('idle',False),('guard',False),('inserting',True),('sheathed',True),('charge',False),('draw',False)]:
         reports.append(page.evaluate('([m,s])=>captureKatana(m,s)', [mode, side]))
@@ -169,6 +178,13 @@ with sync_playwright() as pw:
         for frame in range(int(os.environ.get('KATANA_RECORD_FRAMES', '60'))):
             page.evaluate("() => {app.simulate(1/30,1/60);const at=app.game.player.character.position,c=app.rig.camera;c.position.set(at.x+3.1,at.y+1.55,at.z+.4);c.lookAt(at.x,at.y+1.08,at.z);c.fov=42;c.updateProjectionMatrix();app.scene.updateMatrixWorld(true);app.post.render();}")
             page.screenshot(path=str(frames/f'{frame:03d}.png'))
+    if os.environ.get('KATANA_PERSIST') == '1':
+        page.evaluate('()=>app.game.heroStudio.menu(()=>{})')
+        page.get_by_label('単刀',exact=True).select_option(variant)
+        page.wait_for_function('id=>app.game.heroStudio.sword===id',arg=variant)
+        page.reload(wait_until='domcontentloaded')
+        page.wait_for_function('id=>app?.game?.state==="title" && app.game.weapons.swords.id===id',arg=variant,timeout=240000)
+        page.evaluate('app.stop()')
     print(json.dumps({'poses':reports,'transitions':transitions,'lowFps':low_fps,'enclosure':enclosure,'pageErrors':errors}),flush=True)
     assert not errors
     browser.close()

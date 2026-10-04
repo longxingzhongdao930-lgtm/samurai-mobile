@@ -1,8 +1,6 @@
 import { Group, Mesh, MeshStandardMaterial, ConeGeometry, CylinderGeometry, SphereGeometry, BufferGeometry, Line, LineBasicMaterial, Vector3, DoubleSide } from 'three';
 import { KatanaSheath } from './KatanaSheath.js';
 import { ik } from '../combat/WeaponMotion.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { recoverLoad } from '../../loaders/RecoverLoad.js';
 
 /** Small, reversible pose offsets; no edits to the imported rig or animation tracks. */
 export class HeroPresence {
@@ -20,9 +18,7 @@ export class HeroPresence {
     this.tether=new Line(new BufferGeometry().setFromPoints([new Vector3(),new Vector3()]),new LineBasicMaterial({color:'#9dd8eb',transparent:true,opacity:.5}));this.tether.frustumCulled=false;this.root.add(this.tether);
   }
   async loadScabbard(){
-    const gltf=await recoverLoad('刀の鞘',()=>new GLTFLoader().loadAsync('./models/weapons/mythical-scabbard.glb'));
-    gltf.scene.traverse(node=>{if(node.isMesh){node.castShadow=true;node.receiveShadow=true;}});
-    this.sheath.add(gltf.scene);
+    await this.g.weapons.swords.select(this.g.heroStudio.sword);
   }
   restore(){for(const [bone,q] of this.originals)bone.quaternion.copy(q);this.originals.clear();}
   turn(bone,x=0,y=0,z=0){if(!bone)return;if(!this.originals.has(bone))this.originals.set(bone,bone.quaternion.clone());bone.rotateX(x);bone.rotateY(y);bone.rotateZ(z);}
@@ -83,7 +79,7 @@ export class HeroPresence {
     for(let i=0;i<this.flaps.length;i++)this.flaps[i].rotation.x=-this.sway+Math.sin(g.elapsed*3+i)*.025;
     this.cloth.color.setRGB(.025*(1-arts.dirt*.35),.035*(1-arts.dirt*.35),.045*(1-arts.dirt*.35));
     this.sheath.visible=p.weapon.id==='katana';
-    const blade=g.weapons._slot()?.model;if(blade&&p.weapon.id==='katana')blade.visible=!['sheath','sheathed','charge'].includes(arts.mode);
+    const blade=g.weapons.blade?.() ?? g.weapons._slot()?.model;if(blade&&p.weapon.id==='katana')blade.visible=!['sheath','sheathed','charge'].includes(arts.mode);
     this.katanaSheath.update(dt);
     const fist=g.weapons.fist,f=fist?.flight;
     this.tether.visible=!!f&&(f.time<.2||f.returning||f.grabbed);

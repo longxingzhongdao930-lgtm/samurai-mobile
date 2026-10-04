@@ -8,7 +8,7 @@ export const FLOURISH_SECONDS = .22;
 
 /** Original game choreography, not a retarget of the supplied MMD motion. */
 export class KatanaSheath {
-  constructor(presence, {side='Right', support=true, source=null, offset=null}={}) { this.presence = presence; this.side=side; this.support=support; this.source=source; this.offset=offset; this.active = false; }
+  constructor(presence, {side='Right', support=true, source=null, offset=null, staged=false}={}) { this.presence = presence; this.side=side; this.support=support; this.source=source; this.offset=offset; this.staged=staged; this.active = false; }
   update(dt = 1 / 60) {
     const h = this.presence, g = h.g, p = g.player, c = p.character;
     const yaw = c.facing;
@@ -22,7 +22,7 @@ export class KatanaSheath {
       // wrist's reach; the crouch otherwise puts it below a fully extended arm.
       mouth.add(new Vector3(Math.sin(yaw) * .12, .12, Math.cos(yaw) * .12));
       const arm = c.getBone('LeftArm'), forearm = c.getBone('LeftForeArm'), hand = c.getBone('LeftHand');
-      if (arm && forearm && hand) {
+      if (this.support && arm && forearm && hand) {
         const shoulder = arm.getWorldPosition(new Vector3());
         const elbow = forearm.getWorldPosition(new Vector3());
         const wrist = hand.getWorldPosition(new Vector3());
@@ -34,13 +34,13 @@ export class KatanaSheath {
     if(this.offset)mouth.add(this.offset());
     const axis = new Vector3(-Math.sin(yaw), -.16, -Math.cos(yaw)).normalize();
     if (hips) {
-      // Both hands must reach the final pose: the right wrist holds the hilt
-      // 10 cm behind the mouth. Project the belt mount into their shared reach.
-      const chains = ['Left', 'Right'].map(side => {
+      // The grip is 10 cm behind the mouth. A single sword uses both hands'
+      // shared reach; each dual sword must use only its own holding arm.
+      const chains = (this.support?['Left', 'Right']:[this.side]).map(side => {
         const upper = c.getBone(side + 'Arm'), lower = c.getBone(side + 'ForeArm'), hand = c.getBone(side + 'Hand');
         if (!upper || !lower || !hand) return null;
         const shoulder = upper.getWorldPosition(new Vector3()), elbow = lower.getWorldPosition(new Vector3()), wrist = hand.getWorldPosition(new Vector3());
-        return { center: shoulder.clone().addScaledVector(axis, side === 'Right' ? .1 : 0), reach: shoulder.distanceTo(elbow) + elbow.distanceTo(wrist) - .008 };
+        return { center: shoulder.clone().addScaledVector(axis, !this.support || side === 'Right' ? .1 : 0), reach: shoulder.distanceTo(elbow) + elbow.distanceTo(wrist) - .008 };
       });
       for (let i = 0; i < 12; i++) for (const chain of chains) {
         if (!chain || chain.reach <= 0) continue;
@@ -146,9 +146,10 @@ export class KatanaSheath {
         this.rotation = source.getWorldQuaternion(new Quaternion());
       }
     }
+    if(!this.active)this.fromGrip=c.getBone(this.side+'Hand')?.getWorldPosition(new Vector3());
     this.active = true; source.visible = false; this.copy.visible = true;
     const t = ['sheathed', 'charge'].includes(p.arts.mode) ? SHEATH_SECONDS : p.arts.t - (p.arts.mode === 'flourish' ? FLOURISH_SECONDS : 0);
-    const align = smooth(t / .22), insert = smooth((t - .22) / .43);
+    const align = this.staged?smooth((t-.18)/.16):smooth(t / .22), insert = this.staged?smooth((t-.34)/.31):smooth((t - .22) / .43);
     const guard = mouth.clone().addScaledVector(axis, -this.length * (1 - insert));
     this.copy.position.copy(this.from).lerp(guard, align);
     this.copy.quaternion.copy(this.rotation).slerp(rotation, align);
@@ -156,12 +157,26 @@ export class KatanaSheath {
     // Follow its current hilt rather than the final insertion axis.
     const grip = new Vector3(0, 0, -.1).applyQuaternion(this.copy.quaternion).add(this.copy.position);
     for (const [side, target] of [['Left', mouth], ['Right', grip]]) {
-      this._hand(side, target, align);
+      this._hand(side, target, this.staged?0:align);
     }
     // IK deliberately blends during alignment and cannot reach every point of
     // the old straight-line path. The rigid sword must stay in the real hand,
     // rather than moving ahead of the wrist while that blend catches up.
     const rightHand = c.getBone(this.side+'Hand');
+    // Dual swords first lift clear of the belt, retract, then rotate before
+    // insertion. The actual arm reach keeps the blade attached to the hand.
+    if(this.staged&&rightHand&&this.fromGrip){
+      c.root.updateMatrixWorld(true);
+      const upper=c.getBone(this.side+'Arm'),lower=c.getBone(this.side+'ForeArm');
+      const shoulder=upper.getWorldPosition(new Vector3()),elbow=lower.getWorldPosition(new Vector3()),hand=rightHand.getWorldPosition(new Vector3());
+      const reach=shoulder.distanceTo(elbow)+elbow.distanceTo(hand)-.015;
+      const away=shoulder.clone().sub(mouth).normalize();
+      const outside=shoulder.clone().addScaledVector(away,reach);
+      const finalGrip=mouth.clone().addScaledVector(axis,-.1);
+      const lifted=this.fromGrip.clone().add(new Vector3(0,.2,0));
+      const target=t<.08?this.fromGrip.clone().lerp(lifted,smooth(t/.08)):t<.18?lifted.lerp(outside,smooth((t-.08)/.1)):outside.lerp(finalGrip,insert);
+      this._hand('Right',target,1);
+    }
     if (rightHand) {
       c.root.updateMatrixWorld(true);
       const actualGrip = rightHand.getWorldPosition(new Vector3());
@@ -181,7 +196,7 @@ export class KatanaSheath {
         h.sheath.quaternion.copy(rotation).slerp(scabbardRotation, align);
         // Keep the wrist's grip orientation consistent with the mounted sword.
         // Position-only IK otherwise leaves the rigid blade turned in the palm.
-        this._orientHand(source, rightHand, this.copy.quaternion, align);
+        this._orientHand(source, rightHand, this.copy.quaternion, this.staged?1:align);
       } else this.copy.position.add(actualGrip.sub(grip));
     }
   }

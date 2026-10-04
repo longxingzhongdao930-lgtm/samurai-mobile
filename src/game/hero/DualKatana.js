@@ -23,7 +23,7 @@ export class DualKatana {
         const arts=Object.create(p.arts),player=Object.create(p),game=Object.create(g);
         Object.defineProperty(player,'arts',{value:arts});Object.defineProperty(game,'player',{value:player});
         const proxy={g:game,root:h.root,sheath:index?h.sheath:this.cover,turn:h.turn.bind(h)};
-        const rig=new KatanaSheath(proxy,{side,support:false,source:()=>index?g.weapons.blade():this.left,offset:()=>index?new Vector3():new Vector3(Math.sin(c.facing)*.07,.055,Math.cos(c.facing)*.07)});
+        const rig=new KatanaSheath(proxy,{side,support:false,staged:true,source:()=>index?g.weapons.blade():this.left,offset:()=>index?new Vector3():new Vector3(-Math.sin(c.facing)*.07,-.105,-Math.cos(c.facing)*.07)});
         return Object.assign(rig,{arts,index});
       });
     }

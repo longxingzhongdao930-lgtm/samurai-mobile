@@ -13,14 +13,17 @@ with sync_playwright() as pw:
  assert rows[44]['hands'][0]['guard']<.005 and rows[44]['hands'][1]['guard']>.1, 'left sword seats before right'
  assert max(h['guard'] for h in rows[-1]['hands'])<.005, 'both guards meet the mouths'
  p.evaluate('dualShot()');p.screenshot(path=str(out/'sheathed.png'))
- p.evaluate("""window.dualEnclosure=()=>{app.scene.updateMatrixWorld(true);const h=app.game.heroPresence,ray=new app.characterScreen.raycaster.constructor();return h.dualKatana.rigs.map(rig=>{let tested=0,outside=0;const cover=rig.presence.sheath,materials=new Map();cover.traverse(n=>{for(const m of (Array.isArray(n.material)?n.material:[n.material]))if(m&&!materials.has(m)){materials.set(m,m.side);m.side=2;}});try{rig.copy.traverse(n=>{const a=n.geometry?.attributes.position;if(!a)return;for(let i=0;i<a.count;i++){const vertex=rig.copy.position.clone().fromBufferAttribute(a,i);if(vertex.z<.02)continue;const world=vertex.applyMatrix4(n.matrixWorld),local=cover.worldToLocal(world.clone());if(local.z<.02)continue;tested++;for(const direction of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0]]){ray.set(world,world.clone().set(...direction).transformDirection(cover.matrixWorld));if(!ray.intersectObject(cover,true).length){outside++;break;}}}});}finally{for(const [m,side]of materials)m.side=side;}return {tested,outside};});}""")
+ p.evaluate("""window.dualEnclosure=()=>{app.scene.updateMatrixWorld(true);const h=app.game.heroPresence,ray=new app.characterScreen.raycaster.constructor();return h.dualKatana.rigs.map(rig=>{let tested=0,outside=0,crossings=0;const cover=rig.presence.sheath,materials=new Map();cover.traverse(n=>{for(const m of (Array.isArray(n.material)?n.material:[n.material]))if(m&&!materials.has(m)){materials.set(m,m.side);m.side=2;}});try{rig.copy.traverse(n=>{const attr=n.geometry?.attributes.position,index=n.geometry?.index;if(!attr||!index)return;const edges=new Set();for(let i=0;i<index.count;i+=3){for(const [a,b]of [[index.getX(i),index.getX(i+1)],[index.getX(i+1),index.getX(i+2)],[index.getX(i+2),index.getX(i)]]){const key=Math.min(a,b)+':'+Math.max(a,b);if(edges.has(key))continue;edges.add(key);const va=rig.copy.position.clone().fromBufferAttribute(attr,a),vb=va.clone().fromBufferAttribute(attr,b);if(va.z<.02||vb.z<.02)continue;va.applyMatrix4(n.matrixWorld);vb.applyMatrix4(n.matrixWorld);const direction=vb.clone().sub(va),length=direction.length();if(length<1e-6)continue;ray.set(va,direction.normalize());const hits=ray.intersectObject(cover,true);const inside=point=>[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0]].every(axis=>{const probe=new app.characterScreen.raycaster.constructor();probe.set(point,point.clone().set(...axis).transformDirection(cover.matrixWorld));return probe.intersectObject(cover,true).length>0;});if(hits.some(hit=>hit.distance>1e-5&&hit.distance<length-1e-5&&cover.worldToLocal(hit.point.clone()).z>.02&&inside(hit.point.clone().addScaledVector(direction,-.001))!==inside(hit.point.clone().addScaledVector(direction,.001))))crossings++;}}});rig.copy.traverse(n=>{const a=n.geometry?.attributes.position;if(!a)return;for(let i=0;i<a.count;i++){const vertex=rig.copy.position.clone().fromBufferAttribute(a,i);if(vertex.z<.02)continue;const world=vertex.applyMatrix4(n.matrixWorld),local=cover.worldToLocal(world.clone());if(local.z<.02)continue;tested++;for(const direction of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0]]){ray.set(world,world.clone().set(...direction).transformDirection(cover.matrixWorld));if(!ray.intersectObject(cover,true).length){outside++;break;}}}});}finally{for(const [m,side]of materials)m.side=side;}return {tested,outside,crossings,span:app.game.player.character.getBone(rig.side+'Hand').getWorldPosition(cover.position.clone()).distanceTo(cover.position),length:rig.length,angle:rig.copy.quaternion.angleTo(cover.quaternion)};});}""")
  p.evaluate('()=>{const g=app.game;g.input.reset();g.player.arts.cancel();g.player.revive();g.player.arts.startSheath();}')
  enclosure=[];previous=0
- for t in [.25,.35,.45,.55,.65,.85,1,1.1,1.3]:
-  p.evaluate('dt=>app.simulate(dt,1/60)',t-previous);previous=t
+ for t in [.05,.1,.15,.2,.25,.3,.35,.4,.45,.5,.55,.6,.65,.7,.75,.8,.85,.9,1,1.1,1.3]:
+  p.evaluate('t=>{let steps=0;while(app.game.player.arts.t+1e-9<t){app.simulate(1/60,1/60);if(++steps>120)throw Error("sheath clock stalled");}}',t);previous=t
   sample=p.evaluate('dualEnclosure()');enclosure.append({'t':t,'hands':sample})
+  if os.environ.get('DUAL_CAPTURE_PREP')=='1' and t in [.1,.25,.5,.7]:
+   p.evaluate('dualShot()');p.screenshot(path=str(out/f'prepare-{t:.2f}.png'))
  (out/'enclosure.json').write_text(json.dumps(enclosure,indent=2))
- assert all(hand['tested']>0 and hand['outside']==0 for row in enclosure for index,hand in enumerate(row['hands']) if row['t']-index*.4>=.23), 'both swords stay inside their scabbards during insertion'
+ assert all(hand['crossings']==0 for row in enclosure for hand in row['hands']), 'blade edges do not cross the scabbard boundary'
+ assert all(hand['tested']>0 and hand['outside']==0 for row in enclosure for index,hand in enumerate(row['hands']) if row['t']-index*.4>=.4), 'aligned blades stay inside their scabbards'
  transitions=p.evaluate("""()=>{
   const g=app.game,p=g.player,d=g.heroPresence.dualKatana,results=[];
   for(const action of ['guard','dodge','draw','flourish','hurt']){
@@ -63,9 +66,10 @@ with sync_playwright() as pw:
  if os.environ.get('DUAL_RECORD')=='1':
   frames=out/'frames';frames.mkdir(exist_ok=True)
   p.evaluate('()=>{const g=app.game;g.input.reset();g.player.arts.cancel();g.player.revive();g.player.arts.startSheath();}')
-  for frame in range(84):
-   p.evaluate('()=>{app.simulate(1/30,1/60);dualShot()}')
-   if frame==40:p.evaluate('()=>{const g=app.game;g.input.press("attack");g.player.arts.charge();}')
-   if frame==52:p.evaluate('app.game.input.release("attack")')
+  fps=int(os.environ.get('DUAL_RECORD_FPS','30'))
+  for frame in range(round(2.8*fps)):
+   p.evaluate('dt=>{app.simulate(dt,1/60);dualShot()}',1/fps)
+   if frame==round(40*fps/30):p.evaluate('()=>{const g=app.game;g.input.press("attack");g.player.arts.charge();}')
+   if frame==round(52*fps/30):p.evaluate('app.game.input.release("attack")')
    p.screenshot(path=str(frames/f'{frame:03d}.png'))
  assert not errors;print(json.dumps({'maxGripGap':max(h['gap'] for r in rows for h in r['hands']),'errors':errors}));b.close()

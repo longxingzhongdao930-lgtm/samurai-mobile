@@ -85,7 +85,8 @@ export class PoseLayer {
     }
     const target = this.active ? 1 : 0;
     const rate = dt / Math.max(1e-3, target > this.weight ? this.blendIn : this.blendOut);
-    this.weight = target > this.weight ? Math.min(1, this.weight + rate) : Math.max(0, this.weight - rate);
+    // At full weight, clamp to the target instead of dipping back toward idle.
+    this.weight = target > this.weight ? Math.min(target, this.weight + rate) : Math.max(target, this.weight - rate);
     action.setEffectiveWeight(this.weight);
     if (!this.active && this.weight <= 0) {
       action.stop();

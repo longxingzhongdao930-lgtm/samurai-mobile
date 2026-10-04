@@ -46,7 +46,7 @@ with sync_playwright() as pw:
     }''')
     if os.environ.get('KATANA_PERSIST_ONLY') == '1':
         page.evaluate('()=>app.game.heroStudio.menu(()=>{})')
-        page.get_by_label('単刀',exact=True).select_option(variant)
+        page.get_by_label('刀装',exact=True).select_option(variant)
         page.wait_for_function('id=>app.game.heroStudio.sword===id',arg=variant)
         page.reload(wait_until='domcontentloaded')
         page.wait_for_function('id=>window.app?.game?.state==="title" && app.game.weapons.swords.id===id',arg=variant,timeout=240000)
@@ -180,7 +180,7 @@ with sync_playwright() as pw:
             page.screenshot(path=str(frames/f'{frame:03d}.png'))
     if os.environ.get('KATANA_PERSIST') == '1':
         page.evaluate('()=>app.game.heroStudio.menu(()=>{})')
-        page.get_by_label('単刀',exact=True).select_option(variant)
+        page.get_by_label('刀装',exact=True).select_option(variant)
         page.wait_for_function('id=>app.game.heroStudio.sword===id',arg=variant)
         page.reload(wait_until='domcontentloaded')
         page.wait_for_function('id=>app?.game?.state==="title" && app.game.weapons.swords.id===id',arg=variant,timeout=240000)

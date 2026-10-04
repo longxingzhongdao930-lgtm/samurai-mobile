@@ -8,7 +8,7 @@ export const FLOURISH_SECONDS = .22;
 
 /** Original game choreography, not a retarget of the supplied MMD motion. */
 export class KatanaSheath {
-  constructor(presence) { this.presence = presence; this.active = false; }
+  constructor(presence, {side='Right', support=true, source=null, offset=null}={}) { this.presence = presence; this.side=side; this.support=support; this.source=source; this.offset=offset; this.active = false; }
   update(dt = 1 / 60) {
     const h = this.presence, g = h.g, p = g.player, c = p.character;
     const yaw = c.facing;
@@ -31,6 +31,7 @@ export class KatanaSheath {
         if (reach > 0 && offset.length() > reach) mouth.copy(shoulder).add(offset.setLength(reach));
       }
     }
+    if(this.offset)mouth.add(this.offset());
     const axis = new Vector3(-Math.sin(yaw), -.16, -Math.cos(yaw)).normalize();
     if (hips) {
       // Both hands must reach the final pose: the right wrist holds the hilt
@@ -53,12 +54,12 @@ export class KatanaSheath {
     h.sheath.position.copy(mouth);
     h.sheath.quaternion.copy(rotation);
     h.sheath.scale.setScalar(1);
-    const source = g.weapons.blade?.() ?? g.weapons._slot()?.model;
+    const source = this.source?.() ?? g.weapons.blade?.() ?? g.weapons._slot()?.model;
     const active = p.weapon.id === 'katana' && ['sheath', 'flourish', 'sheathed', 'charge'].includes(p.arts.mode) && !p.dead && !g.form.active;
     if (!source) return;
-    if (p.weapon.id === 'katana' && source.parent && c.getBone('RightHand')) {
+    if (p.weapon.id === 'katana' && source.parent && c.getBone(this.side+'Hand')) {
       c.root.updateMatrixWorld(true);
-      const hand = c.getBone('RightHand').getWorldPosition(new Vector3());
+      const hand = c.getBone(this.side+'Hand').getWorldPosition(new Vector3());
       const localHand = source.parent.worldToLocal(hand);
       const localGrip = new Vector3(0, 0, -.1).multiply(source.scale).applyQuaternion(source.quaternion);
       source.position.copy(localHand.sub(localGrip));
@@ -79,7 +80,7 @@ export class KatanaSheath {
         source.updateWorldMatrix(true, false);
         this.copy.position.copy(this.release.position).lerp(source.getWorldPosition(new Vector3()), blend);
         this.copy.quaternion.copy(this.release.rotation).slerp(source.getWorldQuaternion(new Quaternion()), blend);
-        const rightHand = c.getBone('RightHand');
+        const rightHand = c.getBone(this.side+'Hand');
         if (rightHand) {
           c.root.updateMatrixWorld(true);
           const hand = rightHand.getWorldPosition(new Vector3());
@@ -160,7 +161,7 @@ export class KatanaSheath {
     // IK deliberately blends during alignment and cannot reach every point of
     // the old straight-line path. The rigid sword must stay in the real hand,
     // rather than moving ahead of the wrist while that blend catches up.
-    const rightHand = c.getBone('RightHand');
+    const rightHand = c.getBone(this.side+'Hand');
     if (rightHand) {
       c.root.updateMatrixWorld(true);
       const actualGrip = rightHand.getWorldPosition(new Vector3());
@@ -195,6 +196,8 @@ export class KatanaSheath {
     hand.updateMatrixWorld(true);
   }
   _hand(side, target, weight) {
+    if(!this.support && side==='Left')return;
+    if(side==='Right')side=this.side;
     const h = this.presence, c = h.g.player.character;
     const upper = c.getBone(side + 'Arm'), lower = c.getBone(side + 'ForeArm'), hand = c.getBone(side + 'Hand');
     if (!upper || !lower || !hand) return;

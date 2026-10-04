@@ -45,3 +45,10 @@ test('expiry lets a committed dragon strike land once before returning to human 
  let strikes=0,ended=0;const f=Object.assign(Object.create(DragonForm.prototype),{time:.01,duration:10,guardReserve:100,_skillCd:0,_comboIdle:0,attack:{spec:{speed:1,hitAt:.5,end:.8},t:.49,duration:1,struck:false},game:{player:{_hold:()=>({})}},_strike(){strikes++},end(){ended++}});
  const input={held:{},pending:()=>false,consume(){}};f.control(.02,input);assert.equal(strikes,1);assert.equal(ended,0);f.control(.02,input);assert.equal(ended,1);assert.equal(strikes,1);
 });
+
+test('dual swords wait for the second scabbard before completing the sheathing reward',()=>{
+ const p={state:'free',dead:false,spirit:{calm:0},weapon:{id:'katana'}},g={form:{active:false},weapons:{swords:{id:'dual'}},_nearest:()=>null,hud:{notice(){}}};
+ const a=Object.assign(Object.create(HeroArts.prototype),{p,g,pose:{hold(){}},mode:'sheath',t:0,rewardAvailable:true});
+ const input={pending:()=>false,moving:false};a.control(.8,input);assert.equal(a.mode,'sheath');assert.equal(p.spirit.calm,0);
+ a.control(.4,input);assert.equal(a.mode,'sheathed');assert.equal(p.spirit.calm,12);assert.equal(a.rewardAvailable,false);
+});

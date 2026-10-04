@@ -35,6 +35,7 @@ export class KatanaSheath {
     if(this.offset)mouth.add(this.offset());
     const carrying = p.weapon.id==='katana' && p.state==='free' && !p.guarding && !c.airHeight && !p.dead && !g.form.active && (!p.arts.mode || p.arts.mode==='sheathed');
     this.carryWeight = (this.carryWeight??0) + ((carrying?1:0)-(this.carryWeight??0))*(1-Math.exp(-dt*16));
+    if(p.arts.mode==='charge')mouth.add(new Vector3(Math.sin(yaw)*.12,.025,Math.cos(yaw)*.12));
     const axis = new Vector3(-Math.sin(yaw), p.arts.mode==='charge'?.12:-.16, -Math.cos(yaw)).normalize();
     if (hips) {
       // The grip is 10 cm behind the mouth. A single sword uses both hands'
@@ -60,9 +61,13 @@ export class KatanaSheath {
       const reach=shoulder.distanceTo(leftFore.getWorldPosition(new Vector3()))+leftFore.getWorldPosition(new Vector3()).distanceTo(leftHand.getWorldPosition(new Vector3()));
       const lateral=new Vector3(Math.cos(yaw),0,-Math.sin(yaw));
       const outward=lateral.multiplyScalar(Math.sign(shoulder.clone().sub(c.position).dot(lateral))||1);
-      const target=shoulder.clone().addScaledVector(outward,.16).add(new Vector3(Math.sin(yaw)*.035,-reach*.98,Math.cos(yaw)*.035));
+      const forward=new Vector3(Math.sin(yaw),0,Math.cos(yaw));
+      const moving=(g.app.controller.speed??0)>=.1;
+      const swing=moving?Math.max(-.04,Math.min(.16,leftHand.getWorldPosition(new Vector3()).sub(shoulder).dot(forward))):.035;
+      const target=shoulder.clone().addScaledVector(outward,.16).addScaledVector(forward,swing).add(new Vector3(0,-reach*.98,0));
       const carryDelta=target.clone().sub(shoulder);
       if(carryDelta.length()>reach*.993)target.copy(shoulder).add(carryDelta.setLength(reach*.993));
+      // Retain the walk's forward/back swing with a lowered, outside arm.
       this._hand('Left',target,this.carryWeight);
       const carriedAxis=new Vector3(-Math.sin(yaw)*.62,-.77,-Math.cos(yaw)*.62).addScaledVector(outward,-.06).normalize();
       axis.lerp(carriedAxis,this.carryWeight).normalize();
@@ -226,7 +231,8 @@ export class KatanaSheath {
       const away=shoulder.clone().sub(mouth).setY(0).normalize();
       const retract=this.reference?away.multiplyScalar(reach*.86).add(new Vector3(Math.sin(yaw)*reach*.3,-.03,Math.cos(yaw)*reach*.3)):away.setLength(reach);
       const outside=shoulder.clone().add(retract);
-      const finalGrip=mouth.clone().addScaledVector(axis,-.1);
+      // Hold a short visible blade section between the guard and mouth.
+      const finalGrip=mouth.clone().addScaledVector(axis,p.arts.mode==='charge'?-.19:-.1);
       const lifted=this.fromGrip.clone().add(new Vector3(Math.sin(yaw)*.2,.2,Math.cos(yaw)*.2));
       const liftEnd=profile?.lift??.08,retractEnd=profile?.retract??.18;
       const target=t<liftEnd?this.fromGrip.clone().lerp(lifted,smooth(t/liftEnd)):t<retractEnd?lifted.lerp(outside,smooth((t-liftEnd)/(retractEnd-liftEnd))):outside.lerp(finalGrip,insert);

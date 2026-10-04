@@ -12,8 +12,8 @@ export function vergilIaiStance(crouch, idle) {
     const value=Array.from((TORSO.test(track.name)&&rest?rest:track).createInterpolant().evaluate(TORSO.test(track.name)&&rest?0:crouch.duration*.35));
     if(/Spine\d*\.quaternion$/i.test(track.name)){
       const q=new Quaternion().fromArray(value);
-      q.multiply(new Quaternion().setFromAxisAngle(new Vector3(1,0,0),.075));
-      q.multiply(new Quaternion().setFromAxisAngle(new Vector3(0,1,0),-.07));
+      q.multiply(new Quaternion().setFromAxisAngle(new Vector3(1,0,0),.09));
+      q.multiply(new Quaternion().setFromAxisAngle(new Vector3(0,1,0),-.13));
       q.toArray(value);
     }
     result.times=new Float32Array([0,1]);

@@ -102,7 +102,7 @@ export class PlayerCombat {
     const onStrike = (move, index) => this._onStrike(move, index);
     const make = (config) => {
       let animation=clip(config.clip);
-      if(config.id==='heavy'&&this.weapon.id==='katana'&&config.clip==='crouchSlash')animation=vergilIaiCut(animation,vergilIaiStance(character.clips.get('crouch'),character.clips.get('idle')),character.clips.get('idle'));
+      if(config.id==='heavy'&&this.weapon.id==='katana'&&config.clip==='crouchSlash')animation=vergilIaiCut(animation,vergilIaiStance(character.clips.get('crouch'),character.clips.get('idle')),character.clips.get('idle'),2.8);
       if(config.airborne&&animation)animation.tracks=animation.tracks.filter(track=>/(?:Spine\d*|(?:Left|Right)(?:Shoulder|Arm|ForeArm|Hand)(?:\w*))\.quaternion$/i.test(track.name));
       return new Attack(mixer,animation,character,{config,onStrike});
     };
@@ -139,7 +139,7 @@ export class PlayerCombat {
     if (!this._sets.has(key)) {
       this._sets.set(key, {
         combo: weapon.combo.map(this._make),
-        heavy: this._make(weapon.heavy),
+        heavy: this._make(weapon.id==='katana'?{...weapon.heavy,timeScale:1,hits:[.3],warpAt:.3,turnAt:.12,passAt:.48}:weapon.heavy),
         counter: this._make(weapon.counter),
         execute: this._make(weapon.execute),
         jump: this._make(jumpAttack(weapon))

@@ -19,5 +19,8 @@ with sync_playwright() as pw:
  p.keyboard.up('w');p.evaluate('app.simulate(.3)');p.keyboard.down('j');p.evaluate('app.simulate(.4)');assert p.evaluate('app.game.player.arts.mode')=='charge'
  p.keyboard.up('j');p.evaluate('app.simulate(.1)');assert p.evaluate('app.game.player.state')=='attack'
  p.evaluate('app.simulate(2)');p.keyboard.press('Shift');p.evaluate('app.simulate(.03)');assert p.evaluate('app.game.player.state')=='dodge'
+ page_rest=p.evaluate("""()=>{const g=app.game,p=g.player,c=p.character;g.input.reset();app.simulate(1);p.arts.startSheath();app.simulate(3);const rows=[];for(let i=0;i<30;i++){app.simulate(.2);const chest=c.getBone('Spine2').getWorldQuaternion(c.root.quaternion.clone()).toArray(),arms=['Left','Right'].map(s=>{const a=c.getBone(s+'Arm').getWorldPosition(c.position.clone()),e=c.getBone(s+'ForeArm').getWorldPosition(c.position.clone()),h=c.getBone(s+'Hand').getWorldPosition(c.position.clone());return {drop:a.y-h.y,reach:a.distanceTo(h)/(a.distanceTo(e)+e.distanceTo(h))};});rows.push({chest,arms});}return rows;}""")
+ assert all(a['drop']>.3 and a['reach']>.95 and a['reach']<1 for r in page_rest for a in r['arms']),page_rest
+ assert max(sum((r['chest'][i]-page_rest[0]['chest'][i])**2 for i in range(4))**.5 for r in page_rest)>.001,page_rest
  assert not errors,errors
  print(json.dumps({'distance':rows['distance'],'maxContactGap':max(r['gap'] for r in rows['rows']),'minBodyClearance':min(r['clearance'] for r in rows['rows']),'maxArmReachRatio':max(r['reachRatio'] for r in rows['rows']),'errors':errors}));b.close()

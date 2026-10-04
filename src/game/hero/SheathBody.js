@@ -20,7 +20,10 @@ export class SheathBody {
     const charging=eligible&&a.mode==='charge';
     const active=eligible&&(charging||['sheath','flourish','sheathed'].includes(a.mode));
     let target=[0,0,0,0,0];
-    if(charging){
+    if(eligible&&a.mode==='sheathed'&&p.state==='free'&&(h.g.app.controller.speed??0)<.1){
+      const breath=Math.sin(h.g.elapsed*Math.PI*2*.24),shift=Math.sin(h.g.elapsed*.7);
+      target=[.007*breath,.004*shift,.006*breath,.003*breath,-.003*breath];
+    }else if(charging){
       const u=smoothPhase(a.t,0,.18);
       target=[.04*u,-.04*u,-.06*u,-.015*u,.015*u];
     }else if(active){

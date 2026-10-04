@@ -16,3 +16,10 @@ test('reference entry and recovery meet their held endpoints without mutating so
  }
  assert.deepEqual(source.toJSON(),before);
 });
+test('full-body reconstruction does not inherit the old cutting motion',()=>{
+ const source=clip('old-cut'),other=clip('different-cut'),idle=clip('idle');
+ other.tracks[0].values.fill(0);other.tracks[1].values.fill(100);
+ const stance=vergilIaiStance(clip('crouch'),idle);
+ const a=vergilIaiCut(source,stance,idle),b=vergilIaiCut(other,stance,idle);
+ const aj=a.toJSON(),bj=b.toJSON();delete aj.uuid;delete bj.uuid;assert.deepEqual(aj,bj);
+});

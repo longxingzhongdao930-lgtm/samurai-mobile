@@ -4,10 +4,11 @@ import { smoothPhase } from './SheathReference.js';
 // Reconstructed single-blade path. Coordinates use the moving shoulder frame:
 // outward right, down from shoulder, forward. Hit phase matches the attack data.
 const KEYS=[
-  [.16,-.28,-.35,.28,  -.15,.1,1],
-  [.35, .04,-.28,.43,  -.8,.05,.6],
-  [.66, .34,-.18,.28,   1,.08,.24],
-  [.79, .23,-.12,.22,   .6,.7,.22],
+  [.12,-.28,-.35,.28,  -.15,.1,1],
+  [.25, .04,-.28,.43,  -.8,.05,.6],
+  [.38, .34,-.18,.28,   1,.08,.24],
+  [.55, .04, .25,.16,   .65,.6,.24],
+  [.8,  .04, .25,.16,   .65,.6,.24],
   [.94, .04,-.35,.24,   .1,.5,.9]
 ];
 export class VergilIaiMotion {
@@ -15,7 +16,7 @@ export class VergilIaiMotion {
   update(){
     const h=this.h,g=h.g,p=g.player,c=p.character;
     if(p.weapon.id!=='katana'||p.state!=='attack'||p.move!==p.heavy||p.dead||g.form.active)return;
-    const phase=p.move.phase,w=smoothPhase(phase,.14,.24)*(1-smoothPhase(phase,.8,.95));
+    const phase=p.move.phase,w=smoothPhase(phase,.14,.24)*(1-smoothPhase(phase,.88,.99));
     if(w<=0)return;
     let i=KEYS.findIndex(k=>k[0]>=phase);if(i<1)i=phase>KEYS.at(-1)[0]?KEYS.length-1:1;
     const a=KEYS[i-1],b=KEYS[i],u=smoothPhase(phase,a[0],b[0]),v=a.slice(1).map((n,j)=>n+(b[j+1]-n)*u);

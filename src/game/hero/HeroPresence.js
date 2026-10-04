@@ -1,10 +1,11 @@
 import { Group, Mesh, MeshStandardMaterial, ConeGeometry, CylinderGeometry, BoxGeometry, SphereGeometry, BufferGeometry, Line, LineBasicMaterial, Vector3, DoubleSide } from 'three';
+import { KatanaSheath } from './KatanaSheath.js';
 import { ik } from '../combat/WeaponMotion.js';
 
 /** Small, reversible pose offsets; no edits to the imported rig or animation tracks. */
 export class HeroPresence {
   constructor(game){
-    this.g=game;this.originals=new Map();this.look=0;this.speed=0;this.sway=0;
+    this.g=game;this.katanaSheath=new KatanaSheath(this);this.originals=new Map();this.look=0;this.speed=0;this.sway=0;
     this.root=new Group();game.app.scene.add(this.root);
     const cloth=new MeshStandardMaterial({color:'#252f39',roughness:.95,side:DoubleSide});this.cloth=cloth;
     this.hat=new Mesh(new ConeGeometry(.43,.14,24),new MeshStandardMaterial({color:'#584632',roughness:1}));
@@ -76,6 +77,7 @@ export class HeroPresence {
     this.cloth.color.setRGB(.025*(1-arts.dirt*.35),.035*(1-arts.dirt*.35),.045*(1-arts.dirt*.35));
     this.sheath.visible=p.weapon.id==='katana';this.sheath.position.copy(c.position).add(new Vector3(Math.cos(c.facing)*.25,.9,-Math.sin(c.facing)*.25));this.sheath.rotation.set(0,c.facing+.25,-.12);
     const blade=g.weapons._slot()?.model;if(blade&&p.weapon.id==='katana')blade.visible=!['sheath','sheathed','charge'].includes(arts.mode);
+    this.katanaSheath.update();
     const fist=g.weapons.fist,f=fist?.flight;
     this.tether.visible=!!f&&(f.time<.2||f.returning||f.grabbed);
     if(this.tether.visible){const a=this.tether.geometry.attributes.position,home=fist.home();a.setXYZ(0,home.x,home.y,home.z);a.setXYZ(1,f.pos.x,f.pos.y,f.pos.z);a.needsUpdate=true;}

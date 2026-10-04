@@ -37,9 +37,9 @@ test('dragon wing guard costs reserve and never blocks unblockable damage',()=>{
 test('empty sheathing cannot farm calm, but one landed attack funds one completion',()=>{
  const p={state:'free',dead:false,spirit:{calm:0},weapon:{id:'katana'}},g={form:{active:false},weapons:{},_nearest:()=>null,hud:{notice(){}}};
  const a=Object.assign(Object.create(HeroArts.prototype),{p,g,pose:{hold(){}},mode:'sheath',t:0,rewardAvailable:false});
- const input={pending:()=>false,moving:false};a.control(.6,input);assert.equal(p.spirit.calm,0);
- a.mode='sheath';a.t=0;a.rewardAvailable=true;a.control(.6,input);assert.equal(p.spirit.calm,12);assert.equal(a.rewardAvailable,false);
- a.mode='sheath';a.t=0;a.control(.6,input);assert.equal(p.spirit.calm,12);
+ const input={pending:()=>false,moving:false};a.control(.8,input);assert.equal(p.spirit.calm,0);
+ a.mode='sheath';a.t=0;a.rewardAvailable=true;a.control(.8,input);assert.equal(p.spirit.calm,12);assert.equal(a.rewardAvailable,false);
+ a.mode='sheath';a.t=0;a.control(.8,input);assert.equal(p.spirit.calm,12);
 });
 test('expiry lets a committed dragon strike land once before returning to human form',()=>{
  let strikes=0,ended=0;const f=Object.assign(Object.create(DragonForm.prototype),{time:.01,duration:10,guardReserve:100,_skillCd:0,_comboIdle:0,attack:{spec:{speed:1,hitAt:.5,end:.8},t:.49,duration:1,struck:false},game:{player:{_hold:()=>({})}},_strike(){strikes++},end(){ended++}});

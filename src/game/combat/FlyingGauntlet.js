@@ -13,11 +13,6 @@ export class FlyingGauntlet {
     this.model.scale.setScalar(1.35);
     this.model.name = 'Flying Daedric Gauntlet';
     game.app.scene.add(model);
-    this.grip=0;this.fingers=[];
-    model.traverse(o=>{if(!o.isMesh||!o.geometry?.attributes.position)return;
-      o.geometry=o.geometry.clone();const a=o.geometry.attributes.position,n=o.geometry.attributes.normal;
-      this.fingers.push({geometry:o.geometry,positions:a.array.slice(),normals:n?.array.slice()});
-    });
     this.down = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), new Vector3(0, -1, 0));
   }
   home() {
@@ -150,20 +145,11 @@ export class FlyingGauntlet {
     // lower-arm segment too, while leaving the left hand intact.
     this.hand?.scale.setScalar(0.001);
     this.forearm?.scale.setScalar(0.001);
-    const grip=this.flight?.grabbed?1:this.flight&&!this.flight.returning?.65:.08;
-    if(Math.abs(grip-this.grip)>.001){this.grip+=(grip-this.grip)*(g.app.paused?0:.3);
-      for(const data of this.fingers){const a=data.geometry.attributes.position,n=data.geometry.attributes.normal;
-        for(let i=0;i<a.count;i++){const j=i*3,z=data.positions[j+2],w=Math.max(0,Math.min(1,(z-.075)/.1)),angle=this.grip*w*.65;
-          const y=data.positions[j+1],dz=z-.075,co=Math.cos(angle),si=Math.sin(angle);
-          a.setXYZ(i,data.positions[j],y*co-dz*si,.075+y*si+dz*co);
-          if(n&&data.normals)n.setXYZ(i,data.normals[j],data.normals[j+1]*co-data.normals[j+2]*si,data.normals[j+1]*si+data.normals[j+2]*co);
-        }a.needsUpdate=true;if(n)n.needsUpdate=true;
-      }
-    }
+    // Keep the authored rigid mesh intact, including interleaved vertex buffers.
     this.model.position.copy(this.flight?.pos ?? this.home());
     if (this.flight && !this.flight.returning) this.model.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), this.flight.direction);
     else this.model.quaternion.copy(this.down);
   }
   clear() { this._releaseGrab(false); this.flight = null; this.queue.length = 0; this.restoreHand(); }
-  dispose() { this.clear(); for(const d of this.fingers)d.geometry.dispose();this.model.removeFromParent(); }
+  dispose() { this.clear(); this.model.removeFromParent(); }
 }

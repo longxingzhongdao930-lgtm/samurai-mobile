@@ -9,7 +9,9 @@ export const FLOURISH_SECONDS = .22;
 
 /** Reference-timed hand/weapon IK; the default fallback keeps legacy timings. */
 export class KatanaSheath {
-  constructor(presence, {side='Right', support=true, source=null, offset=null, staged=false, reference=null}={}) { this.presence = presence; this.side=side; this.support=support; this.source=source; this.offset=offset; this.staged=staged; this.reference=reference; this.active = false; }
+  constructor(presence, {side='Right', support=true, source=null, offset=null, staged=false, reference=null}={}) { this.presence = presence; this.side=side; this.support=support; this.source=source; this.offset=offset; this.staged=staged; this.reference=reference; this.active = false;
+    this.wristRest=new Map();presence.g.player.character.model?.traverse(mesh=>{if(!mesh.isSkinnedMesh)return;const sk=mesh.skeleton;for(const side of ['Left','Right']){const hand=presence.g.player.character.getBone(side+'Hand'),i=sk.bones.indexOf(hand),parent=sk.bones.indexOf(hand?.parent);if(i<0||parent<0)continue;const matrix=sk.boneInverses[i].clone().invert().premultiply(sk.boneInverses[parent]);const q=new Quaternion();matrix.decompose(new Vector3(),q,new Vector3());this.wristRest.set(side,q);}});
+  }
   update(dt = 1 / 60) {
     const h = this.presence, g = h.g, p = g.player, c = p.character;
     const yaw = c.facing;
@@ -74,6 +76,7 @@ export class KatanaSheath {
       this.carryGripDepth=.36;
       mouth.copy(leftHand.getWorldPosition(new Vector3())).addScaledVector(axis,-this.carryGripDepth);
     }
+    if(p.weapon.id==='katana'&&p.state==='attack'&&p.move?.config?.referenceMotion&&leftHand){c.root.updateMatrixWorld(true);mouth.copy(leftHand.getWorldPosition(new Vector3()));}
     if(this.reference?.handheld&&['sheath','flourish'].includes(p.arts.mode)&&leftArm&&leftFore&&leftHand){
       const t=Math.max(0,p.arts.t-(p.arts.mode==='flourish'?this.reference.flourish:0));
       if(!this.heldStart||p.arts.t<(this.heldTime??0))this.heldStart={mouth:h.sheath.position.clone(),axis:new Vector3(0,0,1).applyQuaternion(h.sheath.quaternion)};
@@ -95,7 +98,7 @@ export class KatanaSheath {
     h.sheath.position.copy(mouth);
     h.sheath.quaternion.copy(rotation);
     h.sheath.scale.setScalar(1);
-    if(this.reference&&p.weapon.id==='katana'&&p.state==='attack'&&p.move===p.heavy){
+    if(this.reference&&p.weapon.id==='katana'&&p.state==='attack'&&p.move===p.heavy&&!p.move.config?.referenceMotion){
       const weight=1-smoothPhase(p.move.phase,.72,.94);
       this._hand('Left',mouth,weight);
     }
@@ -300,6 +303,21 @@ export class KatanaSheath {
     out.normalize();
     const target=shoulder.clone().addScaledVector(out,.02).add(new Vector3(Math.sin(c.facing)*.025,-reach*.993,Math.cos(c.facing)*.025));
     this._hand(this.support?side:'Right',target,weight);
+  }
+  straightenWrist(side){
+    const h=this.presence,c=h.g.player.character,hand=c.getBone(side+'Hand'),fore=c.getBone(side+'ForeArm');
+    const finger=c.getBone(side+'HandMiddle1')??hand?.children.find(b=>b.isBone&&/Middle/.test(b.name));
+    if(!hand||!fore)return;
+    if(!finger){const rest=this.wristRest.get(side);if(rest){h.turn(hand);hand.quaternion.copy(rest);hand.updateMatrixWorld(true);}return;}
+    c.root.updateMatrixWorld(true);
+    const wrist=hand.getWorldPosition(new Vector3());
+    const axis=finger.getWorldPosition(new Vector3()).sub(wrist).normalize();
+    const direction=wrist.clone().sub(fore.getWorldPosition(new Vector3())).normalize();
+    if(!axis.lengthSq()||!direction.lengthSq())return;
+    h.turn(hand);
+    const world=new Quaternion().setFromUnitVectors(axis,direction).multiply(hand.getWorldQuaternion(new Quaternion()));
+    hand.quaternion.copy(hand.parent.getWorldQuaternion(new Quaternion()).invert().multiply(world));
+    hand.updateMatrixWorld(true);
   }
   invalidate() { this.copy?.removeFromParent(); this.copy = null; this.active = false; this.drawFromSheath = false; this.release = null; this.flourishing = false; this.seated=null; }
   _orientHand(source, hand, rotation, weight) {

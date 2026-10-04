@@ -1,5 +1,5 @@
 import { VergilIaiMotion } from './VergilIaiMotion.js';
-import { Group, Mesh, MeshStandardMaterial, ConeGeometry, CylinderGeometry, SphereGeometry, BufferGeometry, Line, LineBasicMaterial, Vector3, DoubleSide } from 'three';
+import { Group, Mesh, MeshStandardMaterial, ConeGeometry, CylinderGeometry, SphereGeometry, BufferGeometry, Line, LineBasicMaterial, Vector3, RingGeometry, MeshBasicMaterial, AdditiveBlending, DoubleSide } from 'three';
 import { SheathBody } from './SheathBody.js';
 import { SHEATH_REFERENCE } from './SheathReference.js';
 import { KatanaSheath } from './KatanaSheath.js';
@@ -15,6 +15,7 @@ export class HeroPresence {
     this.mask=new Mesh(new SphereGeometry(.115,12,8),new MeshStandardMaterial({color:'#8e3929',roughness:.6}));this.mask.scale.set(1,.72,.32);
     this.coat=new Group();this.flaps=[];
     for(const side of [-1,1]){const f=new Mesh(new CylinderGeometry(.255,.31,.6,12,4,true,side<0?.55:Math.PI,Math.PI-.55),cloth);f.position.set(0,-.17,0);this.flaps.push(f);this.coat.add(f);}
+    this.chargeRing=new Mesh(new RingGeometry(.11,.125,32),new MeshBasicMaterial({color:'#99d9ff',transparent:true,opacity:0,depthWrite:false,side:DoubleSide,blending:AdditiveBlending}));this.root.add(this.chargeRing);
     this.sheath=new Group();this.sheath.name='Mythical scabbard mount';
     this.root.add(this.hat,this.mask,this.coat,this.sheath);
     const dragonMaterial=new MeshStandardMaterial({color:'#abcce2',emissive:'#224e80',emissiveIntensity:.8,metalness:.65,roughness:.35});
@@ -99,6 +100,9 @@ export class HeroPresence {
     const blade=g.weapons.blade?.() ?? g.weapons._slot()?.model;if(blade&&p.weapon.id==='katana')blade.visible=!['sheath','sheathed','charge'].includes(arts.mode);
     this.iaiMotion.update();
     this.katanaSheath.update(dt);
+    if(p.weapon.id==='katana'&&p.state==='free'&&!p.guarding&&arts.mode==='sheathed'&&!c.airHeight){for(const side of ['Left','Right'])this.katanaSheath.straightenWrist(side);}
+    this.chargeRing.visible=p.weapon.id==='katana'&&arts.mode==='charge';
+    if(this.chargeRing.visible){const ready=Math.min(1,arts.t/.32);this.chargeRing.position.copy(this.sheath.position);this.chargeRing.quaternion.copy(g.app.rig.camera.quaternion);this.chargeRing.scale.setScalar(.7+ready*.45+Math.sin(arts.t*18)*.12);this.chargeRing.material.opacity=.25+ready*.35;if(g.elapsed>(this.chargeSparkAt??0)){this.chargeSparkAt=g.elapsed+.09;g.fx.glow.spawn(this.sheath.position,'#aee9ff',.08+ready*.06,.16,{star:true,grow:1,intensity:.65});}}
     const fist=g.weapons.fist,f=fist?.flight;
     this.tether.visible=!!f&&(f.time<.2||f.returning||f.grabbed);
     if(this.tether.visible){const a=this.tether.geometry.attributes.position,home=fist.home();a.setXYZ(0,home.x,home.y,home.z);a.setXYZ(1,f.pos.x,f.pos.y,f.pos.z);a.needsUpdate=true;}

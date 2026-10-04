@@ -64,7 +64,7 @@ export class HeroArts {
         if(p.weapon.id==='gauntlet'&&fist?.flight)return null;
         const charged=this.t>=.32,linked=p.weapon.id==='gauntlet'&&this.link>0;this.cancel();
         if(linked)p.setWeapon('katana');
-        p._startMove(charged?p.heavy:p.combo[0],p.lockTarget??p._autoTarget(p.heavy.config,8));return p._held;
+        p._startMove(charged?p.heavy:(p.weapon.id==='katana'&&p.quickDraw?p.quickDraw:p.combo[0]),p.lockTarget??p._autoTarget(p.heavy.config,8));return p._held;
       }
       if(this.t>=.32&&!this._chargeCue){this._chargeCue=true;g.hud.notice('居合準備 — 離して抜刀 · 守で解除',1.6);}
       return null;

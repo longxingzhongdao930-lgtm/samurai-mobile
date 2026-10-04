@@ -16,7 +16,7 @@ export class SheathBody {
   constructor(presence) {
     this.h=presence; this.pose=[0,0,0,0,0];
     const walk=presence.g.player.character.clips.get('walk');
-    this.upright=(walk?.tracks??[]).filter(t=>/(?:Hips|Spine\d*|(?:Left|Right)(?:Shoulder|Arm|ForeArm|Hand))\.quaternion$/i.test(t.name)).map(t=>({name:t.name.split('.')[0],value:Array.from(t.createInterpolant().evaluate(0))}));
+    this.upright=(walk?.tracks??[]).filter(t=>/(?:Hips|Spine\d*|Neck|Head|(?:Left|Right)(?:Shoulder|Arm|ForeArm|Hand))\.quaternion$/i.test(t.name)).map(t=>({name:t.name.split('.')[0],value:Array.from(t.createInterpolant().evaluate(0))}));
   }
   update(dt) {
     const h=this.h,p=h.g.player,c=p.character,a=p.arts;
@@ -29,6 +29,8 @@ export class SheathBody {
       for(const {name,value} of this.upright){const bone=c.getBone(name.replace(/^.*:/,''));if(bone){h.turn(bone);bone.quaternion.fromArray(value);}}
       const breath=Math.sin(h.g.elapsed*Math.PI*2*.24),shift=Math.sin(h.g.elapsed*.7);
       target=[.007*breath,.004*shift,.006*breath,.003*breath,-.003*breath];
+    }else if(eligible&&a.mode==='sheathed'&&p.state==='free'){
+      for(const {name,value} of this.upright.filter(t=>/(?:Neck|Head)$/.test(t.name))){const bone=c.getBone(name.replace(/^.*:/,''));if(bone){h.turn(bone);bone.quaternion.fromArray(value);}}
     }else if(charging){
       const u=smoothPhase(a.t,0,.18);
       target=[.04*u,-.04*u,-.06*u,-.015*u,.015*u];
@@ -51,6 +53,6 @@ export class SheathBody {
     h.turn(c.getBone('LeftShoulder'),0,0,left);
     h.turn(c.getBone('RightShoulder'),0,0,right);
     // Follow the working hands modestly without turning the head backwards.
-    h.turn(c.getBone('Head'),lean*.25,-(waist+chest)*.35,0);
+    if(a.mode!=='sheathed')h.turn(c.getBone('Head'),lean*.25,-(waist+chest)*.35,0);
   }
 }

@@ -28,6 +28,7 @@ export class VergilIaiMotion {
   update(){
     const h=this.h,g=h.g,p=g.player,c=p.character;
     if(p.weapon.id!=='katana'||p.state!=='attack'||(!p.move?.config.swordMotion&&p.move!==p.heavy)||p.dead||g.form.active)return;
+    if(p.move.config.referenceMotion)return;
     const heavy=p.move===p.heavy,keys=heavy?KEYS:(PATHS[p.move.config.id]??PATHS.k1);
     const phase=p.move.phase,w=heavy?smoothPhase(phase,.14,.24)*(1-smoothPhase(phase,.88,.99)):smoothPhase(phase,0,.12)*(1-smoothPhase(phase,.88,1));
     if(w<=0)return;

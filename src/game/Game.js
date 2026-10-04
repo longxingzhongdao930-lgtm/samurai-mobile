@@ -1,3 +1,4 @@
+import { loadImportedAttacks } from './hero/ImportedAttacks.js';
 import { HeroStudio, heroTitle } from './hero/HeroStudio.js';
 import { VergilRig } from './hero/VergilRig.js';
 import { HeroPresence } from './hero/HeroPresence.js';
@@ -149,6 +150,7 @@ export class Game {
     this.fx.group.add(this.fx.ribbons.mesh);
     app.scene.add(this.fx.group);
     this.magic = new Magic(this);
+    await loadImportedAttacks(app.character);
     this.player = new PlayerCombat(this);
     await this.player.techniques.loadAssets();
     this.bow = new BowRig(this);

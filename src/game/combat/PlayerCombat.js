@@ -93,12 +93,13 @@ export class PlayerCombat {
     this.spirit = new DualSpirit(this);
     this.arts = new HeroArts(this);
     this.techniques = new VergilTechniques(this);
+    this.quickDraw=this._make(swordConfig(this.weapon.combo[0],'quickDraw',{referenceMotion:'quick-slash',hits:[.29],warpAt:.29,turnAt:.12,cancelAt:.68}));
     this.launcher=this._make(swordConfig(this.weapon.combo[0],'launcher',{hits:[.48],damage:15,posture:18,launch:true,lift:5,impulse:3,reach:2.7,arc:110}));
     this.risingMove=this._make(swordConfig(this.weapon.combo[0],'rising',{airborne:true,hits:[.46],damage:17,launch:true,lift:5,maxWarp:0,lunge:0}));
     this.diveMove=this._make(swordConfig(this.jumpMove.config,'dive-katana',{hits:[.55],damage:22,posture:20,airLanding:true,airborne:true,airDive:true,ring:true,arc:180,maxWarp:0,lunge:0}));
     this.branchB=this._make(swordConfig(this.weapon.combo[0],'branchB',{hits:[.3,.62],damage:9,posture:8}));
     this.branchC=this._make(swordConfig(this.weapon.combo[0],'branchC',{hits:[.25,.48,.73],damage:7,posture:6,arc:180}));
-    for(const m of [this.launcher,this.risingMove,this.diveMove,this.branchB,this.branchC]){this.moves.push(m);this._moveOverrides.push(m);this.character.locomotion.overrides.push(m);}
+    for(const m of [this.quickDraw,this.launcher,this.risingMove,this.diveMove,this.branchB,this.branchC]){this.moves.push(m);this._moveOverrides.push(m);this.character.locomotion.overrides.push(m);}
   }
 
   /* ------------------------------------------------------------------ */
@@ -112,7 +113,9 @@ export class PlayerCombat {
     const onStrike = (move, index) => this._onStrike(move, index);
     const make = (config) => {
       let animation=config.swordMotion?swordBodyClip(character.clips.get('idle'),config.id,undefined,character.clips.get('crouch'),character.clips.get('walk')):clip(config.clip);
-      if(config.id==='heavy'&&this.weapon.id==='katana'&&config.clip==='crouchSlash')animation=vergilIaiCut(animation,vergilIaiStance(character.clips.get('crouch'),character.clips.get('idle')),character.clips.get('idle'),1.25);
+      const imported=config.referenceMotion??(config.id==='heavy'&&this.weapon.id==='katana'?'heavenly-strike-2':null);
+      if(imported&&character.clips.has(imported)){animation=clip(imported);config={...config,referenceMotion:imported,clipFrom:0,clipTo:1,timeScale:1};}else if(config.referenceMotion){config={...config,referenceMotion:null};}
+      if(!config.referenceMotion&&config.id==='heavy'&&this.weapon.id==='katana'&&config.clip==='crouchSlash')animation=vergilIaiCut(animation,vergilIaiStance(character.clips.get('crouch'),character.clips.get('idle')),character.clips.get('idle'),1.25);
       if(config.airborne&&animation)animation.tracks=animation.tracks.filter(track=>/(?:Spine\d*|(?:Left|Right)(?:Shoulder|Arm|ForeArm|Hand)(?:\w*))\.quaternion$/i.test(track.name));
       return new Attack(mixer,nameMotion(animation,config.id),character,{config,onStrike});
     };
@@ -129,7 +132,7 @@ export class PlayerCombat {
       cancelAt: 0.85, recoverAt: 0.9, trail: false, standoff: 99, maxWarp: 0, sfx: null
     });
     this.kickMove ??= makeKick(this);
-    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove, this.jumpMove,...[this.launcher,this.risingMove,this.diveMove,this.branchB,this.branchC].filter(Boolean)];
+    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove, this.jumpMove,...[this.quickDraw,this.launcher,this.risingMove,this.diveMove,this.branchB,this.branchC].filter(Boolean)];
     this._moveOverrides = [...this.moves];
 
     this.guardPose = new PoseLayer(mixer, character.clips.get('crouch'), { blendIn: 0.07, blendOut: 0.14 });
@@ -149,7 +152,7 @@ export class PlayerCombat {
     if (!this._sets.has(key)) {
       this._sets.set(key, {
         combo: weapon.combo.map(this._make),
-        heavy: this._make(weapon.id==='katana'?{...weapon.heavy,timeScale:1,hits:[.3],warpAt:.3,turnAt:.12,passAt:.48}:weapon.heavy),
+        heavy: this._make(weapon.id==='katana'?{...weapon.heavy,timeScale:1,hits:[.33],warpAt:.33,turnAt:.12,passAt:.48}:weapon.heavy),
         counter: this._make(weapon.counter),
         execute: this._make(weapon.execute),
         jump: this._make(jumpAttack(weapon))
@@ -172,7 +175,7 @@ export class PlayerCombat {
       if (index >= 0) overrides.splice(index, 1);
     }
     this._useSet(this._setFor(this.weapon));
-    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove, this.jumpMove,...[this.launcher,this.risingMove,this.diveMove,this.branchB,this.branchC].filter(Boolean)];
+    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove, this.jumpMove,...[this.quickDraw,this.launcher,this.risingMove,this.diveMove,this.branchB,this.branchC].filter(Boolean)];
     this._moveOverrides = [...this.moves];
     overrides.unshift(...this.moves);
     this.comboIndex = -1;
@@ -209,7 +212,7 @@ export class PlayerCombat {
     this.game.hud?.notice(WEAPON_TIPS[id], 2.8);
     this._useSet(this._setFor(weapon));
     this.kickMove ??= makeKick(this);
-    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove, this.jumpMove,...[this.launcher,this.risingMove,this.diveMove,this.branchB,this.branchC].filter(Boolean)];
+    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove, this.jumpMove,...[this.quickDraw,this.launcher,this.risingMove,this.diveMove,this.branchB,this.branchC].filter(Boolean)];
     this._moveOverrides = [...this.moves];
     overrides.unshift(...this.moves);
     this.comboIndex = -1;

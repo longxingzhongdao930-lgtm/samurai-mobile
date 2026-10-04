@@ -21,9 +21,27 @@ export class KatanaSheath {
     if (!this.copy) {
       this.copy = source.clone(true);
       this.copy.name = 'Katana sheath presentation';
+      // The live weapon may contain the fire effect's bounding hull. It is
+      // neither steel nor part of the sheathed copy's dimensions.
+      const effects = [];
+      this.copy.traverse(node => { if (node.userData.isFireVolume) effects.push(node); });
+      for (const effect of effects) effect.removeFromParent();
       this.copy.position.set(0, 0, 0); this.copy.quaternion.identity(); this.copy.scale.setScalar(1);
-      const size = new Box3().setFromObject(this.copy).getSize(new Vector3());
-      this.length = Math.max(.5, size.z);
+      // Equipment's origin is the guard, with the blade along +Z. A longer
+      // handle must not lengthen the insertion or leave a curved edge exposed.
+      this.copy.updateMatrixWorld(true);
+      const blade = new Box3(), vertex = new Vector3();
+      this.copy.traverse(node => {
+        const positions = node.geometry?.attributes.position;
+        if (!positions) return;
+        for (let i = 0; i < positions.count; i++) {
+          vertex.fromBufferAttribute(positions, i).applyMatrix4(node.matrixWorld);
+          if (vertex.z > .02) blade.expandByPoint(vertex);
+        }
+      });
+      this.length = blade.isEmpty() ? .82 : Math.max(.5, blade.max.z);
+      this.width = blade.isEmpty() ? .06 : Math.max(.06, 2 * Math.max(Math.abs(blade.min.x), Math.abs(blade.max.x)) + .012);
+      this.depth = blade.isEmpty() ? .065 : Math.max(.065, 2 * Math.max(Math.abs(blade.min.y), Math.abs(blade.max.y)) + .012);
       h.root.add(this.copy);
     }
     if (!this.active) {
@@ -44,7 +62,7 @@ export class KatanaSheath {
     // Enclose the blade while keeping the hilt visible; never scale/collapse vertices.
     h.sheath.position.copy(mouth).addScaledVector(axis, this.length * .5);
     h.sheath.quaternion.copy(rotation);
-    h.sheath.scale.z = (this.length + .04) / .82;
+    h.sheath.scale.set(this.width / .06, this.depth / .065, (this.length + .04) / .82);
     for (const [side, target] of [['Left', mouth], ['Right', this.copy.position.clone().addScaledVector(axis, -.1)]]) {
       const upper = c.getBone(side + 'Arm'), lower = c.getBone(side + 'ForeArm'), hand = c.getBone(side + 'Hand');
       if (!upper || !lower || !hand) continue;

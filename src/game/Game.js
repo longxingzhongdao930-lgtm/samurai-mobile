@@ -162,7 +162,7 @@ export class Game {
     this.heroStudio = new HeroStudio(this);
     this.heroPresence = new HeroPresence(this);
     await this.heroPresence.loadScabbard();
-    if(new URLSearchParams(location.search).get('hero')!=='samurai'){this.vergil=new VergilRig(this);try{await this.vergil.load();}catch(e){this.vergil?.restore();console.warn('[VergilRig] keeping existing hero',e);}}
+    if(new URLSearchParams(location.search).get('hero')==='vergil'){this.vergil=new VergilRig(this);try{await this.vergil.load();}catch(e){this.vergil?.restore();console.warn('[VergilRig] keeping existing hero',e);}}
     this.hud.setVisible(false);
     this.touch.setVisible(false);
 

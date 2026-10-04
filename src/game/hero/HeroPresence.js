@@ -1,4 +1,5 @@
 import { Group, Mesh, MeshStandardMaterial, ConeGeometry, CylinderGeometry, SphereGeometry, BufferGeometry, Line, LineBasicMaterial, Vector3, DoubleSide } from 'three';
+import { SheathBody } from './SheathBody.js';
 import { DualKatana } from './DualKatana.js';
 import { SHEATH_REFERENCE } from './SheathReference.js';
 import { KatanaSheath } from './KatanaSheath.js';
@@ -7,7 +8,7 @@ import { ik } from '../combat/WeaponMotion.js';
 /** Small, reversible pose offsets; no edits to the imported rig or animation tracks. */
 export class HeroPresence {
   constructor(game){
-    this.g=game;this.dualKatana=new DualKatana(this);this.katanaSheath=new KatanaSheath(this,{reference:SHEATH_REFERENCE.single});this.originals=new Map();this.look=0;this.speed=0;this.sway=0;
+    this.g=game;this.sheathBody=new SheathBody(this);this.dualKatana=new DualKatana(this);this.katanaSheath=new KatanaSheath(this,{reference:SHEATH_REFERENCE.single});this.originals=new Map();this.look=0;this.speed=0;this.sway=0;
     this.root=new Group();game.app.scene.add(this.root);
     const cloth=new MeshStandardMaterial({color:'#252f39',roughness:.95,side:DoubleSide});this.cloth=cloth;
     this.hat=new Mesh(new ConeGeometry(.43,.14,24),new MeshStandardMaterial({color:'#584632',roughness:1}));
@@ -32,7 +33,7 @@ export class HeroPresence {
     const target=p.lockTarget?.alive?p.lockTarget:g._nearest(6);
     let want=target?Math.atan2(target.position.x-c.position.x,target.position.z-c.position.z)-c.facing:0;
     want=Math.atan2(Math.sin(want),Math.cos(want));want=Math.max(-.55,Math.min(.55,want));this.look+=(want-this.look)*Math.min(1,dt*8);
-    if(p.state==='free'){
+    if(p.state==='free'&&!arts.mode){
       this.turn(c.getBone('Head'),0,this.look*.65,0);this.turn(c.getBone('Spine2'),Math.min(.06,decel*.02),this.look*.18,0);
       const near=target&&target.position.distanceTo(c.position)<3;
       this.turn(c.getBone('RightArm'),near?-.05:.04,0,arts.mode?-.08:0);
@@ -50,7 +51,7 @@ export class HeroPresence {
         }
       }
     }
-    if(arts.mode==='flourish')this.turn(c.getBone('RightHand'),0,Math.sin(Math.PI*Math.min(1,arts.t/.22))*.15,0);
+    this.sheathBody.update(dt);
     const cfg=p.move?.config;
     if(p.state==='attack'&&cfg){
       const pulse=Math.sin(Math.PI*Math.min(1,p.move.phase));

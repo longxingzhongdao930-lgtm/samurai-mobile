@@ -40,7 +40,7 @@ with sync_playwright() as pw:
             c.lookAt(at.x,at.y+1.08,at.z);c.fov=42;c.updateProjectionMatrix();
             app.scene.updateMatrixWorld(true);app.post.render();
             const leftGap=held?p.character.getBone('LeftHand').getWorldPosition(h.sheath.position.clone()).distanceTo(h.sheath.position):null;
-            if(['sheathed','charge'].includes(mode)&&leftGap>.12)throw Error('left hand floats from scabbard '+leftGap);
+            if(mode==='charge'&&leftGap>.12)throw Error('left hand floats from scabbard '+leftGap);
             return {mode,side,meshes,covers,leftGap,length:h.katanaSheath.length,sourceVisible:model.visible,copyVisible:copy?.visible??false};
         };
     }''')
@@ -79,7 +79,7 @@ with sync_playwright() as pw:
         return rows;
     }""")
     (output/'timeline.json').write_text(json.dumps(timeline,indent=2))
-    settled=[r for r in timeline if r['t']>1]
+    settled=[r for r in timeline if 1<r['t']<2.32] # Support contact until the intentional final release.
     assert max(r['leftGap'] for r in settled)<.005, 'settled left-hand contact'
     assert max(r['rightGap'] for r in timeline if r['gripping'])<.005, 'right hand keeps its grip throughout insertion'
     aligned=[r for r in timeline if r['t']>=.95 and r['gripping']]

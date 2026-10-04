@@ -177,8 +177,10 @@ export class ThirdPersonController {
     // forward = -(sin, cos), right = (cos, -sin) — see the camera basis above.
     _desired.set(axis.y * -sin + axis.x * cos, axis.y * -cos + axis.x * -sin);
 
+    // A sheathed sword is carried at the reference's measured walking pace.
+    const carrying = this.combat?.weapon.id==='katana' && this.combat?.arts.mode==='sheathed';
     const wanted =
-      (config.enabled ? (running ? config.runSpeed : config.walkSpeed) : 0) * (this.combat?.moveScale ?? 1);
+      (config.enabled ? (running && !carrying ? config.runSpeed : config.walkSpeed) : 0) * (this.combat?.moveScale ?? 1);
     _desired.multiplyScalar(wanted);
 
     // Stopping is sharper than starting: the deceleration ramp is what stops the

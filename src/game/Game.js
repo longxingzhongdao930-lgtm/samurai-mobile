@@ -218,6 +218,7 @@ export class Game {
     this.magic.reactionCount = 0;
     if (this.flow) { this.flow.start(); this.journey.save(); }
     else this._sandbox();
+    if(this.player.weapon.id==='katana'){this.player.arts.mode='sheathed';this.player.arts.t=0;}
   }
 
   /** No flow: a ring of bodies on the open template stage, for testing. */

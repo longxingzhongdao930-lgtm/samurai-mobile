@@ -69,9 +69,10 @@ export class HeroArts {
       return null;
     }
     if(input.pending('attack')){input.consume('attack');this.charge();this._chargeCue=false;return null;}
-    if(input.moving){this.cancel();return undefined;}
+    if(input.moving&&this.mode!=='sheathed'){this.cancel();return undefined;}
+    if(this.mode==='sheathed'){this.restPose.stop();return undefined;}
     if(this.mode!=='sheathed'&&this.t>=sheathDuration()+(this.mode==='flourish'?SHEATH_REFERENCE.single.flourish:0)){
-      this.mode='sheathed';this.pose.stop?.();this.restPose?.hold(0);
+      this.mode='sheathed';this.pose.stop?.();this.restPose?.stop();
       if(this.rewardAvailable){this.rewardAvailable=false;this.ready=6;p.spirit.calm=Math.min(100,p.spirit.calm+(g._nearest(5)?24:12));g.heroStudio?.record('sheath');g.hud.notice('納刀成功 — 次の居合を強化',1.5);}
     }
     return null;

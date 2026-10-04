@@ -33,6 +33,8 @@ export class KatanaSheath {
       }
     }
     if(this.offset)mouth.add(this.offset());
+    const carrying = p.weapon.id==='katana' && p.state==='free' && !p.guarding && !c.airHeight && !p.dead && !g.form.active && (!p.arts.mode || p.arts.mode==='sheathed');
+    this.carryWeight = (this.carryWeight??0) + ((carrying?1:0)-(this.carryWeight??0))*(1-Math.exp(-dt*16));
     const axis = new Vector3(-Math.sin(yaw), -.16, -Math.cos(yaw)).normalize();
     if (hips) {
       // The grip is 10 cm behind the mouth. A single sword uses both hands'
@@ -48,6 +50,20 @@ export class KatanaSheath {
         const offset = mouth.clone().sub(chain.center);
         if (offset.length() > chain.reach) mouth.copy(chain.center).add(offset.setLength(chain.reach));
       }
+    }
+    // Reference walk: left hand carries the mouth beside the thigh; the
+    // sheathed blade points down and slightly back. Gait still owns the legs.
+    const leftArm=c.getBone('LeftArm'),leftFore=c.getBone('LeftForeArm'),leftHand=c.getBone('LeftHand');
+    if(carrying&&leftArm&&leftFore&&leftHand){
+      c.root.updateMatrixWorld(true);
+      const shoulder=leftArm.getWorldPosition(new Vector3());
+      const reach=shoulder.distanceTo(leftFore.getWorldPosition(new Vector3()))+leftFore.getWorldPosition(new Vector3()).distanceTo(leftHand.getWorldPosition(new Vector3()));
+      const outward=shoulder.clone().sub(c.position).setY(0).normalize();
+      const target=shoulder.clone().addScaledVector(outward,.16).add(new Vector3(Math.sin(yaw)*.035,-reach*.84,Math.cos(yaw)*.035));
+      this._hand('Left',target,this.carryWeight);
+      mouth.copy(leftHand.getWorldPosition(new Vector3()));
+      const carriedAxis=new Vector3(-Math.sin(yaw)*.24,-.96,-Math.cos(yaw)*.24).addScaledVector(outward,.14).normalize();
+      axis.lerp(carriedAxis,this.carryWeight).normalize();
     }
     const rotation = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), axis);
     // The imported scabbard is authored from its mouth along +Z. Keep one
@@ -169,10 +185,11 @@ export class KatanaSheath {
     this.gripping=relax===0;
     // A finished sheath is a separate state. Do not first pull the wrists
     // back onto the hilt/mouth every frame and then try to release them.
-    if(profile&&p.arts.mode==='sheathed'&&this.seated){
+    if(profile&&p.arts.mode==='sheathed'){
+      this.seated??={position:new Vector3(),rotation:new Quaternion()};
       this.gripping=false;
-      this._restHand(this.side,1);
-      if(this.support)this._restHand('Left',1);
+      if((g.app.controller.speed??0)<.1)this._restHand(this.side,1);
+      if(this.support&&!carrying)this._restHand('Left',1);
       h.sheath.updateMatrixWorld(true);
       this.copy.position.copy(h.sheath.localToWorld(this.seated.position.clone()));
       this.copy.quaternion.copy(h.sheath.getWorldQuaternion(new Quaternion())).multiply(this.seated.rotation);

@@ -300,7 +300,7 @@ export const DUAL_KATANA = {
     move({id:'dual-right',clip:'slashHit',clipFrom:.25,clipTo:.66,timeScale:1.5,hits:[.48],dualHands:['Right'],dualPose:'right',damage:11,posture:8,lunge:.5}),
     move({id:'dual-cross',clip:'slashHit',clipFrom:.07,clipTo:.7,timeScale:1.45,hits:[.35,.65],dualHands:['Left','Right'],dualPose:'cross',damage:8,posture:9,lunge:.65,cancelAt:.8,knockback:1.1})
   ],
-  heavy: {...WEAPONS.katana.heavy,id:'dual-draw',hits:[.56,.72],damage:14,posture:12,dualHands:['Left','Right'],dualPose:'cross'},
+  heavy: {...WEAPONS.katana.heavy,id:'dual-draw',clip:'slashHit',clipFrom:.07,clipTo:.7,timeScale:1.15,blendIn:.14,hits:[.56,.72],damage:14,posture:12,dualHands:['Left','Right'],dualPose:'cross'},
   counter: {...WEAPONS.katana.counter,id:'dual-counter',dualHands:['Left','Right'],dualPose:'cross'},
   execute: {...WEAPONS.katana.execute,id:'dual-execute',dualHands:['Right'],dualPose:'right'}
 };

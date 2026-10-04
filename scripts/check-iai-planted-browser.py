@@ -10,13 +10,15 @@ with sync_playwright() as pw:
  p.evaluate('''()=>{const g=app.game;g.flow.update=()=>{};g.director.clear();g.magic.clear();g.flow._place(g.playerPosition.clone().set(0,0,124),0);g.hud.setVisible(false);g.touch.setVisible(false);window.readFeet=()=>{const c=g.player.character;c.root.updateMatrixWorld(true);return ['Left','Right'].map(s=>c.getBone(s+'Foot').getWorldPosition(c.position.clone()).toArray());};}''')
  results=[]
  for variant in ['mythical','oni','dual']:
-  row=p.evaluate('''async id=>{const g=app.game,p=g.player;g.input.reset();p.arts.cancel();p.revive();await g.weapons.swords.select(id);p.setWeapon('katana');app.simulate(.3);p.arts.restPose.hold(0);app.simulate(.2);const baseline=readFeet();g.input.press('attack');p.arts.charge();const feet=[];for(let i=0;i<12;i++){app.simulate(.15);feet.push(readFeet());}return {baseline,feet,mode:p.arts.mode,rigs:g.heroPresence.dualKatana.rigs?.map(r=>({gripping:r.gripping,active:r.active,t:r.arts.t,guardGap:r.copy.position.distanceTo(r.presence.sheath.position)}))};}''',variant)
+  row=p.evaluate('''async id=>{const g=app.game,p=g.player;g.input.reset();p.arts.cancel();p.revive();await g.weapons.swords.select(id);p.setWeapon('katana');app.simulate(.3);p.arts.restPose.hold(0);app.simulate(.2);const baseline=readFeet(),standingHip=p.character.getBone('Hips').getWorldPosition(p.character.position.clone()).y;g.input.press('attack');p.arts.charge();const feet=[];for(let i=0;i<12;i++){app.simulate(.15);feet.push(readFeet());}return {baseline,feet,standingHip,chargedHip:p.character.getBone('Hips').getWorldPosition(p.character.position.clone()).y,ground:readFeet().map(v=>g.app.terrain.heightAt(v[0],v[2])),mode:p.arts.mode,rigs:g.heroPresence.dualKatana.rigs?.map(r=>({gripping:r.gripping,active:r.active,t:r.arts.t,guardGap:r.copy.position.distanceTo(r.presence.sheath.position)}))};}''',variant)
   assert row['mode']=='charge',row
   if variant=='dual':
    assert abs(row['rigs'][0]['t']-row['rigs'][1]['t'])<.001,row
    assert all(r['guardGap']<.005 for r in row['rigs']),row
-  drift=max(sum((f[s][j]-row['baseline'][s][j])**2 for j in range(3))**.5 for f in row['feet'] for s in range(2))
+  drift=max(sum((f[s][j]-row['feet'][3][s][j])**2 for j in range(3))**.5 for f in row['feet'][3:] for s in range(2))
   assert drift<.01,(variant,drift)
+  assert row['chargedHip']<row['standingHip']-.08,row
+  assert all(abs(row['feet'][-1][s][1]-row['ground'][s]-.08)<.06 for s in range(2)),row
   for angle in ['front','side']:
    p.evaluate('''angle=>{const at=app.game.player.character.position,c=app.rig.camera;c.position.set(at.x+(angle==='side'?3:0),at.y+1.6,at.z+(angle==='front'?3:0));c.lookAt(at.x,at.y+1.1,at.z);c.fov=42;c.updateProjectionMatrix();app.scene.updateMatrixWorld(true);app.post.render();}''',angle)
    p.screenshot(path=str(out/f'{variant}-{angle}.png'))

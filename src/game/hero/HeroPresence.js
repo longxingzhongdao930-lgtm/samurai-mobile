@@ -54,6 +54,20 @@ export class HeroPresence {
     this.sheathBody.update(dt);
     const cfg=p.move?.config;
     if(p.state==='attack'&&cfg){
+      if(cfg.dualPose&&!cfg.airborne){
+        // Small, grounded step instead of the imported raised-knee strike.
+        const phase=p.move.phase,hit=cfg.hits[0],forward=new Vector3(Math.sin(c.facing),0,Math.cos(c.facing));
+        const prep=Math.max(0,Math.min(1,phase/Math.max(.1,hit)));
+        for(const side of ['Left','Right']){
+          const upper=c.getBone(side+'UpLeg'),lower=c.getBone(side+'Leg'),foot=c.getBone(side+'Foot');
+          if(!upper||!lower||!foot)continue;
+          this.turn(upper);this.turn(lower);c.root.updateMatrixWorld(true);
+          const at=foot.getWorldPosition(new Vector3()),lead=side===cfg.dualHands[0];
+          at.addScaledVector(forward,(lead?.14:-.04)*Math.sin(Math.PI*phase));
+          at.y=g.app.terrain.heightAt(at.x,at.z)+.08+(lead&&phase<hit?.035*Math.sin(Math.PI*prep):0);
+          ik(upper,lower,foot,at,forward,1);
+        }
+      }
       const pulse=Math.sin(Math.PI*Math.min(1,p.move.phase));
       if(cfg.dualPose)this.turn(c.getBone('Spine2'),0,(cfg.dualPose==='left'?-.16:.16)*pulse,0);
       if(cfg.heroFinish==='thrust'||p.move===p.counter&&cfg.heroCounter===0){

@@ -1,4 +1,4 @@
-import { sheathPose } from '../hero/SheathPose.js';
+import { sheathPose, dualCombatPose } from '../hero/SheathPose.js';
 import { jumpAttack } from '../data/jump-attacks.js';
 import { nextWeapon } from './WeaponCycle.js';
 import { HeroArts } from '../hero/HeroArts.js';
@@ -101,7 +101,7 @@ export class PlayerCombat {
     const clip = (name) => character.clips.get(name)?.clone() ?? null;
     const onStrike = (move, index) => this._onStrike(move, index);
     const make = (config) => {
-      const animation=config.dualPose ? sheathPose(clip(config.clip),character.clips.get('idle')) : clip(config.clip);
+      const animation=config.dualPose ? (config.airborne?sheathPose:dualCombatPose)(clip(config.clip),character.clips.get('idle')) : clip(config.clip);
       if(config.airborne&&animation)animation.tracks=animation.tracks.filter(track=>/(?:Spine\d*|(?:Left|Right)(?:Shoulder|Arm|ForeArm|Hand)(?:\w*))\.quaternion$/i.test(track.name));
       return new Attack(mixer,animation,character,{config,onStrike});
     };

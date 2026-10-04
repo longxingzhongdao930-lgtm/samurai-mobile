@@ -1,3 +1,4 @@
+import { dualStance, dualCut } from './DualCombatPose.js';
 import { Group, Vector3, Quaternion } from 'three';
 import { SHEATH_REFERENCE, smoothPhase } from './SheathReference.js';
 import { KatanaSheath } from './KatanaSheath.js';
@@ -39,33 +40,28 @@ export class DualKatana {
     const yaw=c.facing,world=(x,y,z)=>new Vector3(x*Math.cos(yaw)+z*Math.sin(yaw),y,-x*Math.sin(yaw)+z*Math.cos(yaw));
     if(!held && (this.clock>.28||p.guarding) && p.state==='free'){
       for(const [index,side] of ['Left','Right'].entries()){
-        const target=c.position.clone().add(p.guarding?world(index?.28:-.28,index?1.35:1.2,.35):world(index?.32:-.34,index?1.38:1.05,index?.02:.22));
-        this.rigs[index]._hand('Right',target,1);
+        const pose=dualStance(index,p.guarding);
+        this.rigs[index]._hand('Right',c.position.clone().add(world(...pose.hand)),1);
         const blade=index?source:this.left,hand=c.getBone(side+'Hand');
-        const rotation=new Quaternion().setFromUnitVectors(new Vector3(0,0,1),(p.guarding?world(index?-.7:.7,.55,.2):world(index?-.1:-.2,index?.9:-.2,index?-.35:.95)).normalize());
+        const rotation=new Quaternion().setFromUnitVectors(new Vector3(0,0,1),world(...pose.direction).normalize());
         this.rigs[index]._orientHand(blade,hand,rotation,1);
       }
     }
     const config=p.move?.config,phase=p.move?.phase??0;
     const shoulderY=(c.getBone('RightArm').getWorldPosition(new Vector3()).y+c.getBone('LeftArm').getWorldPosition(new Vector3()).y)*.5;
-    if(!c.jump?.locked&&!c.hop?.locked&&!config?.airborne)this.stanceHeight=shoulderY-c.position.y;
+    if(p.state==='free'&&!held&&!c.jump?.locked&&!c.hop?.locked)this.stanceHeight=shoulderY-c.position.y;
     const bodyBase=c.position.clone();
-    if(config?.airborne)bodyBase.y+=Math.max(0,shoulderY-c.position.y-(this.stanceHeight??1.45));
+    if(config?.dualPose)bodyBase.y+=Math.max(-.65,Math.min(1.5,shoulderY-c.position.y-(this.stanceHeight??1.3)));
     const attacking=!held&&p.state==='attack'&&config?.dualPose;
     if(attacking){
       for(const [index,side] of ['Left','Right'].entries()){
         const hitIndex=config.dualHands.indexOf(side);
         const hit=hitIndex>=0?config.hits[hitIndex]:.48;
         const active=hitIndex>=0;
-        const t=Math.max(0,Math.min(1,(phase-(hit-.22))/.44));
-        const cut=t*t*(3-2*t),sign=index?1:-1;
-        const strength=active?Math.sin(Math.PI*t):0;
-        const target=bodyBase.clone().add(world((index?.32:-.34)-sign*.48*strength,(index?1.38:1.05)+.18*strength,(index?.02:.22)+.3*strength));
-        this.rigs[index]._hand('Right',target,1);
-        const direction=active?world(sign*(.85-1.7*cut),.3-.5*Math.sin(Math.PI*cut),.65):world(sign*.2,index?.9:-.2,index?-.35:.95);
-        const rest=new Quaternion().setFromUnitVectors(new Vector3(0,0,1),world(index?-.1:-.2,index?.9:-.2,index?-.35:.95).normalize());
-        const swing=new Quaternion().setFromUnitVectors(new Vector3(0,0,1),direction.normalize());
-        this.rigs[index]._orientHand(index?source:this.left,c.getBone(side+'Hand'),rest.slerp(swing,strength),1);
+        const pose=active?dualCut(index,phase,hit):dualStance(index);
+        this.rigs[index]._hand('Right',bodyBase.clone().add(world(...pose.hand)),1);
+        const rotation=new Quaternion().setFromUnitVectors(new Vector3(0,0,1),world(...pose.direction).normalize());
+        this.rigs[index]._orientHand(index?source:this.left,c.getBone(side+'Hand'),rotation,1);
       }
     }
     for(const [index,trail] of [g.fx.leftTrail,g.fx.trail].entries()){
@@ -82,15 +78,17 @@ export class DualKatana {
       const waiting=['sheath','flourish'].includes(p.arts.mode)&&local<0;
       if(waiting){
         // Keep the right blade above the shoulder while the left is put away.
-        const at=c.position.clone().add(world(rig.index?.32:-.34,rig.index?1.38:1.05,rig.index?.02:.22));
+        const pose=dualStance(rig.index);
+        const at=c.position.clone().add(world(...pose.hand));
         const kick=flourish>0&&p.arts.t<.6&&rig.index===0?Math.sin(Math.PI*p.arts.t/.6):0;
-        at.add(world(-.2*kick,-.12*kick,.18*kick));
+        at.add(world(.2*kick,-.12*kick,.18*kick));
         rig._hand('Right',at,smoothPhase(p.arts.t,0,.18));
-        const dir=world(rig.index?-.1:-.2-.7*kick,rig.index?.9:-.2-.5*kick,rig.index?-.35:.95-.4*kick);
+        const dir=world(pose.direction[0]+.7*kick,pose.direction[1]-.5*kick,pose.direction[2]-.4*kick);
         rig._orientHand(rig.source(),c.getBone((rig.index?'Right':'Left')+'Hand'),new Quaternion().setFromUnitVectors(new Vector3(0,0,1),dir.normalize()),smoothPhase(p.arts.t,0,.18));
       }
-      rig.arts.mode=drawing&&rig.index===1&&this.clock<.16?'sheathed':waiting?'':p.arts.mode==='flourish'?'sheath':p.arts.mode;
-      rig.arts.t=Math.max(0,local);
+      const delayedDraw=drawing&&rig.index===1&&this.clock<.16;
+      rig.arts.mode=delayedDraw?'charge':waiting?'':p.arts.mode==='flourish'?'sheath':p.arts.mode;
+      rig.arts.t=delayedDraw?.12:Math.max(0,local);
       rig.update(dt);
     }
     return true;

@@ -14,7 +14,7 @@ export const SWORD_BODY={
 };
 export function swordBodyClip(idle,id,seconds=SWORD_TIMINGS[id]??.6,crouch=null,walk=null){
  if(!idle)return null;const keys=SWORD_BODY[id]??SWORD_BODY[id==='rising'?'launcher':'k4'];
- const tracks=idle.tracks.map(t=>{const r=t.clone(),v=Array.from(t.createInterpolant().evaluate(0)),low=crouch?.tracks.find(x=>x.name===t.name),gait=walk?.tracks.find(x=>x.name===t.name),values=[],times=keys.map(k=>k[0]*seconds);
+ const tracks=idle.tracks.map(t=>{const r=t.clone(),v=Array.from(((/Spine\d*|Neck|Head/.test(t.name)&&walk?.tracks.find(x=>x.name===t.name))||t).createInterpolant().evaluate(0)),low=crouch?.tracks.find(x=>x.name===t.name),gait=walk?.tracks.find(x=>x.name===t.name),values=[],times=keys.map(k=>k[0]*seconds);
   for(const k of keys){const cv=low?Array.from(low.createInterpolant().evaluate(crouch.duration*.35)):v,wv=gait?Array.from(gait.createInterpolant().evaluate(walk.duration*.25)):v;
    if(t.name.endsWith('.quaternion')&&v.length===4){const q=new Quaternion().fromArray(v);
     if(/(?:Hips|(?:Left|Right)(?:UpLeg|Leg|Foot))\.quaternion$/.test(t.name)){q.slerp(new Quaternion().fromArray(cv),k[1]);q.slerp(new Quaternion().fromArray(wv),k[2]);}

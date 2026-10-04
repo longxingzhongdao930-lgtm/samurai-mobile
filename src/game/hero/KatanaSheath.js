@@ -76,13 +76,13 @@ export class KatanaSheath {
       this.carryGripDepth=.36;
       mouth.copy(leftHand.getWorldPosition(new Vector3())).addScaledVector(axis,-this.carryGripDepth);
     }
-    if(p.weapon.id==='katana'&&p.state==='attack'&&p.move?.config?.referenceMotion&&leftHand){c.root.updateMatrixWorld(true);mouth.copy(leftHand.getWorldPosition(new Vector3()));}
+    if(p.weapon.id==='katana'&&p.state==='attack'&&(p.move?.config?.referenceMotion||p.move?.config?.swordMotion)&&leftHand){c.root.updateMatrixWorld(true);mouth.copy(leftHand.getWorldPosition(new Vector3()));const data=c.clips.get(p.move.config.referenceMotion)?.userData,right=c.getBone('RightHand');if(data&&right){const end=data.holdStart/p.move.action.getClip().duration,w=smoothPhase(p.move.phase,end*.8,end);axis.lerp(mouth.clone().sub(right.getWorldPosition(new Vector3())).normalize(),w).normalize();}}
     if(this.reference?.handheld&&['sheath','flourish'].includes(p.arts.mode)&&leftArm&&leftFore&&leftHand){
       const t=Math.max(0,p.arts.t-(p.arts.mode==='flourish'?this.reference.flourish:0));
       if(!this.heldStart||p.arts.t<(this.heldTime??0))this.heldStart={mouth:h.sheath.position.clone(),axis:new Vector3(0,0,1).applyQuaternion(h.sheath.quaternion)};
       this.heldTime=p.arts.t;
       const shoulder=leftArm.getWorldPosition(new Vector3()),out=shoulder.clone().sub(c.position).setY(0).normalize(),front=new Vector3(Math.sin(yaw),0,Math.cos(yaw));
-      const work=hips.getWorldPosition(new Vector3()).addScaledVector(out,.1).addScaledVector(front,.29).add(new Vector3(0,.03,0)),vertical=out.clone().multiplyScalar(.08).addScaledVector(front,-.12).add(new Vector3(0,-.99,0)).normalize();
+      const work=hips.getWorldPosition(new Vector3()).addScaledVector(out,.1).addScaledVector(front,.29).add(new Vector3(0,.22,0)),vertical=out.clone().multiplyScalar(.08).addScaledVector(front,-.12).add(new Vector3(0,-.99,0)).normalize();
       const lift=smoothPhase(t,0,.28),release=smoothPhase(t,this.reference.insert,this.reference.end);
       mouth.copy(this.heldStart.mouth).lerp(work,lift);axis.copy(this.heldStart.axis).lerp(vertical,lift).normalize();
       const reach=shoulder.distanceTo(leftFore.getWorldPosition(new Vector3()))+leftFore.getWorldPosition(new Vector3()).distanceTo(leftHand.getWorldPosition(new Vector3())),low=shoulder.clone().addScaledVector(out,.16).addScaledVector(front,.035).add(new Vector3(0,-reach*.98,0));

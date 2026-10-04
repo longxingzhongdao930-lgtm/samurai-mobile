@@ -9,6 +9,7 @@ const canon=n=>n.replace(/^EEJANAIBot|^mixamorig:?/i,'');
 const target=load('public/models/tpose.fbx');target.updateMatrixWorld(true);
 const tb=new Map();target.traverse(b=>{if(b.isBone)tb.set(canon(b.name),b);});
 const handRest=tb.get('RightHand').quaternion.clone();
+const upperRest=new Map(['Spine','Spine1','Spine2','Neck','Head'].map(n=>[n,tb.get(n).quaternion.clone()]));
 const rests=new Map([...tb].map(([id,b])=>[id,b.getWorldQuaternion(new Quaternion())]));
 const inputs=[['quick-slash',process.argv[2],.38],['heavenly-strike-2',process.argv[3],.6]];
 for(const [id,path,seconds] of inputs){
@@ -20,7 +21,7 @@ for(const [id,path,seconds] of inputs){
  const mixer=new AnimationMixer(source),action=mixer.clipAction(original);action.setLoop(LoopOnce,1);action.clampWhenFinished=true;action.play();
  let peak={y:-Infinity,phase:.55};
  for(let frame=0;frame<=90;frame++){const phase=frame/90;if(phase<.38||phase>.78)continue;mixer.setTime(original.duration*phase);source.updateMatrixWorld(true);const y=animated.get('RightHand').getWorldPosition(new Vector3()).y;if(y>peak.y)peak={y,phase};}
- const cutEnd=peak.phase,hold=id==='quick-slash'?.13:.16;
+ const cutEnd=peak.phase,hold=id==='quick-slash'?.22:.28;
  const times=[],values=new Map([...tb].filter(([n])=>animated.has(n)&&bind.has(n)).map(([n])=>[n,[]])),hips=[];
  let firstY=null,previous=null,best={speed:0,phase:.5};const count=Math.ceil(original.duration*30);
  for(let frame=0;frame<=count;frame++){
@@ -30,7 +31,7 @@ for(const [id,path,seconds] of inputs){
   for(const [n] of values){const bone=tb.get(n),parentId=canon(bone.parent.name),parent=desired.get(parentId)??bone.parent.getWorldQuaternion(new Quaternion());bone.quaternion.copy(parent.clone().invert().multiply(desired.get(n)).normalize());}
   // Finish the supplied sweep in a clean upper guard, without its return/fidget.
   const lift=Math.max(0,Math.min(1,(frame/count-.8)/.2)),weight=lift*lift*(3-2*lift);
-  if(weight){target.updateMatrixWorld(true);const arm=tb.get('RightArm'),fore=tb.get('RightForeArm'),hand=tb.get('RightHand'),at=arm.getWorldPosition(new Vector3()),elbow=fore.getWorldPosition(new Vector3()),wrist=hand.getWorldPosition(new Vector3()),reach=at.distanceTo(elbow)+elbow.distanceTo(wrist),sign=Math.sign(at.x)||-1;ik(arm,fore,hand,at.clone().add(new Vector3(sign*reach*.25,reach*.6,reach*.25)),new Vector3(sign*.5,.1,.3),weight);hand.quaternion.slerp(handRest,weight);}
+  if(weight){for(const [n,q] of upperRest)tb.get(n).quaternion.slerp(q,weight*.8);target.updateMatrixWorld(true);const arm=tb.get('RightArm'),fore=tb.get('RightForeArm'),hand=tb.get('RightHand'),at=arm.getWorldPosition(new Vector3()),elbow=fore.getWorldPosition(new Vector3()),wrist=hand.getWorldPosition(new Vector3()),reach=at.distanceTo(elbow)+elbow.distanceTo(wrist),sign=Math.sign(at.x)||-1;ik(arm,fore,hand,at.clone().add(new Vector3(sign*reach*.25,reach*.8,reach*.25)),new Vector3(sign*.5,.1,.3),weight);hand.quaternion.slerp(handRest,weight);}
   for(const [n,v] of values)tb.get(n).quaternion.normalize().toArray(v,v.length);
   const y=animated.get('Hips').getWorldPosition(new Vector3()).y;if(firstY===null)firstY=y;
   const hip=tb.get('Hips');hips.push(hip.position.x,hip.position.y+(y-firstY),hip.position.z);

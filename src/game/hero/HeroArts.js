@@ -19,12 +19,15 @@ export class HeroArts {
   constructor(player) {
     this.p=player;this.g=player.game;
     this.pose=new PoseLayer(player.character.mixer,nameMotion(vergilIaiStance(player.character.clips.get('crouch'),player.character.clips.get('idle')),'stance'),{blendIn:.12,blendOut:.1});
+    const endStance=player.character.clips.get('idle').clone(),walk=player.character.clips.get('walk');
+    endStance.tracks=endStance.tracks.map(t=>{const r=t.clone(),ref=/(?:Spine\d*|Neck|Head)\.quaternion$/.test(t.name)?walk?.tracks.find(x=>x.name===t.name):null,value=Array.from((ref??t).createInterpolant().evaluate(0));r.times=new Float32Array([0,1]);r.values=new Float32Array([...value,...value]);return r;});
+    this.endPose=new PoseLayer(player.character.mixer,endStance,{blendIn:.09,blendOut:.1});
     this.restPose=new PoseLayer(player.character.mixer,player.character.clips.get('idle'),{blendIn:.16,blendOut:.12,loop:true});
-    player.poses.push(this.pose,this.restPose);player.character.locomotion.overrides.push(this.pose,this.restPose);
+    player.poses.push(this.pose,this.restPose,this.endPose);player.character.locomotion.overrides.push(this.pose,this.restPose,this.endPose);
     this.reset();
   }
-  reset(){this.mode='';this.t=0;this.ready=0;this.link=0;this.returnGuard=0;this.evadeWindow=0;this.kickCd=0;this.rewardAvailable=false;this.transform=0;this.dirt=0;this.flourishQueued=false;this.pose?.cancel();this.restPose?.cancel();}
-  cancel(){this.mode='';this.t=0;this.pose.stop();this.restPose?.stop();}
+  reset(){this.mode='';this.t=0;this.ready=0;this.link=0;this.returnGuard=0;this.evadeWindow=0;this.kickCd=0;this.rewardAvailable=false;this.transform=0;this.dirt=0;this.flourishQueued=false;this.pose?.cancel();this.restPose?.cancel();this.endPose?.cancel();}
+  cancel(){this.mode='';this.t=0;this.pose.stop();this.restPose?.stop();this.endPose?.stop();}
   startSheath(flourish=false){
     const p=this.p;if(p.dead||!p._canCancel(.65))return false;
     for(const m of p.moves)m.release();p._toFree();p.guarding=false;p._guardLatched=false;p.guardPose.stop();

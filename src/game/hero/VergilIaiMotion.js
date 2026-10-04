@@ -20,6 +20,7 @@ const PATHS={
  launcher:[[0,.12,-.4,.25,.1,-.5,.8],[.48,.12,.2,.3,.1,1,.25],[1,.05,-.38,.18,.1,.3,1]],
  'dive-katana':[[0,.05,.2,.22,.2,1,.2],[.55,.1,-.32,.4,.1,-1,.3],[1,.05,-.38,.18,.1,.3,1]]
 };
+PATHS.launcher.splice(2,0,[.82,...PATHS.launcher[1].slice(1)]);PATHS.k3.splice(2,0,[.8,...PATHS.k3[1].slice(1)]);
 PATHS.rising=PATHS.launcher;PATHS.counter=PATHS.k4;PATHS.execute=PATHS.k5;PATHS['jump-katana']=PATHS.k4;
 PATHS.branchB=[[0,...PATHS.k1[0].slice(1)],[.3,...PATHS.k1[1].slice(1)],[.48,...PATHS.k2[0].slice(1)],[.62,...PATHS.k2[1].slice(1)],[1,...PATHS.k1[2].slice(1)]];
 PATHS.branchC=[[0,...PATHS.k1[0].slice(1)],[.25,...PATHS.k1[1].slice(1)],[.38,...PATHS.k2[0].slice(1)],[.48,...PATHS.k2[1].slice(1)],[.6,...PATHS.k1[0].slice(1)],[.73,...PATHS.k1[1].slice(1)],[1,...PATHS.k1[2].slice(1)]];
@@ -27,10 +28,15 @@ export class VergilIaiMotion {
   constructor(presence){this.h=presence;}
   update(){
     const h=this.h,g=h.g,p=g.player,c=p.character;
+    const ritual=p.techniques.ritual;
+    if(ritual?.end&&ritual.t<.46){const arm=c.getBone('RightArm'),fore=c.getBone('RightForeArm'),hand=c.getBone('RightHand'),source=g.weapons.blade();if(arm&&fore&&hand&&source){c.root.updateMatrixWorld(true);const at=arm.getWorldPosition(new Vector3()),reach=at.distanceTo(fore.getWorldPosition(new Vector3()))+fore.getWorldPosition(new Vector3()).distanceTo(hand.getWorldPosition(new Vector3())),yaw=c.facing,w=smoothPhase(ritual.t,0,.12);h.katanaSheath._hand('Right',at.add(new Vector3(-Math.cos(yaw)*reach*.25,reach*.75,Math.sin(yaw)*reach*.25)),w);h.katanaSheath._orientHand(source,hand,new Quaternion().setFromUnitVectors(new Vector3(0,0,1),new Vector3(-Math.cos(yaw)*.2,1,Math.sin(yaw)*.2).normalize()),w);}return;}
     if(p.weapon.id!=='katana'||p.state!=='attack'||(!p.move?.config.swordMotion&&p.move!==p.heavy)||p.dead||g.form.active)return;
     if(p.move.config.referenceMotion){
       const data=c.clips.get(p.move.config.referenceMotion)?.userData,hand=c.getBone('RightHand'),source=g.weapons.blade();
-      if(data&&hand&&source){const end=data.holdStart/p.move.action.getClip().duration,w=smoothPhase(p.move.phase,end*.8,end),yaw=c.facing,direction=new Vector3(-Math.cos(yaw)*.7+Math.sin(yaw)*.1,1,Math.sin(yaw)*.7+Math.cos(yaw)*.1).normalize();if(w>0)h.katanaSheath._orientHand(source,hand,new Quaternion().setFromUnitVectors(new Vector3(0,0,1),direction),w);}
+      if(data&&hand&&source){
+        const end=data.holdStart/p.move.action.getClip().duration,w=smoothPhase(p.move.phase,end*.8,end),yaw=c.facing;
+        if(w>0){c.root.updateMatrixWorld(true);const hips=c.getBone('Hips'),left=c.getBone('LeftHand'),front=new Vector3(Math.sin(yaw),0,Math.cos(yaw)),mouth=hips.getWorldPosition(new Vector3()).add(new Vector3(Math.cos(yaw)*.08,.22,-Math.sin(yaw)*.08)).addScaledVector(front,.25);h.katanaSheath._hand('Left',mouth,w);c.root.updateMatrixWorld(true);const direction=left.getWorldPosition(new Vector3()).sub(hand.getWorldPosition(new Vector3())).normalize();h.katanaSheath._orientHand(source,hand,new Quaternion().setFromUnitVectors(new Vector3(0,0,1),direction),w);}
+      }
       return;
     }
     const heavy=p.move===p.heavy,keys=heavy?KEYS:(PATHS[p.move.config.id]??PATHS.k1);

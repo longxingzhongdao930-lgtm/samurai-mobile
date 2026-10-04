@@ -1,6 +1,5 @@
 import { Group, Mesh, MeshStandardMaterial, ConeGeometry, CylinderGeometry, SphereGeometry, BufferGeometry, Line, LineBasicMaterial, Vector3, DoubleSide } from 'three';
 import { SheathBody } from './SheathBody.js';
-import { DualKatana } from './DualKatana.js';
 import { SHEATH_REFERENCE } from './SheathReference.js';
 import { KatanaSheath } from './KatanaSheath.js';
 import { ik } from '../combat/WeaponMotion.js';
@@ -8,7 +7,7 @@ import { ik } from '../combat/WeaponMotion.js';
 /** Small, reversible pose offsets; no edits to the imported rig or animation tracks. */
 export class HeroPresence {
   constructor(game){
-    this.g=game;this.sheathBody=new SheathBody(this);this.dualKatana=new DualKatana(this);this.katanaSheath=new KatanaSheath(this,{reference:SHEATH_REFERENCE.single});this.originals=new Map();this.look=0;this.speed=0;this.sway=0;
+    this.g=game;this.sheathBody=new SheathBody(this);this.katanaSheath=new KatanaSheath(this,{reference:SHEATH_REFERENCE.single});this.originals=new Map();this.look=0;this.speed=0;this.sway=0;
     this.root=new Group();game.app.scene.add(this.root);
     const cloth=new MeshStandardMaterial({color:'#252f39',roughness:.95,side:DoubleSide});this.cloth=cloth;
     this.hat=new Mesh(new ConeGeometry(.43,.14,24),new MeshStandardMaterial({color:'#584632',roughness:1}));
@@ -54,22 +53,7 @@ export class HeroPresence {
     this.sheathBody.update(dt);
     const cfg=p.move?.config;
     if(p.state==='attack'&&cfg){
-      if(cfg.dualPose&&!cfg.airborne){
-        // Small, grounded step instead of the imported raised-knee strike.
-        const phase=p.move.phase,hit=cfg.hits[0],forward=new Vector3(Math.sin(c.facing),0,Math.cos(c.facing));
-        const prep=Math.max(0,Math.min(1,phase/Math.max(.1,hit)));
-        for(const side of ['Left','Right']){
-          const upper=c.getBone(side+'UpLeg'),lower=c.getBone(side+'Leg'),foot=c.getBone(side+'Foot');
-          if(!upper||!lower||!foot)continue;
-          this.turn(upper);this.turn(lower);c.root.updateMatrixWorld(true);
-          const at=foot.getWorldPosition(new Vector3()),lead=side===cfg.dualHands[0];
-          at.addScaledVector(forward,(lead?.14:-.04)*Math.sin(Math.PI*phase));
-          at.y=g.app.terrain.heightAt(at.x,at.z)+.08+(lead&&phase<hit?.035*Math.sin(Math.PI*prep):0);
-          ik(upper,lower,foot,at,forward,1);
-        }
-      }
       const pulse=Math.sin(Math.PI*Math.min(1,p.move.phase));
-      if(cfg.dualPose)this.turn(c.getBone('Spine2'),0,(cfg.dualPose==='left'?-.16:.16)*pulse,0);
       if(cfg.heroFinish==='thrust'||p.move===p.counter&&cfg.heroCounter===0){
         const upper=c.getBone('RightArm'),lower=c.getBone('RightForeArm'),hand=c.getBone('RightHand');
         if(upper&&lower&&hand){this.turn(upper);this.turn(lower);c.root.updateMatrixWorld(true);
@@ -98,7 +82,7 @@ export class HeroPresence {
     this.cloth.color.setRGB(.025*(1-arts.dirt*.35),.035*(1-arts.dirt*.35),.045*(1-arts.dirt*.35));
     this.sheath.visible=p.weapon.id==='katana';
     const blade=g.weapons.blade?.() ?? g.weapons._slot()?.model;if(blade&&p.weapon.id==='katana')blade.visible=!['sheath','sheathed','charge'].includes(arts.mode);
-    if(!this.dualKatana.update(dt))this.katanaSheath.update(dt);
+    this.katanaSheath.update(dt);
     const fist=g.weapons.fist,f=fist?.flight;
     this.tether.visible=!!f&&(f.time<.2||f.returning||f.grabbed);
     if(this.tether.visible){const a=this.tether.geometry.attributes.position,home=fist.home();a.setXYZ(0,home.x,home.y,home.z);a.setXYZ(1,f.pos.x,f.pos.y,f.pos.z);a.needsUpdate=true;}

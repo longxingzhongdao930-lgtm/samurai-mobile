@@ -26,7 +26,7 @@ test('failed sword download preserves the equipped blade and matching cover',asy
  assert.equal(swords.id,'classic');assert.equal(swords.blade,blade);assert.equal(swords.g.heroPresence.sheath.children[0],cover);
 });
 test('saved single sword IDs survive validation and unknown selections use the default',()=>{
- for(const sword of ['mythical','oni','classic','dual'])assert.equal(validateHero({sword}).sword,sword);
+ for(const sword of ['mythical','oni','classic'])assert.equal(validateHero({sword}).sword,sword);
  for(const sword of ['invalid','__proto__','constructor'])assert.equal(validateHero({sword}).sword,'mythical');
 });
 

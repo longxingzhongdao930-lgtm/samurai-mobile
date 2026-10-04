@@ -9,8 +9,8 @@ with sync_playwright() as pw:
  p.goto(os.environ.get('GAME_URL','http://127.0.0.1:4181/')+'?q=low&dyn=0');p.wait_for_function('window.app?.game?.state==="title"',timeout=240000);p.evaluate('app.stop()');p.get_by_role('button',name='はじめる',exact=True).click()
  p.evaluate("()=>{const g=app.game;g.flow.update=()=>{};g.director.clear();g.magic.clear();g.flow._place(g.playerPosition.clone().set(0,0,124),0);g.hud.setVisible(false);g.touch.setVisible(false);app.simulate(1);}")
  results=[]
- for weapon in ['katana','dual','odachi','spear']:
-  p.evaluate('''async id=>{const g=app.game,p=g.player;g.input.reset();p.revive();g.flow._place(g.playerPosition.clone().set(0,0,124),0);await g.weapons.swords.select(id==='dual'?'dual':'mythical');p.setWeapon(id==='dual'?'katana':id);app.simulate(.6);g.input.press('jump');app.simulate(1/60);g.input.release('jump');}''',weapon)
+ for weapon in ['katana','odachi','spear']:
+  p.evaluate('''async id=>{const g=app.game,p=g.player;g.input.reset();p.revive();g.flow._place(g.playerPosition.clone().set(0,0,124),0);await g.weapons.swords.select('mythical');p.setWeapon(id);app.simulate(.6);g.input.press('jump');app.simulate(1/60);g.input.release('jump');}''',weapon)
   folder=out/weapon;folder.mkdir(exist_ok=True);rows=[]
   for frame in range(30):
    if frame==2:p.evaluate('app.game.input.press("attack")')

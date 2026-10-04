@@ -9,10 +9,10 @@ with sync_playwright() as pw:
  p.goto(os.environ.get('GAME_URL','http://127.0.0.1:4181/')+'?q=low&dyn=0');p.wait_for_function('window.app?.game?.state==="title"',timeout=240000);p.evaluate('app.stop()');p.get_by_role('button',name='はじめる',exact=True).click()
  p.evaluate('''async()=>{const g=app.game;g.flow.update=()=>{};g.director.clear();g.magic.clear();await g.weapons.swords.select('oni');g.player.setWeapon('katana');g.flow._place(g.playerPosition.clone().set(0,0,124),0);app.simulate(.3);}''')
  order=[]
- for expected in ['dual','odachi','spear','naginata','kusarigama','gauntlet','shuriken','katana']:
+ for expected in ['odachi','spear','naginata','kusarigama','gauntlet','shuriken','katana']:
   p.keyboard.press('e');p.evaluate('app.simulate(.03)')
-  p.wait_for_function("id=>!app.game.player._swordSwitch&&(id==='dual'?app.game.weapons.swords.id==='dual':app.game.player.weapon.id===id)",arg=expected,timeout=90000)
-  p.evaluate('app.simulate(.3)');order.append(p.evaluate("()=>app.game.player.weapon.id==='katana'&&app.game.weapons.swords.id==='dual'?'dual':app.game.player.weapon.id"))
+  p.wait_for_function("id=>app.game.player.weapon.id===id",arg=expected,timeout=90000)
+  p.evaluate('app.simulate(.3)');order.append(p.evaluate("()=>app.game.player.weapon.id"))
  assert p.evaluate('app.game.weapons.swords.id')=='oni','restore selected single sword'
  p.keyboard.press('Shift');p.evaluate('app.simulate(.03)');assert p.evaluate('app.game.player.state')=='dodge'
  p.evaluate('app.simulate(1)');p.keyboard.press('Space');p.evaluate('app.simulate(.03)')
@@ -22,11 +22,11 @@ with sync_playwright() as pw:
  assert max(r['hips'] for r in air)-min(r['hips'] for r in air)>.1,'airborne animation keeps its vertical arc'
  assert p.evaluate('app.game.player.state')=='free'
  # Every weapon can start its own airborne variant without a ground warp.
- variants=p.evaluate('''async()=>{const g=app.game,p=g.player,result=[];for(const id of ['katana','dual','odachi','spear','naginata','kusarigama','gauntlet','shuriken']){
- g.input.reset();p.revive();if(id==='dual'){await g.weapons.swords.select('dual');p.setWeapon('katana');}else{if(id==='katana')await g.weapons.swords.select('oni');p.setWeapon(id);}
+ variants=p.evaluate('''async()=>{const g=app.game,p=g.player,result=[];for(const id of ['katana','odachi','spear','naginata','kusarigama','gauntlet','shuriken']){
+ g.input.reset();p.revive();if(id==='katana')await g.weapons.swords.select('oni');p.setWeapon(id);
  p.character.jump.cancel();p.character.hop.cancel();app.simulate(.3);g.input.press('jump');app.simulate(1/60);g.input.release('jump');g.input.press('attack');app.simulate(1/60);g.input.release('attack');
- const originalStrike=p.jumpMove.onStrike,contacts=[];p.jumpMove.onStrike=(move,index)=>{contacts.push(move.config.dualHands?.[index]??'Right');originalStrike(move,index);};
- const row={id,move:p.move?.config.id,air:p.move?.config.airborne,warp:p._held.warp.active};app.simulate(2);p.jumpMove.onStrike=originalStrike;row.contacts=contacts;row.expected=p.jumpMove.config.dualHands??['Right'];result.push(row);
+ const originalStrike=p.jumpMove.onStrike,contacts=[];p.jumpMove.onStrike=(move,index)=>{contacts.push('Right');originalStrike(move,index);};
+ const row={id,move:p.move?.config.id,air:p.move?.config.airborne,warp:p._held.warp.active};app.simulate(2);p.jumpMove.onStrike=originalStrike;row.contacts=contacts;row.expected=['Right'];result.push(row);
  if(p.state!=='free'||p.character.hop.locked||p.character.jump.locked)throw Error('airborne state stuck '+id);
  }return result;}''')
  assert all(r['air'] and not r['warp'] and r['contacts']==r['expected'] for r in variants),variants

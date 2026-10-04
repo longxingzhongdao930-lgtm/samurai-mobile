@@ -11,8 +11,8 @@ export function validateHero(raw={}){
   const counts={};for(const k of ['hits','sheath','fist','parry','dodge','spacing','tip','cut'])counts[k]=Number.isFinite(raw?.counts?.[k])?Math.min(9999,Math.max(0,Math.floor(raw.counts[k]))):0;
   const build=STYLES[raw?.build]&&counts[STYLES[raw.build].key]>=STYLES[raw.build].need?raw.build:'none';
   const appearance=['plain','hat','mask','coat'].includes(raw?.appearance)?raw.appearance:'plain';
-  const sets=Array.isArray(raw?.sets)?raw.sets.slice(0,3).filter(s=>WEAPON_ORDER.includes(s?.weapon)&&Number.isInteger(s.element)&&s.element>=0&&s.element<3).map(s=>({name:typeof s.name==='string'?s.name.slice(0,20):'',weapon:s.weapon,sword:Object.hasOwn(SWORD_VARIANTS,s.sword)?s.sword:null,element:s.element,build:STYLES[s.build]?s.build:'none',blessings:Array.isArray(s.blessings)?s.blessings.filter(x=>Array.isArray(x)&&['road','sanctum'].includes(x[0])&&['blade','step','dragon','flow','link'].includes(x[1])).slice(0,2):[]})):[];
-  return {counts,build,appearance,sets,singleSword:['mythical','oni','classic'].includes(raw?.singleSword)?raw.singleSword:['mythical','oni','classic'].includes(raw?.sword)?raw.sword:'mythical',sword:Object.hasOwn(SWORD_VARIANTS,raw?.sword)?raw.sword:'mythical'};
+  const sets=Array.isArray(raw?.sets)?raw.sets.slice(0,3).filter(s=>WEAPON_ORDER.includes(s?.weapon)&&Number.isInteger(s.element)&&s.element>=0&&s.element<3).map(s=>({name:typeof s.name==='string'?s.name.slice(0,20):'',weapon:s.weapon,sword:Object.hasOwn(SWORD_VARIANTS,s.sword)?s.sword:s.sword==='dual'?(Object.hasOwn(SWORD_VARIANTS,raw.singleSword)?raw.singleSword:'mythical'):null,element:s.element,build:STYLES[s.build]?s.build:'none',blessings:Array.isArray(s.blessings)?s.blessings.filter(x=>Array.isArray(x)&&['road','sanctum'].includes(x[0])&&['blade','step','dragon','flow','link'].includes(x[1])).slice(0,2):[]})):[];
+  return {counts,build,appearance,sets,singleSword:['mythical','oni','classic'].includes(raw?.singleSword)?raw.singleSword:['mythical','oni','classic'].includes(raw?.sword)?raw.sword:'mythical',sword:Object.hasOwn(SWORD_VARIANTS,raw?.sword)?raw.sword:raw?.sword==='dual'&&Object.hasOwn(SWORD_VARIANTS,raw?.singleSword)?raw.singleSword:'mythical'};
 }
 export class HeroStudio {
   constructor(game){this.g=game;Object.assign(this,validateHero(readStored('hero',{})));this.clock={};this.photo=null;}
@@ -65,7 +65,7 @@ export class HeroStudio {
   }
   trialMenu(){
     const g=this.g;g.pause();const p=g.screens._panel('gs-settings','<h2 class="gs-h">主人公の試着・試技</h2>');
-    for(const id of weaponCycle())g.journey.button(p,id==='dual'?'二刀流':WEAPONS[id].name,async()=>{g.form.clear();if(id==='dual'||id==='katana'&&g.weapons.swords.id==='dual')await g.player._switchSword(id);else g.player.setWeapon(id);g.resume();g.after(2,()=>{if(g.journey.practice?.studio)this.trialMenu()})});
+    for(const id of weaponCycle())g.journey.button(p,WEAPONS[id].name,async()=>{g.form.clear();g.player.setWeapon(id);g.resume();g.after(2,()=>{if(g.journey.practice?.studio)this.trialMenu()})});
     g.journey.button(p,'攻撃モーション',()=>{g.resume();g.input.press('attack');g.input.release('attack');g.after(2,()=>{if(g.journey.practice?.studio)this.trialMenu()})});
     g.journey.button(p,'銀竜へ変身',()=>{g.resume();if(!g.form.begin())g.hud.notice('銀竜を読み込み中');g.after(2,()=>{if(g.journey.practice?.studio)this.trialMenu()})});
     g.journey.button(p,'自由に試す',()=>g.resume());g.journey.button(p,'外見・型を選ぶ',()=>this.menu(()=>this.trialMenu()));g.journey.button(p,'退出',()=>g.toTitle());

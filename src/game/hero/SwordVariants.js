@@ -4,7 +4,6 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 export const SWORD_VARIANTS = {
   mythical: { name: '単刀1 · 神話の刀', blade: null, scabbard: 'mythical-scabbard' },
   oni: { name: '単刀2 · 鬼殺し', blade: 'katana-oni', scabbard: 'katana-oni-scabbard' },
-  dual: { name: '二刀流', blade: 'dual-katana', scabbard: 'dual-katana-scabbard' },
   classic: { name: '単刀3 · 黒柄の刀', blade: 'katana-classic', scabbard: 'katana-classic-scabbard' }
 };
 
@@ -27,12 +26,11 @@ export class SwordVariants {
     if (request !== this.request || !canApply()) return false;
     const changed = this.id !== id;
     this.id = id;
-    if(id!=='dual'&&this.g.heroStudio)this.g.heroStudio.singleSword=id;
+    if(this.g.heroStudio)this.g.heroStudio.singleSword=id;
     this.clearBlade(); this.applyScabbard();
     if (changed) this.g.player?.refreshSwordMoves?.();
     if (this.weapons.current === 'katana') this.equipBlade();
     this.g.heroPresence?.katanaSheath.invalidate();
-    this.g.heroPresence?.dualKatana?.invalidate();
     return true;
   }
   applyScabbard() {

@@ -124,7 +124,6 @@ export const WEAPONS = {
   },
 
   // Future weapons. Same shape; `available: false` until they ship.
-  dualBlades: { id: 'dualBlades', name: '双剣', available: false },
   axe: { id: 'axe', name: '斧', available: false },
   staff: { id: 'staff', name: '杖', available: false },
   arcane: { id: 'arcane', name: '魔導武器', available: false }
@@ -291,16 +290,3 @@ WEAPONS.shuriken = {
 
 /** The order the weapon button cycles through. */
 export const WEAPON_ORDER = ['katana', 'odachi', 'spear', 'naginata', 'kusarigama', 'gauntlet', 'shuriken'];
-
-/** Original dual combat; the references show draw/sheath, not these attacks. */
-export const DUAL_KATANA = {
-  ...WEAPONS.katana,
-  combo: [
-    move({id:'dual-left',clip:'slashHit',clipFrom:.07,clipTo:.45,timeScale:1.45,hits:[.48],dualHands:['Left'],dualPose:'left',damage:10,posture:7,lunge:.45}),
-    move({id:'dual-right',clip:'slashHit',clipFrom:.25,clipTo:.66,timeScale:1.5,hits:[.48],dualHands:['Right'],dualPose:'right',damage:11,posture:8,lunge:.5}),
-    move({id:'dual-cross',clip:'slashHit',clipFrom:.07,clipTo:.7,timeScale:1.45,hits:[.35,.65],dualHands:['Left','Right'],dualPose:'cross',damage:8,posture:9,lunge:.65,cancelAt:.8,knockback:1.1})
-  ],
-  heavy: {...WEAPONS.katana.heavy,id:'dual-draw',clip:'slashHit',clipFrom:.07,clipTo:.7,timeScale:1.15,blendIn:.14,hits:[.56,.72],damage:14,posture:12,dualHands:['Left','Right'],dualPose:'cross'},
-  counter: {...WEAPONS.katana.counter,id:'dual-counter',dualHands:['Left','Right'],dualPose:'cross'},
-  execute: {...WEAPONS.katana.execute,id:'dual-execute',dualHands:['Right'],dualPose:'right'}
-};

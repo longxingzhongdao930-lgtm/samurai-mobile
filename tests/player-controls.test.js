@@ -5,10 +5,10 @@ import { SwordVariants } from '../src/game/hero/SwordVariants.js';
 import { GameInput } from '../src/game/GameInput.js';
 import { validateHero } from '../src/game/hero/HeroStudio.js';
 
-test('weapon cycle places dual between selected single and odachi',()=>{
- assert.deepEqual(weaponCycle().slice(0,3),['katana','dual','odachi']);
+test('weapon cycle omits removed dual loadout',()=>{
+ assert.deepEqual(weaponCycle().slice(0,3),['katana','odachi','spear']);
  const p={weapon:{id:'katana'},game:{weapons:{swords:{id:'oni'}}}};
- assert.equal(nextWeapon(p),'dual');p.game.weapons.swords.id='dual';assert.equal(nextWeapon(p),'odachi');
+ assert.equal(nextWeapon(p),'odachi');p.game.weapons.swords.id='dual';assert.equal(nextWeapon(p),'odachi');
  p.weapon.id='shuriken';assert.equal(nextWeapon(p),'katana');
 });
 test('an asynchronously loaded sword cannot apply after the player becomes unavailable',async()=>{
@@ -24,6 +24,10 @@ test('an unavailable jump is consumed and never delayed until landing or recover
 });
 test('single sword memory survives a saved dual loadout and rejects invalid IDs',()=>{
  assert.equal(validateHero({sword:'dual',singleSword:'oni'}).singleSword,'oni');
+ assert.equal(validateHero({sword:'dual',singleSword:'oni'}).sword,'oni');
+ assert.equal(validateHero({sword:'dual',sets:[{weapon:'katana',sword:'dual',element:0}]}).sets[0].sword,'mythical');
  assert.equal(validateHero({sword:'classic'}).singleSword,'classic');
  assert.equal(validateHero({sword:'dual',singleSword:'dual'}).singleSword,'mythical');
 });
+
+test('removed dual sword cannot be loaded or selected',async()=>{const swords=new SwordVariants({},{});swords.load=()=>{throw Error('must not load removed assets');};assert.equal(await swords.select('dual'),false);});

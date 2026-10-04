@@ -1,4 +1,3 @@
-import { sheathPose, dualCombatPose } from '../hero/SheathPose.js';
 import { jumpAttack } from '../data/jump-attacks.js';
 import { nextWeapon } from './WeaponCycle.js';
 import { HeroArts } from '../hero/HeroArts.js';
@@ -11,7 +10,7 @@ import { Attack } from '../../animation/Attack.js';
 import { settings } from '../../config/settings.js';
 import { PoseLayer } from './PoseLayer.js';
 import { BodyMotion } from './BodyMotion.js';
-import { WEAPONS, DUAL_KATANA } from '../data/weapons.js';
+import { WEAPONS } from '../data/weapons.js';
 import { ELEMENTS, SPELLS, SPELL_ORDER } from '../data/elements.js';
 
 const _v = new Vector3();
@@ -101,7 +100,7 @@ export class PlayerCombat {
     const clip = (name) => character.clips.get(name)?.clone() ?? null;
     const onStrike = (move, index) => this._onStrike(move, index);
     const make = (config) => {
-      const animation=config.dualPose ? (config.airborne?sheathPose:dualCombatPose)(clip(config.clip),character.clips.get('idle')) : clip(config.clip);
+      const animation=clip(config.clip);
       if(config.airborne&&animation)animation.tracks=animation.tracks.filter(track=>/(?:Spine\d*|(?:Left|Right)(?:Shoulder|Arm|ForeArm|Hand)(?:\w*))\.quaternion$/i.test(track.name));
       return new Attack(mixer,animation,character,{config,onStrike});
     };
@@ -134,16 +133,14 @@ export class PlayerCombat {
   }
 
   _setFor(weapon) {
-    const dual = weapon.id === 'katana' && this.game.weapons?.swords.id === 'dual';
-    const key = dual ? 'katana:dual' : weapon.id;
-    if (dual) weapon = DUAL_KATANA;
+    const key=weapon.id;
     if (!this._sets.has(key)) {
       this._sets.set(key, {
         combo: weapon.combo.map(this._make),
         heavy: this._make(weapon.heavy),
         counter: this._make(weapon.counter),
         execute: this._make(weapon.execute),
-        jump: this._make(jumpAttack(weapon,dual))
+        jump: this._make(jumpAttack(weapon))
       });
     }
     return this._sets.get(key);
@@ -216,13 +213,10 @@ export class PlayerCombat {
     }
     if (this.input.consume('weapon')) this._weaponQueue = 0.7;
     const recovery = canSwitchInRecovery(this);
-    if (this._swordSwitch || this._weaponQueue <= 0 || (this.state !== 'free' && !recovery)) return;
+    if (this._weaponQueue <= 0 || (this.state !== 'free' && !recovery)) return;
     this._weaponQueue = 0;
     const linked = recovery && this._linkHitTimer > 0;
     const next = nextWeapon(this);
-    if(next==='dual'||next==='katana'&&this.game.weapons?.swords.id==='dual'){
-      this._switchSword(next,linked);return;
-    }
     if (this.setWeapon(next)) {
       this._toFree();
       this._held.warp.active = false;
@@ -231,24 +225,6 @@ export class PlayerCombat {
       this.game.hud?.notice(linked ? `${this.weapon.name} — 持ち替え連携` : this.weapon.id === 'gauntlet' ? '飛ぶ手甲 — 攻撃で射出・長押しして離すと引き寄せ' : this.weapon.name, 2);
       this.game.audio?.play('select');
     }
-  }
-
-  async _switchSword(next, linked=false){
-    if(this._swordSwitch)return;
-    this._swordSwitch=true;
-    const g=this.game,swords=g.weapons.swords;
-    const id=next==='dual'?'dual':g.heroStudio?.singleSword??'mythical';
-    try{
-      const switched=await swords.select(id,{canApply:()=>!this.dead&&!g.form?.active&&!g.cinematic&&!this.character.jump?.locked&&!this.character.hop?.locked&&(this.state==='free'||canSwitchInRecovery(this))});
-      if(!switched)return;
-      if(this.weapon.id!=='katana')this.setWeapon('katana');
-      this._toFree();this._held.warp.active=false;
-      this._switchBoost=linked?2:0;this._linkHitTimer=0;
-      if(g.heroStudio){g.heroStudio.sword=id;g.heroStudio.save();}
-      g.hud?.notice(next==='dual'?'二刀流 — 左斬り・右斬り・交差斬り':'刀',2);
-      g.audio?.play('select');
-    }catch(error){g.hud?.notice('刀の読み込みに失敗しました。もう一度切り替えてください',2);}
-    finally{this._swordSwitch=false;}
   }
 
   _recordHit(count = 1) {
@@ -689,7 +665,7 @@ export class PlayerCombat {
         slice: config.slices,
         execute: executing,
         source: 'melee',
-        hand: config.dualHands?.[index] ?? 'Right',
+        hand: 'Right',
         heavy: move === this.heavy || move === this.combo[4]
       });
       if (result?.damage > 0 && !result.evaded) { landed++; this.arts?.landed(enemy,config,distance,reach); }

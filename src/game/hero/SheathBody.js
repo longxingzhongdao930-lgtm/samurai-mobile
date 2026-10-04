@@ -17,9 +17,8 @@ export class SheathBody {
   update(dt) {
     const h=this.h,p=h.g.player,c=p.character,a=p.arts;
     const eligible=p.weapon.id==='katana'&&!p.dead&&!h.g.form.active;
-    const single=h.g.weapons.swords.id!=='dual';
     const charging=eligible&&a.mode==='charge';
-    const active=eligible&&(charging||single&&['sheath','flourish','sheathed'].includes(a.mode));
+    const active=eligible&&(charging||['sheath','flourish','sheathed'].includes(a.mode));
     let target=[0,0,0,0,0];
     if(charging){
       const u=smoothPhase(a.t,0,.18);

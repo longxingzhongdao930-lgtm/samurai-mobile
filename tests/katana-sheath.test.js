@@ -124,3 +124,18 @@ test('scabbard follows a crouching hip without editing the lower body', () => {
   hips.position.y = .82; motion.update();
   assert.ok(Math.abs(h.sheath.position.y - .94) < 1e-9);
 });
+
+test('blade remains in the real right hand when insertion IK cannot reach its target', () => {
+  const root = new Group(), hand = new Group();
+  root.add(hand); hand.position.set(-.2, 1, .3);
+  const source = new Group(); source.position.set(.4, 1.2, .7);
+  const player = { weapon: { id: 'katana' }, arts: { mode: 'sheath', t: 0 },
+    character: { root, position: new Vector3(), facing: 0, getBone: name => name === 'RightHand' ? hand : null } };
+  const h = { root: new Group(), sheath: new Group(), g: { player, form: { active: false }, weapons: { _slot: () => ({ model: source }) } } };
+  const motion = new KatanaSheath(h); motion._hand = () => {};
+  for (const t of [0, .1, .2, .4, .65]) {
+    player.arts.t = t; motion.update();
+    const grip = new Vector3(0,0,-.1).applyQuaternion(motion.copy.quaternion).add(motion.copy.position);
+    assert.ok(grip.distanceTo(hand.getWorldPosition(new Vector3())) < 1e-9);
+  }
+});

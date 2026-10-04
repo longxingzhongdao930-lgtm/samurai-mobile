@@ -109,6 +109,15 @@ export class KatanaSheath {
     for (const [side, target] of [['Left', mouth], ['Right', grip]]) {
       this._hand(side, target, align);
     }
+    // IK deliberately blends during alignment and cannot reach every point of
+    // the old straight-line path. The rigid sword must stay in the real hand,
+    // rather than moving ahead of the wrist while that blend catches up.
+    const rightHand = c.getBone('RightHand');
+    if (rightHand) {
+      c.root.updateMatrixWorld(true);
+      const actualGrip = rightHand.getWorldPosition(new Vector3());
+      this.copy.position.add(actualGrip.sub(grip));
+    }
   }
   invalidate() { this.copy?.removeFromParent(); this.copy = null; this.active = false; this.drawFromSheath = false; }
   _hand(side, target, weight) {

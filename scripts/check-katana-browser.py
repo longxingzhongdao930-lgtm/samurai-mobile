@@ -69,7 +69,7 @@ with sync_playwright() as pw:
     (output/'timeline.json').write_text(json.dumps(timeline,indent=2))
     settled=[r for r in timeline if r['t']>1]
     assert max(r['leftGap'] for r in settled)<.005, 'settled left-hand contact'
-    assert max(r['rightGap'] for r in settled)<.005, 'settled right-hand contact'
+    assert max(r['rightGap'] for r in timeline)<.005, 'right hand keeps its grip throughout insertion'
     if os.environ.get('KATANA_RECORD') == '1':
         frames=output/'frames';frames.mkdir(exist_ok=True)
         page.evaluate("() => {const g=app.game;g.input.reset();g.player.arts.cancel();g.player.arts.startSheath();}")

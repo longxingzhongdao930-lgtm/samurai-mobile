@@ -34,7 +34,7 @@ export class DualKatana {
     else this.clock+=dt;
     this.previous=p.arts.mode;
     const yaw=c.facing,world=(x,y,z)=>new Vector3(x*Math.cos(yaw)+z*Math.sin(yaw),y,-x*Math.sin(yaw)+z*Math.cos(yaw));
-    if(!held && this.clock>.28 && p.state==='free'){
+    if(!held && (this.clock>.28||p.guarding) && p.state==='free'){
       for(const [index,side] of ['Left','Right'].entries()){
         const target=c.position.clone().add(p.guarding?world(index?.28:-.28,index?1.35:1.2,.35):world(index?.32:-.34,index?1.38:1.05,index?.02:.22));
         this.rigs[index]._hand('Right',target,1);
@@ -49,7 +49,8 @@ export class DualKatana {
       this.rigs[0]._hand('Right',c.position.clone().add(world(-.34+.55*swing,1.05+.2*swing,.22+.28*swing)),1);
     }
     for(const rig of this.rigs){
-      rig.arts.mode=!held&&rig.index===1&&this.clock<.16?'sheathed':p.arts.mode;
+      const drawing=!held&&p.state==='attack'&&p.move===p.heavy;
+      rig.arts.mode=drawing&&rig.index===1&&this.clock<.16?'sheathed':p.arts.mode;
       rig.arts.t=Math.max(0,p.arts.t-(rig.index===1?.4:0));
       rig.update(dt);
     }

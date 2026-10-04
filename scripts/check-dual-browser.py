@@ -13,8 +13,46 @@ with sync_playwright() as pw:
  assert rows[44]['hands'][0]['guard']<.005 and rows[44]['hands'][1]['guard']>.1, 'left sword seats before right'
  assert max(h['guard'] for h in rows[-1]['hands'])<.005, 'both guards meet the mouths'
  p.evaluate('dualShot()');p.screenshot(path=str(out/'sheathed.png'))
- enclosure=p.evaluate("""()=>{const h=app.game.heroPresence,ray=new app.characterScreen.raycaster.constructor();return h.dualKatana.rigs.map(rig=>{let tested=0,outside=0;const cover=rig.presence.sheath,materials=new Map();cover.traverse(n=>{for(const m of (Array.isArray(n.material)?n.material:[n.material]))if(m&&!materials.has(m)){materials.set(m,m.side);m.side=2;}});try{rig.copy.traverse(n=>{const a=n.geometry?.attributes.position;if(!a)return;for(let i=0;i<a.count;i++){const vertex=rig.copy.position.clone().fromBufferAttribute(a,i);if(vertex.z<.02)continue;const world=vertex.applyMatrix4(n.matrixWorld),local=cover.worldToLocal(world.clone());if(local.z<.02)continue;tested++;for(const direction of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0]]){ray.set(world,world.clone().set(...direction).transformDirection(cover.matrixWorld));if(!ray.intersectObject(cover,true).length){outside++;break;}}}});}finally{for(const [m,side]of materials)m.side=side;}return {tested,outside};});}""")
- (out/'enclosure.json').write_text(json.dumps(enclosure,indent=2));assert all(r['tested']>0 and r['outside']==0 for r in enclosure), 'both swords fit their scabbards'
+ p.evaluate("""window.dualEnclosure=()=>{app.scene.updateMatrixWorld(true);const h=app.game.heroPresence,ray=new app.characterScreen.raycaster.constructor();return h.dualKatana.rigs.map(rig=>{let tested=0,outside=0;const cover=rig.presence.sheath,materials=new Map();cover.traverse(n=>{for(const m of (Array.isArray(n.material)?n.material:[n.material]))if(m&&!materials.has(m)){materials.set(m,m.side);m.side=2;}});try{rig.copy.traverse(n=>{const a=n.geometry?.attributes.position;if(!a)return;for(let i=0;i<a.count;i++){const vertex=rig.copy.position.clone().fromBufferAttribute(a,i);if(vertex.z<.02)continue;const world=vertex.applyMatrix4(n.matrixWorld),local=cover.worldToLocal(world.clone());if(local.z<.02)continue;tested++;for(const direction of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0]]){ray.set(world,world.clone().set(...direction).transformDirection(cover.matrixWorld));if(!ray.intersectObject(cover,true).length){outside++;break;}}}});}finally{for(const [m,side]of materials)m.side=side;}return {tested,outside};});}""")
+ p.evaluate('()=>{const g=app.game;g.input.reset();g.player.arts.cancel();g.player.revive();g.player.arts.startSheath();}')
+ enclosure=[];previous=0
+ for t in [.25,.35,.45,.55,.65,.85,1,1.1,1.3]:
+  p.evaluate('dt=>app.simulate(dt,1/60)',t-previous);previous=t
+  sample=p.evaluate('dualEnclosure()');enclosure.append({'t':t,'hands':sample})
+ (out/'enclosure.json').write_text(json.dumps(enclosure,indent=2))
+ assert all(hand['tested']>0 and hand['outside']==0 for row in enclosure for index,hand in enumerate(row['hands']) if row['t']-index*.4>=.23), 'both swords stay inside their scabbards during insertion'
+ transitions=p.evaluate("""()=>{
+  const g=app.game,p=g.player,d=g.heroPresence.dualKatana,results=[];
+  for(const action of ['guard','dodge','draw','flourish','hurt']){
+   g.input.reset();p.arts.cancel();p.revive();app.simulate(.3);p.arts.startSheath();app.simulate(.45);
+   if(action==='guard')g.input.press('guard');
+   if(action==='dodge')g.input.press('dodge');
+   if(action==='draw'){g.input.press('attack');p.arts.charge();app.simulate(.4);g.input.release('attack');}
+   if(action==='flourish')p.arts.startSheath(true);
+   if(action==='hurt'){p.state='hurt';p.arts.cancel();}
+   let maxGap=0,maxStep=0,stalledRightFrames=0,previous=[];
+   for(let frame=0;frame<100;frame++){
+    app.simulate(1/60,1/60);app.scene.updateMatrixWorld(true);
+    if(['guard','dodge','hurt'].includes(action)&&d.rigs[1].arts.mode==='sheathed')stalledRightFrames++;
+    for(const [index,rig]of d.rigs.entries()){
+     const source=rig.source(),visible=rig.copy?.visible?rig.copy:source;
+     const grip=visible.localToWorld(visible.position.clone().set(0,0,-.1));
+     const hand=p.character.getBone(index?'RightHand':'LeftHand').getWorldPosition(grip.clone());
+     if(!hand.toArray().every(Number.isFinite))throw Error('invalid hand '+action);
+     maxGap=Math.max(maxGap,grip.distanceTo(hand));
+     if(previous[index]&&frame>90)maxStep=Math.max(maxStep,hand.distanceTo(previous[index]));previous[index]=hand;
+    }
+   }
+   results.push({action,maxGap,stalledRightFrames,maxSettledHandStep:maxStep});
+  }
+  return results;
+ }""")
+ (out/'transitions.json').write_text(json.dumps(transitions,indent=2));assert all(r['maxGap']<.005 for r in transitions),'both grips stay attached through interruptions'
+ assert all(r['stalledRightFrames']==0 for r in transitions),'guard, dodge and hurt must not retain the draw delay'
+ assert all(r['maxSettledHandStep']<.005 for r in transitions),'hands settle after each transition'
+ low_fps=p.evaluate("""()=>{const g=app.game,p=g.player,d=g.heroPresence.dualKatana;g.input.reset();p.arts.cancel();p.revive();p.arts.startSheath();let maxGap=0;for(let frame=0;frame<60;frame++){app.simulate(1/30,1/30);app.scene.updateMatrixWorld(true);for(const [index,rig]of d.rigs.entries()){const source=rig.source(),visible=rig.copy?.visible?rig.copy:source;const grip=visible.localToWorld(visible.position.clone().set(0,0,-.1));const hand=p.character.getBone(index?'RightHand':'LeftHand').getWorldPosition(grip.clone());maxGap=Math.max(maxGap,grip.distanceTo(hand));}}return {fps:30,maxGap,mode:p.arts.mode};}""")
+ (out/'low-fps.json').write_text(json.dumps(low_fps,indent=2));assert low_fps['maxGap']<.005 and low_fps['mode']=='sheathed','both hands maintain contact at 30fps'
+ p.evaluate('()=>{const g=app.game;g.input.reset();g.player.arts.cancel();g.player.revive();g.player.arts.charge();app.simulate(.4);}')
 
  p.evaluate('()=>{const g=app.game;g.input.press("attack");g.player.arts.charge();app.simulate(.4);g.input.release("attack");app.simulate(.08);dualShot()}');p.screenshot(path=str(out/'draw-left.png'))
  first_draw=p.evaluate('()=>app.game.heroPresence.dualKatana.rigs.map(r=>r.copy.position.distanceTo(r.presence.sheath.position))')

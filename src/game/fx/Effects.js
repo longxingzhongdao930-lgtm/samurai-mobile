@@ -28,6 +28,7 @@ export class Effects {
     const terrain = game.app.terrain;
 
     this.trail = new SlashTrail();
+    this.leftTrail = new SlashTrail();
     this.glow = new GlowPool(game.quality.name === 'low' ? 320 : 640);
 
     this.hitSparks = new BladeImpact(512);
@@ -40,6 +41,7 @@ export class Effects {
 
     this.group.add(
       this.trail.mesh,
+      this.leftTrail.mesh,
       this.glow.points,
       this.hitSparks.mesh,
       this.parrySparks.mesh,
@@ -199,6 +201,7 @@ export class Effects {
   update(dt, elapsed) {
     if (!this._bladeBound) this.bindBlade();
     this.trail.update(dt);
+    this.leftTrail.update(dt);
     this.glow.update(dt, this.game.app.renderer.size.height * this.game.app.renderer.gl.getPixelRatio());
     this.hitSparks.sync(elapsed, this.hitConfig);
     this.parrySparks.sync(elapsed, this.parryConfig);
@@ -223,10 +226,12 @@ export class Effects {
     this.shards.clear();
     this.dustBurst.clear();
     this.trail.end();
+    this.leftTrail.end();
   }
 
   dispose() {
     this.trail.dispose();
+    this.leftTrail.dispose();
     this.glow.dispose();
     this.hitSparks.dispose();
     this.parrySparks.dispose();

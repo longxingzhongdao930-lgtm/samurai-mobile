@@ -1,3 +1,4 @@
+import { sheathPose } from '../hero/SheathPose.js';
 import { HeroArts } from '../hero/HeroArts.js';
 import { WEAPON_TIPS } from './CombatCoach.js';
 import { comboLifetime, canSwitchInRecovery } from './CombatRhythm.js';
@@ -8,7 +9,7 @@ import { Attack } from '../../animation/Attack.js';
 import { settings } from '../../config/settings.js';
 import { PoseLayer } from './PoseLayer.js';
 import { BodyMotion } from './BodyMotion.js';
-import { WEAPONS, WEAPON_ORDER } from '../data/weapons.js';
+import { WEAPONS, WEAPON_ORDER, DUAL_KATANA } from '../data/weapons.js';
 import { ELEMENTS, SPELLS, SPELL_ORDER } from '../data/elements.js';
 
 const _v = new Vector3();
@@ -97,7 +98,7 @@ export class PlayerCombat {
     const mixer = character.mixer;
     const clip = (name) => character.clips.get(name)?.clone() ?? null;
     const onStrike = (move, index) => this._onStrike(move, index);
-    const make = (config) => new Attack(mixer, clip(config.clip), character, { config, onStrike });
+    const make = (config) => new Attack(mixer, config.dualPose ? sheathPose(clip(config.clip), character.clips.get('idle')) : clip(config.clip), character, { config, onStrike });
 
     this._make = make;
     /** Built movesets, by weapon id: built once, kept for the next switch. */
@@ -127,15 +128,39 @@ export class PlayerCombat {
   }
 
   _setFor(weapon) {
-    if (!this._sets.has(weapon.id)) {
-      this._sets.set(weapon.id, {
+    const dual = weapon.id === 'katana' && this.game.weapons?.swords.id === 'dual';
+    const key = dual ? 'katana:dual' : weapon.id;
+    if (dual) weapon = DUAL_KATANA;
+    if (!this._sets.has(key)) {
+      this._sets.set(key, {
         combo: weapon.combo.map(this._make),
         heavy: this._make(weapon.heavy),
         counter: this._make(weapon.counter),
         execute: this._make(weapon.execute)
       });
     }
-    return this._sets.get(weapon.id);
+    return this._sets.get(key);
+  }
+
+  /** Appearance selection changes the katana moves without changing save weapon IDs. */
+  refreshSwordMoves() {
+    if (this.weapon.id !== 'katana') return;
+    for (const move of this.moves) move.cancel();
+    this.arts?.cancel();
+    this._toFree();
+    this._held.warp.active = false;
+    const overrides = this.character.locomotion.overrides;
+    for (const move of this._moveOverrides) {
+      const index = overrides.indexOf(move);
+      if (index >= 0) overrides.splice(index, 1);
+    }
+    this._useSet(this._setFor(this.weapon));
+    this.moves = [...this.combo, this.heavy, this.counter, this.execute, this.cast, this.kickMove];
+    this._moveOverrides = [...this.moves];
+    overrides.unshift(...this.moves);
+    this.comboIndex = -1;
+    this.game.fx?.trail.end();
+    this.game.fx?.leftTrail.end();
   }
 
   _useSet(set) {
@@ -612,6 +637,7 @@ export class PlayerCombat {
         slice: config.slices,
         execute: executing,
         source: 'melee',
+        hand: config.dualHands?.[index] ?? 'Right',
         heavy: move === this.heavy || move === this.combo[4]
       });
       if (result?.damage > 0 && !result.evaded) { landed++; this.arts?.landed(enemy,config,distance,reach); }

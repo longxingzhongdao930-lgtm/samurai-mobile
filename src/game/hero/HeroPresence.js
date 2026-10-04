@@ -26,7 +26,7 @@ export class HeroPresence {
   update(dt){
     const g=this.g,p=g.player,c=p.character,arts=p.arts;
     this.root.visible=!p.dead&&!g.form.active;
-    if(!this.root.visible)return;
+    if(!this.root.visible){g.fx?.leftTrail.end();return;}
     const speed=g.app.controller.speed??0, decel=Math.max(0,this.speed-speed);this.speed=speed;
     const target=p.lockTarget?.alive?p.lockTarget:g._nearest(6);
     let want=target?Math.atan2(target.position.x-c.position.x,target.position.z-c.position.z)-c.facing:0;
@@ -53,6 +53,7 @@ export class HeroPresence {
     const cfg=p.move?.config;
     if(p.state==='attack'&&cfg){
       const pulse=Math.sin(Math.PI*Math.min(1,p.move.phase));
+      if(cfg.dualPose)this.turn(c.getBone('Spine2'),0,(cfg.dualPose==='left'?-.16:.16)*pulse,0);
       if(cfg.heroFinish==='thrust'||p.move===p.counter&&cfg.heroCounter===0){
         const upper=c.getBone('RightArm'),lower=c.getBone('RightForeArm'),hand=c.getBone('RightHand');
         if(upper&&lower&&hand){this.turn(upper);this.turn(lower);c.root.updateMatrixWorld(true);

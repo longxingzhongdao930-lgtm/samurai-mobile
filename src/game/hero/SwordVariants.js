@@ -25,7 +25,9 @@ export class SwordVariants {
     const request = ++this.request;
     await Promise.all([this.load(spec.scabbard), spec.blade ? this.load(spec.blade) : Promise.resolve()]);
     if (request !== this.request) return false;
+    const changed = this.id !== id;
     this.id = id; this.clearBlade(); this.applyScabbard();
+    if (changed) this.g.player?.refreshSwordMoves?.();
     if (this.weapons.current === 'katana') this.equipBlade();
     this.g.heroPresence?.katanaSheath.invalidate();
     this.g.heroPresence?.dualKatana?.invalidate();

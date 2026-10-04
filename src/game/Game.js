@@ -347,7 +347,7 @@ export class Game {
       locked: p.lockTarget?.alive,
       guard: p.guarding,
       available: p.unlocked,
-      weapon: this.form.active ? '銀竜' : p.weapon.name,
+      weapon: this.form.active ? '銀竜' : p.weapon.id==='katana'&&this.weapons.swords.id==='dual'?'二刀流':p.weapon.name,
       attackGlyph: this.form.active ? '爪' : p.air?.airborne ? '撃' : p.weapon.glyph,
       attackLabel: this.form.active ? '連撃' : p.air?.airborne ? '空中追撃' : p.weapon.verb
     });

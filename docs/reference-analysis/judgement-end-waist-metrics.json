@@ -1,0 +1,17 @@
+{
+  "frames": 138,
+  "waistFrames": 71,
+  "rightGripGapMetres": 3.069552089430622e-14,
+  "leftMouthGapMetres": 0,
+  "bladeVerticalComponent": 1.60629894121258e-07,
+  "clips": [
+    "\u9ed2\u96e8\u30fb\u6b21\u5143\u65ac\u7d76\u30fb\u7a7a\u8d70\u59ff\u52e2\u30fbLeft",
+    "\u9ed2\u96e8\u30fb\u6b21\u5143\u65ac\u7d76\u30fb\u7a7a\u8d70\u59ff\u52e2\u30fbRight"
+  ],
+  "finalRoot": [
+    0,
+    0,
+    124
+  ],
+  "finalLift": 0
+}

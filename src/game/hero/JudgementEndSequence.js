@@ -14,5 +14,5 @@ export const END_SEQUENCE=endSequence();
 export function endTravel(index,origin,target){
  const forward=target.clone().sub(origin).setY(0);if(forward.lengthSq()<1e-8)forward.set(0,0,1);forward.normalize();
  const side=forward.clone().set(forward.z,0,-forward.x),center=origin.clone().lerp(target,.45).setY(origin.y),sign=index%2?1:-1;
- return {from:center.clone().addScaledVector(side,sign*1.3).addScaledVector(forward,-.7),to:center.clone().addScaledVector(side,-sign*1.3).addScaledVector(forward,.7),arc:side.multiplyScalar(sign*.4),lift:index%2?.35:.65,clip:index%2?'crouchSlash':'slashHit'};
+ return {from:center.clone().addScaledVector(side,sign*1.3).addScaledVector(forward,-.7),to:center.clone().addScaledVector(side,-sign*1.3).addScaledVector(forward,.7),arc:side.multiplyScalar(sign*.4),lift:index%2?.35:.65,clip:index%2?'endTravelRight':'endTravelLeft'};
 }

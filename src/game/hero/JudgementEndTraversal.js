@@ -1,3 +1,4 @@
+import { judgementEndTravelClip } from './JudgementEndPose.js';
 import { Vector3 } from 'three';
 import { PoseLayer } from '../combat/PoseLayer.js';
 import { END_SEQUENCE, endTravel } from './JudgementEndSequence.js';
@@ -10,7 +11,7 @@ export function sampleEndTraversal(time,origin,target,yaw){
  const fieldEnd=END_SEQUENCE.field+END_SEQUENCE.fieldDuration;
  if(time>=fieldEnd){
   const t=smooth((time-fieldEnd)/(END_SEQUENCE.return-fieldEnd));
-  return {position:last.clone().lerp(origin,t),yaw:turn(Math.atan2(last.x-endTravel(3,origin,target).to.x,last.z-endTravel(3,origin,target).to.z),yaw,t),lift:Math.sin(Math.PI*t)*.25,clip:'crouchSlash',phase:.85};
+  return {position:last.clone().lerp(origin,t),yaw:turn(Math.atan2(last.x-endTravel(3,origin,target).to.x,last.z-endTravel(3,origin,target).to.z),yaw,t),lift:Math.sin(Math.PI*t)*.25,clip:'endTravelRight',phase:.85};
  }
  let index=END_SEQUENCE.travel.findLastIndex(t=>time>=t);index=Math.max(0,index);
  const path=endTravel(index,origin,target),from=index?endTravel(index-1,origin,target).to:origin;
@@ -22,6 +23,7 @@ export function sampleEndTraversal(time,origin,target,yaw){
  return {position,yaw:turn(prior,heading,Math.min(1,phase/.35)),lift:Math.sin(Math.PI*u)*path.lift,clip:path.clip,phase:phase*.85};
 }
 export class JudgementEndTraversal {
+ prepare(){const c=this.p.character;for(const [name,side] of [['endTravelLeft','Left'],['endTravelRight','Right']])if(!c.clips.has(name)){const clip=judgementEndTravelClip(c.clips.get('idle'),c.clips.get('crouch'),side);if(clip)c.clips.set(name,clip);}}
  constructor(player){this.p=player;this.lift=0;this.active=false;this.layers=new Map();this.held={warp:{active:false,x:0,z:0,yaw:0}};}
  layer(name){
   if(this.layers.has(name))return this.layers.get(name);

@@ -1,3 +1,4 @@
+import { END_SEQUENCE } from '../hero/JudgementEndSequence.js';
 import { Color, Group, PointLight, Vector3 } from 'three';
 import { BladeImpact } from '../../vfx/BladeImpact.js';
 import { DustBurst } from '../../vfx/DustBurst.js';
@@ -201,12 +202,13 @@ export class Effects {
   update(dt, elapsed) {
     if (!this._bladeBound) this.bindBlade();
     const p=this.game.player,iai=p.weapon.id==='katana'&&p.state==='attack'&&p.move===p.heavy&&!this.game.form.active;
+    const endCut=p.techniques?.ritual?.end&&p.techniques.ritual.t>=END_SEQUENCE.travel[0]&&p.techniques.ritual.t<END_SEQUENCE.field;
     const sword=p.weapon.id==='katana'&&p.state==='attack'&&!this.game.form.active;
     const uniforms=this.trail.material.uniforms;
-    uniforms.uColor.value.set(sword?'#769fff':'#ffb36a');
-    uniforms.uCore.value.set(sword?'#effbff':'#fff6e8');
-    uniforms.uLife.value=iai?.14:.11;
-    uniforms.uBand.value=sword?.82:0;
+    uniforms.uColor.value.set(endCut?'#715fff':sword?'#769fff':'#ffb36a');
+    uniforms.uCore.value.set(endCut?'#9fedff':sword?'#effbff':'#fff6e8');
+    uniforms.uLife.value=endCut?.085:iai?.14:.11;
+    uniforms.uBand.value=endCut?.55:sword?.82:0;
     if(iai){
       // Keep the crouched silhouette readable; light appears at the draw,
       // rather than washing out the held stance or the recovery.
@@ -225,6 +227,7 @@ export class Effects {
       }
     }else{this._iaiDraw=false;this._iaiCut=false;}
     if(sword&&(p.move.config.referenceMotion||p.move.config.swordMotion)){const open=(p.move.config.hits??[]).some(hit=>p.move.phase>=Math.max(0,hit-.1)&&p.move.phase<=hit+.07);if(open&&!this.trail.active)this.trail.begin(.8);else if(!open)this.trail.end();}
+    if(endCut){if(!this._endCutTrail)this.trail.begin(.8);this._endCutTrail=true;}else if(this._endCutTrail){this.trail.end();this._endCutTrail=false;}
     this.trail.update(dt);
     if(iai)uniforms.uStrength.value=this._iaiStrength;
     this.leftTrail.update(dt);

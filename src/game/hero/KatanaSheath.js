@@ -1,3 +1,4 @@
+import { END_SEQUENCE } from './JudgementEndSequence.js';
 import { Box3, Quaternion, Vector3 } from 'three';
 import { ik } from '../combat/WeaponMotion.js';
 import { smoothPhase, judgementDrawDistance } from './SheathReference.js';
@@ -93,6 +94,7 @@ export class KatanaSheath {
       const depth=.36*(1-smoothPhase(t,.04,.28))+.36*release;
       this._hand('Left',mouth.clone().addScaledVector(axis,depth),1);
     }else{this.heldStart=null;this.heldTime=0;}
+    const ritual=p.techniques?.ritual;if(ritual?.end&&ritual.t>=END_SEQUENCE.travel[0]&&ritual.t<END_SEQUENCE.return&&leftHand){c.root.updateMatrixWorld(true);mouth.copy(leftHand.getWorldPosition(new Vector3()));const blade=g.weapons.blade();if(blade)axis.copy(new Vector3(0,0,-1).applyQuaternion(blade.getWorldQuaternion(new Quaternion())).normalize());}
     const rotation = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), axis);
     // The imported scabbard is authored from its mouth along +Z. Keep one
     // transform at rest, during insertion, and during the draw: no hip jump.

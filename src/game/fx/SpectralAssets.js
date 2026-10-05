@@ -9,12 +9,13 @@ export class SpectralAssets {
   this.group=group;this.status={force:false,end:true};
   this.endPool=this.pool('end',4,'#a59aff');this.burstPool=this.pool('burst',4,'#eff5ff');
   this.slashPool=this.pool('slash',6,'#65cfff');this.riftPool=this.pool('rift',12,'#dce3ff');
+  this.travelMesh=new Mesh(createKatanaEffectGeometry('waist'),cutMaterial('#536dff','#498eff'));this.travelMesh.name='黒雨・腰の空走斬線';this.travelMesh.visible=false;this.group.add(this.travelMesh);
   const geometry=new SphereGeometry(.95,16,12);
-  for(const slot of this.riftPool){
+  for(const slot of [...this.riftPool,...this.endPool]){
    const aura=new Mesh(geometry,cloudMaterial(cloudSteps));aura.name='黒雨・自作立体空間雲';
    const cameraLocal=new Vector3();
    aura.onBeforeRender=(_renderer,_scene,camera)=>{camera.getWorldPosition(cameraLocal);aura.worldToLocal(cameraLocal);aura.material.uniforms.uCamera.value.copy(cameraLocal);};
-   const bolts=new Mesh(createKatanaEffectGeometry('lightning'),cutMaterial('#85bfff'));bolts.name='黒雨・空間雷';slot.mesh.add(aura,bolts);slot.aura=aura;slot.bolts=bolts;
+   const bolts=new Mesh(createKatanaEffectGeometry('lightning'),cutMaterial('#85bfff'));bolts.name='黒雨・空間雷';slot.mesh.add(aura,bolts);slot.aura=aura;slot.bolts=bolts;if(slot.kind==='end'){aura.material.uniforms.uField.value=1;aura.scale.set(2.1,.55,1.5);aura.position.y=-.32;}
   }
  }
  pool(kind,count,color){
@@ -28,12 +29,13 @@ export class SpectralAssets {
   slot.duration=duration??KATANA_FX_PROFILES[slot.kind]?.duration??.24;slot.life=slot.duration;slot.scale=scale;
   slot.mesh.position.copy(at);slot.mesh.scale.setScalar(scale);slot.mesh.visible=true;return true;
  }
+ travel(at,facing=0,phase=0){const m=this.travelMesh;m.visible=!!at&&phase>.02&&phase<.98;if(!m.visible){m.material.uniforms.uOpacity.value=0;return;}m.position.copy(at);m.rotation.set(-Math.PI/2,facing+phase*.6,0,'YXZ');m.material.uniforms.uOpacity.value=.52*Math.pow(Math.sin(Math.PI*phase),.5);m.material.uniforms.uAge.value=phase;}
  end(at,duration=null){return this.spawn(this.endPool,at,1.8,duration);}
  slash(at,facing){const slot=this.slashPool.find(s=>s.life<=0);if(!slot)return false;this.spawn([slot],at,.65);slot.mesh.rotation.set(-Math.PI/2,facing-Math.PI/2,0,'YXZ');return true;}
  burst(at){return this.spawn(this.burstPool,at,1.3);}
  rift(at,wide=false){return this.spawn(this.riftPool,at,wide?1.5:1);}
  slots(){return [...this.endPool,...this.riftPool,...this.burstPool,...this.slashPool];}
- reset(){for(const s of this.slots()){s.life=0;s.mesh.visible=false;s.mesh.material.opacity=0;if(s.mesh.material.uniforms)s.mesh.material.uniforms.uOpacity.value=0;if(s.aura)s.aura.material.uniforms.uOpacity.value=0;if(s.bolts)s.bolts.material.uniforms.uOpacity.value=0;}}
+ reset(){this.travel(null);for(const s of this.slots()){s.life=0;s.mesh.visible=false;s.mesh.material.opacity=0;if(s.mesh.material.uniforms)s.mesh.material.uniforms.uOpacity.value=0;if(s.aura)s.aura.material.uniforms.uOpacity.value=0;if(s.bolts)s.bolts.material.uniforms.uOpacity.value=0;}}
  update(dt){for(const s of this.slots()){
   s.life=Math.max(0,s.life-dt);s.mesh.visible=s.life>0;
   const age=(s.duration??.24)-s.life,phase=age/(s.duration??.24);

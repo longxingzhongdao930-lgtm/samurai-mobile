@@ -36,7 +36,7 @@ with sync_playwright() as pw:
  assert p.evaluate('app.game.player.techniques.assets.riftPool.every(s=>!s.mesh.visible)')
  p.evaluate('app.simulate(.1)');assert p.evaluate('app.game.player.techniques.assets.riftPool.some(s=>s.mesh.visible)')
  p.evaluate('app.simulate(.8)');assert p.evaluate('[...app.game.player.techniques.assets.slashPool,...app.game.player.techniques.assets.riftPool].every(s=>!s.mesh.visible)')
- p.evaluate('clean()');p.keyboard.press('f');p.evaluate('app.simulate(.73)');assert p.evaluate('app.game.player.techniques.assets.burstPool.every(s=>!s.mesh.visible)');p.evaluate('app.simulate(3.2)');assert p.evaluate('app.game.player.arts.mode')=='sheathed';assert p.evaluate('app.game.player.techniques.assets.burstPool.some(s=>s.mesh.visible)')
+ p.evaluate('clean()');p.keyboard.press('f');p.evaluate('app.simulate(.73)');assert p.evaluate('app.game.player.techniques.assets.burstPool.every(s=>!s.mesh.visible)');p.evaluate('app.simulate(2.83)');assert p.evaluate('app.game.player.arts.mode')=='sheathed';assert p.evaluate('app.game.player.techniques.assets.burstPool.some(s=>s.mesh.visible)')
  p.evaluate('app.simulate(.35)');assert p.evaluate('app.game.player.techniques.assets.burstPool.every(s=>!s.mesh.visible)')
  p.evaluate('clean()');p.keyboard.press('f');p.evaluate('app.simulate(2.8)');before=p.evaluate('target.hp');p.keyboard.press('k');p.evaluate('app.simulate(1.6)');assert p.evaluate('app.game.player.techniques.endBurst===null');assert p.evaluate('app.game.player.techniques.assets.burstPool.every(s=>!s.mesh.visible)');assert p.evaluate('target.hp')==before
  results['original-effects']={'drawBeforeRemoteCut':True,'finalBurstVisible':True,'allExpired':True}

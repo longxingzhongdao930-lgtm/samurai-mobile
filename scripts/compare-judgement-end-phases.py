@@ -11,7 +11,7 @@ parser.add_argument('--output',required=True)
 args=parser.parse_args();out=Path(args.output);out.mkdir(parents=True,exist_ok=True)
 # Reference clock is the uploaded recording clock (reported 2x playback).
 # Midpoints of the five travel events, then field/return/sheath/final burst.
-phases=[('travel 1',.8,.28),('travel 2',1.2,.56),('travel 3',1.6,.84),('travel 4',2,1.12),('travel 5',2.4,1.4),('field',3.1,1.88),('return',4.1,2.59),('sheath',4.6,3),('final burst',5.4,3.85)]
+phases=[('travel 1',.8,.28),('travel 2',1.2,.56),('travel 3',1.6,.84),('travel 4',2,1.12),('travel 5',2.4,1.4),('field',3.1,1.88),('return',4.1,2.59),('sheath',4.6,3),('final burst',5.4,3.55)]
 canvas=Image.new('RGB',(1280,9*290));draw=ImageDraw.Draw(canvas)
 for i,(phase,ref,game) in enumerate(phases):
  for side,(path,t) in enumerate([(args.reference,ref),(args.capture,game)]):

@@ -1,7 +1,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { createKatanaEffectGeometry } from '../src/game/fx/KatanaEffectGeometry.js';
 mkdirSync('public/models/fx',{recursive:true});
-for(const kind of ['slash','rift','end','burst','lightning']){
+for(const kind of ['slash','rift','end','burst','lightning','waist']){
  const geometry=createKatanaEffectGeometry(kind),position=geometry.attributes.position,normal=geometry.attributes.normal,uv=geometry.attributes.uv;
  const p=Buffer.from(position.array.buffer),n=Buffer.from(normal.array.buffer),u=Buffer.from(uv.array.buffer),bin=Buffer.concat([p,n,u]);
  geometry.computeBoundingBox();const bounds=geometry.boundingBox;

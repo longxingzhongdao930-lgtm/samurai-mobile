@@ -1,3 +1,11 @@
+## 次元斬・絶：4項目を再修正、3回の録画比較
+
+腰の青い開いた斬線と低い広域の雲を自作。細い白い輪・紫の霧に見えた初回を見直し、弧の幅・青い芯・密度の塊を修正して3回30fps撮影。脚の横開きを抑制し、足先の平均水平間隔0.649→0.522m。絶専用の納刀0.84秒で最終破裂を3.833→3.533秒へ同期。通常納刀1.14秒は維持。
+
+167テスト・ビルド・実入力・4体MotionBot確認。end.jsonのみ再保存。詳細と計測は docs/reference-analysis/judgement-end-pass4-review.md／judgement-end-pass4-metrics.json。最終比較 /tmp/katana-pass4-third-review/compare-end.mp4。全骨・原本・stash・WIP保持。スマホ連打修正も保持。
+
+完全トレースは未認定。次は帰還・高い構え・納刀の脚と体幹、最終破裂の大きさと横の閃光、厳密な斬線・雲・カメラを同じ工程で修正する。ゲーム時計の0.35倍短縮を原作と同じ実時間と称しない。公開実反映は未確認。
+
 ## スマホ連打によるブラウザーズームの抑止
 
 TouchControlsの操作領域で非passiveのtouchendとdblclickをキャンセル。ゲーム入力は従来のpointerイベントを継続し、連打を間引かない。body.game内の通常ボタンはtouch-action: manipulation、タッチパッドと全子要素はnone。小さい技ボタン・ラベル・kbdも対象。変更はゲーム画面に限定。

@@ -7,7 +7,8 @@ export function createKatanaEffectGeometry(kind='rift') {
   const point=(t,side)=>{const angle=start+sweep*t,r=radius+side*width*Math.sin(Math.PI*t);return new Vector3(Math.cos(angle)*r,Math.sin(angle)*r,depth*Math.sin(angle*2)).applyAxisAngle(new Vector3(1,0,0),tilt).applyAxisAngle(new Vector3(0,1,0),turn);};
   for(let i=0;i<32;i++){const a=point(i/32,-1),b=point(i/32,1),c=point((i+1)/32,-1),d=point((i+1)/32,1);for(const p of [a,b,c,b,d,c])vertices.push(p.x,p.y,p.z);}
  };
- if(kind==='slash')ribbon(1.1,-.9,2.2,.035,.2,0,.08);
+ if(kind==='waist')ribbon(1.05,-1.9,3.8,.075,0,0,.055);
+ else if(kind==='slash')ribbon(1.1,-.9,2.2,.035,.2,0,.08);
  else if(kind==='rift'){
   // The reference closes with straight crossing cuts, rather than circular rings.
   for(let i=0;i<4;i++){

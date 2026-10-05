@@ -1,5 +1,7 @@
 # 自作3Dエフェクトの制作・比較記録
 
+最新の継続結果は judgement-end-pass4-review.md。自作GLBは6種類（腰の開いた弧 black-rain-waist.glb を追加）。以下の初版の時刻は履歴であり、最新の絶の破裂は3.533秒。
+
 エフェクトの立体形状は src/game/fx/KatanaEffectGeometry.js で制作。元モデルの形状抽出・改名ではない。`node scripts/build-katana-effects.mjs` で編集用GLBを再生成する。ゲームは同じ生成関数から作る形状を直接使用するため、GLB取得に依存しない。
 
 - black-rain-slash.glb: 三日月状の斬線、64三角形。次元斬の払いで右手位置から発生。通常の刀の残像は、実際の刀先・根元から生成する既存の自作SlashTrailを使用する。

@@ -1,4 +1,4 @@
-import { AnimationClip, Quaternion, Vector3 } from 'three';
+import { AnimationClip, Euler, Quaternion, Vector3 } from 'three';
 import { ik } from '../combat/WeaponMotion.js';
 const up=new Vector3(0,1,0),forwardAxis=new Vector3(0,0,1);
 /** Observed low silhouette and waist-height cut; unseen depth remains reconstructed. */
@@ -10,7 +10,12 @@ export function judgementEndTravelClip(idle,crouch,rear='Left'){
    const tuck=.68+.18*Math.sin(Math.PI*phase);
    if(t.name.endsWith('.quaternion')&&rest.length===4){
     const q=new Quaternion().fromArray(rest);
-    if(/(?:Left|Right)(?:UpLeg|Leg|Foot)\.quaternion$/i.test(t.name))q.slerp(new Quaternion().fromArray(bent),t.name.includes(rear)?tuck*.7:tuck);
+    if(/(?:Left|Right)(?:UpLeg|Leg|Foot)\.quaternion$/i.test(t.name)){
+     const delta=q.clone().invert().multiply(new Quaternion().fromArray(bent)),hinge=new Euler().setFromQuaternion(delta,'XYZ');
+     // Preserve forward knee flexion while reducing the source crouch's side splay.
+     hinge.y*=.25;hinge.z*=.3;
+     q.multiply(new Quaternion().slerp(new Quaternion().setFromEuler(hinge),t.name.includes(rear)?tuck*.7:tuck));
+    }
     if(/Spine\d*\.quaternion$/i.test(t.name)){q.multiply(new Quaternion().setFromAxisAngle(new Vector3(1,0,0),.05));q.multiply(new Quaternion().setFromAxisAngle(up,.025*Math.sin(Math.PI*phase)));}
     q.normalize().toArray(values,values.length);
    }else for(let i=0;i<rest.length;i++)values.push(/Hips\.position$/i.test(t.name)?rest[i]+(bent[i]-rest[i])*.32:rest[i]);

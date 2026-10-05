@@ -26,12 +26,12 @@ export class HeroArts {
     player.poses.push(this.pose,this.restPose,this.endPose);player.character.locomotion.overrides.push(this.pose,this.restPose,this.endPose);
     this.reset();
   }
-  reset(){this.mode='';this.t=0;this.ready=0;this.link=0;this.returnGuard=0;this.evadeWindow=0;this.kickCd=0;this.rewardAvailable=false;this.transform=0;this.dirt=0;this.flourishQueued=false;this.pose?.cancel();this.restPose?.cancel();this.endPose?.cancel();}
-  cancel(){this.mode='';this.t=0;this.pose.stop();this.restPose?.stop();this.endPose?.stop();}
-  startSheath(flourish=false){
+  reset(){this.sheathRate=1;this.mode='';this.t=0;this.ready=0;this.link=0;this.returnGuard=0;this.evadeWindow=0;this.kickCd=0;this.rewardAvailable=false;this.transform=0;this.dirt=0;this.flourishQueued=false;this.pose?.cancel();this.restPose?.cancel();this.endPose?.cancel();}
+  cancel(){this.sheathRate=1;this.mode='';this.t=0;this.pose.stop();this.restPose?.stop();this.endPose?.stop();}
+  startSheath(flourish=false,duration=null){
     const p=this.p;if(p.dead||!p._canCancel(.65))return false;
     for(const m of p.moves)m.release();p._toFree();p.guarding=false;p._guardLatched=false;p.guardPose.stop();
-    this.mode=flourish?'flourish':'sheath';this.t=0;this.pose.stop();this.restPose.hold(0);return true;
+    this.sheathRate=duration>0?sheathDuration()/duration:1;this.mode=flourish?'flourish':'sheath';this.t=0;this.pose.stop();this.restPose.hold(0);return true;
   }
   charge(){for(const m of this.p.moves)m.release();this.p._toFree();this.mode='charge';this.t=0;this.restPose.stop();this.pose.hold(.35);this.p.input.consume('attack');}
   stepToward(target, distance, side=0){
@@ -60,7 +60,7 @@ export class HeroArts {
       input.consume('attack');p._startMove(p.kickMove,p._autoTarget({reach:1.7,arc:80},2));return p._held;
     }
     if(!this.mode)return undefined;
-    this.t+=dt;
+    this.t+=dt*(['sheath','flourish'].includes(this.mode)?this.sheathRate??1:1);
     if(input.pending('dodge')||input.pending('guard')||input.pending('magic')||input.pending('weapon')){this.cancel();return undefined;}
     if(this.mode==='charge'){
       if(!input.held.attack){

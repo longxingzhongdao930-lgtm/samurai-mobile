@@ -1,0 +1,28 @@
+{
+  "completeTrace": false,
+  "referenceCameraCalibrated": false,
+  "clockCompression": 0.35,
+  "frames": 138,
+  "footHorizontalSeparationBeforeMetres": {
+    "mean": 0.6486332970438351,
+    "max": 0.7037464918193731
+  },
+  "footHorizontalSeparationAfterMetres": {
+    "mean": 0.522142436399071,
+    "max": 0.5744678952728038
+  },
+  "burstTargetSeconds": 3.5,
+  "burstFirstVisibleSeconds": 3.533333333333333,
+  "sheathingFirstSeconds": 2.6666666666666665,
+  "ribbonVisibleFrames": 42,
+  "fieldCloudFrames": 19,
+  "rightHandleAnchorGapMetres": 3.5416486986900476e-14,
+  "leftMouthGapMetres": 0,
+  "finalRoot": [
+    0,
+    0,
+    124
+  ],
+  "finalLift": 0,
+  "expired": true
+}

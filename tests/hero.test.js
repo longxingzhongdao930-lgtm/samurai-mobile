@@ -52,3 +52,9 @@ test('sheathing rewards wait for the complete single-sword motion',()=>{
  const input={pending:()=>false,moving:false};a.control(.8,input);assert.equal(a.mode,'sheath');assert.equal(p.spirit.calm,0);
  a.control(1.8,input);assert.equal(a.mode,'sheathed');assert.equal(p.spirit.calm,12);assert.equal(a.rewardAvailable,false);
 });
+
+test('finisher-specific sheath duration completes on its own clock and ordinary sheathing retains its timing',()=>{
+ const noop=()=>{},pose={hold:noop,stop:noop},p={state:'free',dead:false,spirit:{calm:0},weapon:{id:'katana'},moves:[],_canCancel:()=>true,_toFree:noop,guardPose:pose},g={form:{active:false},weapons:{},_nearest:()=>null,hud:{notice:noop}},a=Object.assign(Object.create(HeroArts.prototype),{p,g,pose,restPose:pose,endPose:pose}),input={pending:()=>false,moving:false};
+ assert.ok(a.startSheath(false,.84));a.control(.83,input);assert.equal(a.mode,'sheath');a.control(.02,input);assert.equal(a.mode,'sheathed');
+ a.cancel();assert.ok(a.startSheath());a.control(.85,input);assert.equal(a.mode,'sheath');a.control(.3,input);assert.equal(a.mode,'sheathed');
+});

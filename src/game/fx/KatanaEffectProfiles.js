@@ -1,8 +1,8 @@
-/** Visible phases measured from the attached reference, authored independently of hit damage. */
+/** Reference-informed gameplay phase curves, authored independently of hit damage; not original-speed trace timings. */
 export const KATANA_FX_PROFILES = Object.freeze({
  slash:{duration:.18,peak:.45,cutStart:0,cloudEnd:0},
  rift:{duration:.42,peak:.56,cutStart:.12,cloudEnd:.32},
- end:{duration:.40,peak:.30,cutStart:0,cloudEnd:0},
+ end:{duration:.40,peak:.30,cutStart:0,cloudEnd:.37},
  burst:{duration:.30,peak:.65,cutStart:0,cloudEnd:0}
 });
 const smooth=(a,b,t)=>{const x=Math.max(0,Math.min(1,(t-a)/(b-a)));return x*x*(3-2*x);};

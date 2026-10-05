@@ -105,6 +105,12 @@ export class HeroPresence {
     const blade=g.weapons.blade?.() ?? g.weapons._slot()?.model;if(blade&&p.weapon.id==='katana')blade.visible=!['sheath','sheathed','charge'].includes(arts.mode);
     this.iaiMotion.update();
     this.katanaSheath.update(dt);
+    // Cache the displayed grip after all IK. The next frame restores the
+    // underlying clip before reading input, so it cannot supply this pose.
+    if(p.state==='attack'&&p.combo.includes(p.move)&&blade){
+      c.root.updateMatrixWorld(true);
+      this.swordOpeningGrip={move:p.move,position:c.getBone('RightHand').getWorldPosition(new Vector3()),rotation:blade.getWorldQuaternion(blade.quaternion.clone())};
+    }else this.swordOpeningGrip=null;
     if(p.weapon.id==='katana'&&p.state==='free'&&!p.guarding&&arts.mode==='sheathed'&&!c.airHeight){for(const side of ['Left','Right'])this.katanaSheath.straightenWrist(side);}
     this.chargeRing.visible=p.weapon.id==='katana'&&arts.mode==='charge';
     if(this.chargeRing.visible){const ready=Math.min(1,arts.t/.32);this.chargeRing.position.copy(this.sheath.position);this.chargeRing.quaternion.copy(g.app.rig.camera.quaternion);this.chargeRing.scale.setScalar(.7+ready*.45+Math.sin(arts.t*18)*.12);this.chargeRing.material.opacity=.25+ready*.35;if(g.elapsed>(this.chargeSparkAt??0)){this.chargeSparkAt=g.elapsed+.09;g.fx.glow.spawn(this.sheath.position,'#aee9ff',.08+ready*.06,.16,{star:true,grow:1,intensity:.65});}}

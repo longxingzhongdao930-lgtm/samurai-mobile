@@ -9,7 +9,7 @@ import { WEAPON_TIPS } from './CombatCoach.js';
 import { comboLifetime, canSwitchInRecovery } from './CombatRhythm.js';
 import { DualSpirit } from './DualSpirit.js';
 import { GauntletAir } from './GauntletAir.js';
-import { MathUtils, Vector3 } from 'three';
+import { MathUtils, Quaternion, Vector3 } from 'three';
 import { Attack } from '../../animation/Attack.js';
 import { settings } from '../../config/settings.js';
 import { PoseLayer } from './PoseLayer.js';
@@ -575,6 +575,20 @@ export class PlayerCombat {
   }
 
   _startMove(move, target) {
+    // Keep the actual previous grip when linking the reconstructed opening.
+    // The displayed pose is cached after IK; preUpdate has already restored
+    // the underlying animation by the time this input is processed.
+    const linkedOpening = this.combo.includes(move) && this.combo.includes(this.move) && this.state === 'attack';
+    this.swordOpeningLink = null;
+    if (linkedOpening) {
+      const displayed=this.game.heroPresence?.swordOpeningGrip;
+      this.character.root.updateMatrixWorld(true);
+      const hand = this.character.getBone('RightHand'), blade = this.game.weapons.blade();
+      if (hand && blade) this.swordOpeningLink = {
+        move, position: displayed?.move===this.move?displayed.position.clone():hand.getWorldPosition(new Vector3()),
+        rotation: displayed?.move===this.move?displayed.rotation.clone():blade.getWorldQuaternion(new Quaternion())
+      };
+    }
     for (const other of this.moves) if (other !== move && other.locked) other.release();
     this._cancelPoses();
     this.guarding = false;
@@ -1014,6 +1028,7 @@ export class PlayerCombat {
     this.state = 'free';
     this.stateTime = 0;
     this.move = null;
+    this.swordOpeningLink = null;
     if (fromCombo) this._comboGrace = 0.45;
     else this.comboIndex = -1;
     this.hurtPose.stop();

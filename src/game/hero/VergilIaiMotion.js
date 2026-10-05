@@ -3,6 +3,7 @@ import { sampleEndTraversal } from './JudgementEndTraversal.js';
 import { END_SEQUENCE } from './JudgementEndSequence.js';
 import { Quaternion, Vector3 } from 'three';
 import { smoothPhase } from './SheathReference.js';
+import { COMBO_REFERENCE_PATHS, sampleSwordPath } from './SwordComboReference.js';
 
 // Reconstructed single-blade path. Coordinates use the moving shoulder frame:
 // outward right, down from shoulder, forward. Hit phase matches the attack data.
@@ -48,11 +49,11 @@ export class VergilIaiMotion {
       }
       return;
     }
-    const heavy=p.move===p.heavy,keys=heavy?KEYS:(PATHS[p.move.config.id]??PATHS.k1);
-    const phase=p.move.phase,w=heavy?smoothPhase(phase,.14,.24)*(1-smoothPhase(phase,.88,.99)):smoothPhase(phase,0,.12)*(1-smoothPhase(phase,.88,1));
+    const heavy=p.move===p.heavy,opening=COMBO_REFERENCE_PATHS[p.move.config.id],keys=heavy?KEYS:(opening??PATHS[p.move.config.id]??PATHS.k1);
+    const phase=p.move.phase,link=p.swordOpeningLink?.move===p.move?p.swordOpeningLink:null;
+    const w=heavy?smoothPhase(phase,.14,.24)*(1-smoothPhase(phase,.88,.99)):(link?1:smoothPhase(phase,0,.12))*(1-smoothPhase(phase,.88,1));
     if(w<=0)return;
-    let i=keys.findIndex(k=>k[0]>=phase);if(i<1)i=phase>keys.at(-1)[0]?keys.length-1:1;
-    const a=keys[i-1],b=keys[i],u=smoothPhase(phase,a[0],b[0]),v=a.slice(1).map((n,j)=>n+(b[j+1]-n)*u);
+    const v=sampleSwordPath(keys,phase);
     const arm=c.getBone('RightArm'),fore=c.getBone('RightForeArm'),hand=c.getBone('RightHand');
     const source=g.weapons.blade();if(!arm||!fore||!hand||!source)return;
     c.root.updateMatrixWorld(true);
@@ -62,9 +63,12 @@ export class VergilIaiMotion {
     const delta=right.clone().multiplyScalar(v[0]).add(new Vector3(0,v[1],0)).addScaledVector(front,v[2]);
     // Never stretch the bones to reach the reference's different body size.
     if(delta.length()>reach*.94)delta.setLength(reach*.94);
-    h.katanaSheath._hand('Right',shoulder.clone().add(delta),w);
+    const target=shoulder.clone().add(delta);
+    if(link)target.copy(link.position).lerp(shoulder.clone().add(delta),smoothPhase(phase,0,.18));
+    h.katanaSheath._hand('Right',target,w);
     const direction=right.clone().multiplyScalar(v[3]).add(new Vector3(0,v[4],0)).addScaledVector(front,v[5]).normalize();
     const rotation=new Quaternion().setFromUnitVectors(new Vector3(0,0,1),direction);
+    if(link)rotation.copy(link.rotation).slerp(new Quaternion().setFromUnitVectors(new Vector3(0,0,1),direction),smoothPhase(phase,0,.18));
     h.katanaSheath._orientHand(source,hand,rotation,w);
   }
 }

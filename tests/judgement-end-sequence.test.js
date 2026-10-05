@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Group, Vector3 } from 'three';
-import { END_SEQUENCE, endSequence, endTravel } from '../src/game/hero/JudgementEndSequence.js';
+import { END_SEQUENCE, endSequence, endTravel, endStroke, endTravelDuration } from '../src/game/hero/JudgementEndSequence.js';
 import { KatanaAfterimages } from '../src/game/fx/KatanaAfterimages.js';
 test('low quality can display every traveling slash before the finisher field',()=>{
  const model=new Group(),root=new Group();root.add(model);const c={root,model},fx=new KatanaAfterimages(new Group(),2);let emitted=0;
@@ -15,4 +15,11 @@ test('curved afterimage path has height and depth without moving source characte
 });
 test('uncompressed reference clock remains available separately from game timing',()=>{
  const reference=endSequence(1);assert.equal(reference.field,4.8);assert.equal(reference.burst,10);assert.ok(END_SEQUENCE.travel.at(-1)+.32<END_SEQUENCE.field);assert.ok(END_SEQUENCE.second<END_SEQUENCE.return);assert.ok(END_SEQUENCE.return<END_SEQUENCE.sheath);
+});
+
+test('outward cut is monotonic and held after the trail closes',()=>{
+ let prior=-Infinity;
+ for(let i=0;i<=100;i++){const s=endStroke(i/100);assert.ok(s.angle>=prior);prior=s.angle;}
+ assert.deepEqual(endStroke(.7),endStroke(1));assert.equal(endStroke(.7).drawing,false);assert.equal(endStroke(.4).drawing,true);
+ for(let i=0;i<5;i++)assert.ok(END_SEQUENCE.travel[i]+endTravelDuration(i)<=END_SEQUENCE.field-.09);
 });

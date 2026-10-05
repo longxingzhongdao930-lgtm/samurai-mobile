@@ -1,4 +1,5 @@
 import { AnimationClip, Euler, Quaternion, Vector3 } from 'three';
+import { endStroke } from './JudgementEndSequence.js';
 import { ik } from '../combat/WeaponMotion.js';
 const up=new Vector3(0,1,0),forwardAxis=new Vector3(0,0,1);
 /** Observed low silhouette and waist-height cut; unseen depth remains reconstructed. */
@@ -32,7 +33,7 @@ export function applyEndWaistPose(character,weapon,phase,record=()=>{}){
  c.root.updateMatrixWorld(true);
  const yaw=c.facing,s=(c.height??1.8)/1.8,right=new Vector3(-Math.cos(yaw),0,Math.sin(yaw)),front=new Vector3(Math.sin(yaw),0,Math.cos(yaw));
  const mouth=hips.getWorldPosition(new Vector3()).addScaledVector(right,-.14*s).addScaledVector(front,.32*s).add(new Vector3(0,.18*s,0));
- const draw=(.16+.20*Math.sin(Math.PI*Math.max(0,Math.min(1,phase))))*s;
+ const stroke=endStroke(phase),draw=stroke.reach*s;
  for(const a of arms){
   const target=mouth.clone();if(a.side==='Right')target.addScaledVector(right,draw);
   const shoulder=a.upper.getWorldPosition(new Vector3()),elbow=a.lower.getWorldPosition(new Vector3()),wrist=a.hand.getWorldPosition(new Vector3()),reach=(shoulder.distanceTo(elbow)+elbow.distanceTo(wrist))*.94,delta=target.clone().sub(shoulder);
@@ -41,7 +42,7 @@ export function applyEndWaistPose(character,weapon,phase,record=()=>{}){
   const offset=shoulder.clone().sub(c.position),sign=Math.sign(offset.x*Math.cos(yaw)-offset.z*Math.sin(yaw))||(a.side==='Left'?1:-1),pole=new Vector3(Math.cos(yaw)*sign*.45+Math.sin(yaw)*.25,-1,-Math.sin(yaw)*sign*.45+Math.cos(yaw)*.25);
   ik(a.upper,a.lower,a.hand,target,pole,1);c.root.updateMatrixWorld(true);
  }
- const angle=.25*Math.sin(phase*Math.PI*2),direction=right.clone().multiplyScalar(Math.cos(angle)).addScaledVector(front,Math.sin(angle)).normalize(),hand=arms[1].hand;
+ const angle=stroke.angle,direction=right.clone().multiplyScalar(Math.cos(angle)).addScaledVector(front,Math.sin(angle)).normalize(),hand=arms[1].hand;
  weapon.updateWorldMatrix(true,false);
  const rotation=new Quaternion().setFromUnitVectors(forwardAxis,direction),desired=rotation.multiply(weapon.getWorldQuaternion(new Quaternion()).invert()).multiply(hand.getWorldQuaternion(new Quaternion()));
  hand.quaternion.copy(hand.parent.getWorldQuaternion(new Quaternion()).invert().multiply(desired)).normalize();c.root.updateMatrixWorld(true);

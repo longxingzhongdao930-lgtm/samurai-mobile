@@ -1,3 +1,4 @@
+import { endStroke } from '../hero/JudgementEndSequence.js';
 import { Mesh, SphereGeometry, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createKatanaEffectGeometry } from './KatanaEffectGeometry.js';
@@ -31,7 +32,7 @@ export class SpectralAssets {
   slot.duration=duration??KATANA_FX_PROFILES[slot.kind]?.duration??.24;slot.life=slot.duration;slot.scale=scale;
   slot.mesh.position.copy(at);slot.mesh.scale.setScalar(scale);slot.mesh.visible=true;return true;
  }
- travel(at,facing=0,phase=0){const m=this.travelMesh;m.visible=!!at&&phase>.02&&phase<.98;if(!m.visible){m.material.uniforms.uOpacity.value=0;return;}m.position.copy(at);m.rotation.set(-Math.PI/2,facing+phase*.6,0,'YXZ');m.material.uniforms.uOpacity.value=.52*Math.pow(Math.sin(Math.PI*phase),.5);m.material.uniforms.uAge.value=phase;}
+ travel(at,facing=0,phase=0){const m=this.travelMesh,stroke=endStroke(phase);m.visible=!!at&&stroke.drawing;if(!m.visible){m.material.uniforms.uOpacity.value=0;return;}m.position.copy(at);m.rotation.set(-Math.PI/2,facing+stroke.angle,0,'YXZ');m.material.uniforms.uOpacity.value=.52*Math.pow(Math.sin(Math.PI*stroke.progress),.5);m.material.uniforms.uAge.value=stroke.progress;}
  end(at,duration=null){return this.spawn(this.endPool,at,1.8,duration);}
  slash(at,facing){const slot=this.slashPool.find(s=>s.life<=0);if(!slot)return false;this.spawn([slot],at,.65);slot.mesh.rotation.set(-Math.PI/2,facing-Math.PI/2,0,'YXZ');return true;}
  burst(at,origin=at){const slot=this.burstPool.find(s=>s.life<=0);if(!slot)return false;this.spawn([slot],at,1.3);slot.flash.position.copy(origin);slot.flash.scale.setScalar(.8);slot.flash.visible=true;slot.flash.material.uniforms.uOpacity.value=0;return true;}

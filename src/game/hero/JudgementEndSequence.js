@@ -16,3 +16,10 @@ export function endTravel(index,origin,target){
  const side=forward.clone().set(forward.z,0,-forward.x),center=origin.clone().lerp(target,.45).setY(origin.y),sign=index%2?1:-1;
  return {from:center.clone().addScaledVector(side,sign*1.3).addScaledVector(forward,-.7),to:center.clone().addScaledVector(side,-sign*1.3).addScaledVector(forward,.7),arc:side.multiplyScalar(sign*.4),lift:index%2?.35:.65,clip:index%2?'endTravelRight':'endTravelLeft'};
 }
+
+/** A single outward stroke, then a held finish. Seconds remain a gameplay adaptation. */
+export function endStroke(phase){
+ const t=Math.max(0,Math.min(1,phase)),u=Math.max(0,Math.min(1,(t-.12)/.56)),s=u*u*(3-2*u);
+ return {progress:s,drawing:t>.12&&t<.68,angle:-.25+.5*s,reach:.16+.20*s};
+}
+export function endTravelDuration(index){return (index<4?END_SEQUENCE.travel[index+1]:END_SEQUENCE.field-.1)-END_SEQUENCE.travel[index];}

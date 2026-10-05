@@ -1,4 +1,4 @@
-import { END_SEQUENCE } from '../hero/JudgementEndSequence.js';
+import { endStroke, END_SEQUENCE } from '../hero/JudgementEndSequence.js';
 import { Color, Group, PointLight, Vector3 } from 'three';
 import { BladeImpact } from '../../vfx/BladeImpact.js';
 import { DustBurst } from '../../vfx/DustBurst.js';
@@ -227,8 +227,9 @@ export class Effects {
       }
     }else{this._iaiDraw=false;this._iaiCut=false;}
     if(sword&&(p.move.config.referenceMotion||p.move.config.swordMotion)){const open=(p.move.config.hits??[]).some(hit=>p.move.phase>=Math.max(0,hit-.1)&&p.move.phase<=hit+.07);if(open&&!this.trail.active)this.trail.begin(.8);else if(!open)this.trail.end();}
-    if(endCut){const r=p.techniques.ritual,index=END_SEQUENCE.travel.findLastIndex(t=>r.t>=t),end=index<4?END_SEQUENCE.travel[index+1]:END_SEQUENCE.field-.1,phase=Math.max(0,Math.min(1,(r.t-END_SEQUENCE.travel[index])/(end-END_SEQUENCE.travel[index]))),at=p.character.getBone('Hips').getWorldPosition(p.character.position.clone());at.y+=.16;p.techniques.assets.travel(at,p.character.facing,phase);}else p.techniques?.assets.travel(null);
-    if(endCut){if(!this._endCutTrail)this.trail.begin(.8);this._endCutTrail=true;}else if(this._endCutTrail){this.trail.end();this._endCutTrail=false;}
+    let endDrawing=false;
+    if(endCut){const r=p.techniques.ritual,index=END_SEQUENCE.travel.findLastIndex(t=>r.t>=t),end=index<4?END_SEQUENCE.travel[index+1]:END_SEQUENCE.field-.1,phase=Math.max(0,Math.min(1,(r.t-END_SEQUENCE.travel[index])/(end-END_SEQUENCE.travel[index]))),at=p.character.getBone('Hips').getWorldPosition(p.character.position.clone());endDrawing=endStroke(phase).drawing;at.y+=.16;p.techniques.assets.travel(at,p.character.facing,phase);}else p.techniques?.assets.travel(null);
+    if(endDrawing){if(!this._endCutTrail)this.trail.begin(.8);this._endCutTrail=true;}else if(this._endCutTrail){this.trail.end();this._endCutTrail=false;}
     this.trail.update(dt);
     if(iai)uniforms.uStrength.value=this._iaiStrength;
     this.leftTrail.update(dt);

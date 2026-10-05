@@ -1,0 +1,186 @@
+{
+  "old": {
+    "holdAngleChangeDegrees": [
+      7.118855491130337,
+      4.541140155655582,
+      1.5599140232467366,
+      5.895852929347119,
+      2.9599959275704872
+    ],
+    "ribbonFrames": 42
+  },
+  "new": {
+    "holdAngleChangeDegrees": [
+      5.122641877509565e-06,
+      1.0900252224719401e-05,
+      1.4787793334710982e-06,
+      1.0900252224719401e-05,
+      1.4787793334710982e-06
+    ],
+    "ribbonFrames": 24
+  },
+  "completeTrace": false,
+  "frames": 138,
+  "fps": 30,
+  "gameClockCompression": 0.35,
+  "referenceCamerasCalibrated": false,
+  "browser": {
+    "judgement": {
+      "damage": 24,
+      "state": "free"
+    },
+    "end": {
+      "damage": 72,
+      "state": "free"
+    },
+    "phantom-0": {
+      "damage": 9
+    },
+    "phantom-1": {
+      "damage": 45
+    },
+    "phantom-2": {
+      "damage": 54
+    },
+    "original-effects": {
+      "drawBeforeRemoteCut": true,
+      "finalBurstVisible": true,
+      "allExpired": true
+    },
+    "judgement-chain": {
+      "damage": 72,
+      "mp": 73.75000000000037,
+      "state": "free",
+      "ritual": null
+    },
+    "judgement-air": {
+      "height": 0,
+      "state": "free",
+      "ritual": null,
+      "damage": 24
+    },
+    "aerial-b": {
+      "input": "Space then V",
+      "returnedToFree": true
+    },
+    "taunt": {
+      "cancelled": true,
+      "returnedToSheathed": true
+    },
+    "end-body": {
+      "movedRoot": true,
+      "returnedHome": true,
+      "interruptReleasesLift": true
+    },
+    "end-contact": {
+      "right": 3.5055632627505204e-15,
+      "left": 0,
+      "vertical": 1.8706826587084635e-08,
+      "ghosts": [
+        {
+          "held": true,
+          "gap": 0
+        }
+      ]
+    },
+    "end-recovery": {
+      "hold": {
+        "active": true,
+        "lift": 0.12,
+        "footDifference": 0.5904157609457266,
+        "bladeUp": 0.9999999999999998,
+        "rightGap": 2.220446049250313e-16,
+        "leftGap": 0
+      },
+      "release": {
+        "active": false,
+        "weight": 0,
+        "lift": 0,
+        "leftHeight": 0.09836407653692186,
+        "rightHeight": 0.0911628672051989,
+        "flash": false
+      },
+      "interruptedCleanly": true
+    },
+    "clips": 32,
+    "errors": []
+  },
+  "motionBot": {
+    "rigs": [
+      {
+        "model": "./models/tpose.fbx",
+        "mapped": 31,
+        "missing": 0,
+        "missingNames": [],
+        "position": [
+          0.5512159256602331,
+          0.379164791356081,
+          3.4000000000000057
+        ]
+      },
+      {
+        "model": "./models/characters/samurai.glb",
+        "mapped": 23,
+        "missing": 8,
+        "missingNames": [
+          "mixamorigHeadTop_End",
+          "mixamorigHeadTop_End_end",
+          "mixamorigRightHand_end",
+          "mixamorigLeftHand_end",
+          "mixamorigRightToe_End",
+          "mixamorigRightToe_End_end",
+          "mixamorigLeftToe_End",
+          "mixamorigLeftToe_End_end"
+        ],
+        "position": [
+          0.5512159256602331,
+          0.379164791356081,
+          3.4000000000000057
+        ]
+      },
+      {
+        "model": "./models/characters/queen.glb",
+        "mapped": 23,
+        "missing": 8,
+        "missingNames": [
+          "mixamorigHeadTop_End",
+          "mixamorigHeadTop_End_end",
+          "mixamorigRightHand_end",
+          "mixamorigLeftHand_end",
+          "mixamorigRightToe_End",
+          "mixamorigRightToe_End_end",
+          "mixamorigLeftToe_End",
+          "mixamorigLeftToe_End_end"
+        ],
+        "position": [
+          0.5512159256602331,
+          0.379164791356081,
+          3.4000000000000057
+        ]
+      },
+      {
+        "model": "./models/characters/mage.glb",
+        "mapped": 23,
+        "missing": 8,
+        "missingNames": [
+          "mixamorigHeadTop_End",
+          "mixamorigHeadTop_End_end",
+          "mixamorigRightHand_end",
+          "mixamorigLeftHand_end",
+          "mixamorigRightToe_End",
+          "mixamorigRightToe_End_end",
+          "mixamorigLeftToe_End",
+          "mixamorigLeftToe_End_end"
+        ],
+        "position": [
+          0.5512159256602331,
+          0.379164791356081,
+          3.4000000000000057
+        ]
+      }
+    ],
+    "savedTravelSamples": 136,
+    "stationaryReset": true,
+    "errors": []
+  }
+}

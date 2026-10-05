@@ -23,3 +23,9 @@ export function endStroke(phase){
  return {progress:s,drawing:t>.12&&t<.68,angle:-.25+.5*s,reach:.16+.20*s};
 }
 export function endTravelDuration(index){return (index<4?END_SEQUENCE.travel[index+1]:END_SEQUENCE.field-.1)-END_SEQUENCE.travel[index];}
+
+// The uploaded JCE scene starts after its preparation: duration is an explicit adaptation.
+export const END_CHARGE = Object.freeze({duration:1.2,worldScale:.12});
+export function endWorldScale(techniques,player){
+ return !player?.dead&&(techniques?.ritual?.end||techniques?.endBurst||player?.arts?.endRecovery)?END_CHARGE.worldScale:1;
+}

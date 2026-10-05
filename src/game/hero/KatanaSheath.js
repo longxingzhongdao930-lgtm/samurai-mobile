@@ -94,7 +94,7 @@ export class KatanaSheath {
       const depth=.36*(1-smoothPhase(t,.04,.28))+.36*release;
       this._hand('Left',mouth.clone().addScaledVector(axis,depth),1);
     }else{this.heldStart=null;this.heldTime=0;}
-    const ritual=p.techniques?.ritual;if(ritual?.end&&ritual.t>=END_SEQUENCE.travel[0]&&ritual.t<END_SEQUENCE.return&&leftHand){c.root.updateMatrixWorld(true);mouth.copy(leftHand.getWorldPosition(new Vector3()));const blade=g.weapons.blade();if(blade)axis.copy(new Vector3(0,0,-1).applyQuaternion(blade.getWorldQuaternion(new Quaternion())).normalize());}
+    const ritual=p.techniques?.ritual;if(ritual?.end&&(ritual.chargeRemaining>0||ritual.t>=END_SEQUENCE.travel[0]&&ritual.t<END_SEQUENCE.return)&&leftHand){c.root.updateMatrixWorld(true);mouth.copy(leftHand.getWorldPosition(new Vector3()));const blade=g.weapons.blade();if(blade)axis.copy(new Vector3(0,0,-1).applyQuaternion(blade.getWorldQuaternion(new Quaternion())).normalize());}
     if(ritual?.end&&ritual.t>=END_SEQUENCE.return&&leftHand){c.root.updateMatrixWorld(true);mouth.copy(leftHand.getWorldPosition(new Vector3()));}
     const rotation = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), axis);
     // The imported scabbard is authored from its mouth along +Z. Keep one
@@ -107,7 +107,7 @@ export class KatanaSheath {
       this._hand('Left',mouth,weight);
     }
     const source = this.source?.() ?? g.weapons.blade?.() ?? g.weapons._slot()?.model;
-    const active = p.weapon.id === 'katana' && ['sheath', 'flourish', 'sheathed', 'charge'].includes(p.arts.mode) && !p.dead && !g.form.active;
+    const active = p.weapon.id === 'katana' && (['sheath', 'flourish', 'sheathed', 'charge'].includes(p.arts.mode)||p.techniques?.ritual?.chargeRemaining>0) && !p.dead && !g.form.active;
     if (!source) return;
     if (p.weapon.id === 'katana' && source.parent && c.getBone(this.side+'Hand')) {
       c.root.updateMatrixWorld(true);
@@ -213,11 +213,11 @@ export class KatanaSheath {
     }
     if(!this.active)this.fromGrip=c.getBone(this.side+'Hand')?.getWorldPosition(new Vector3());
     this.active = true; source.visible = false; this.copy.visible = true;
-    const profile=this.reference;
-    const t = ['sheathed', 'charge'].includes(p.arts.mode) ? (profile?.end??SHEATH_SECONDS) : p.arts.t - (p.arts.mode === 'flourish' ? flourishSeconds : 0);
+    const profile=this.reference,endCharging=p.techniques?.ritual?.chargeRemaining>0;
+    const t = (endCharging||['sheathed', 'charge'].includes(p.arts.mode)) ? (profile?.end??SHEATH_SECONDS) : p.arts.t - (p.arts.mode === 'flourish' ? flourishSeconds : 0);
     if(p.arts.endRecovery&&p.arts.mode==='sheath'){this._endSheath(source,t);return;}
     const align = profile?smoothPhase(t,profile.retract,profile.align):this.staged?smooth((t-.18)/.16):smooth(t / .22), insert = profile?smoothPhase(t,profile.align,profile.insert):this.staged?smooth((t-.34)/.31):smooth((t - .22) / .43);
-    const relax=profile&&p.arts.mode!=='charge'?smoothPhase(t,profile.relax,profile.end):0;
+    const relax=profile&&p.arts.mode!=='charge'&&!endCharging?smoothPhase(t,profile.relax,profile.end):0;
     this.gripping=relax===0;
     // A finished sheath is a separate state. Do not first pull the wrists
     // back onto the hilt/mouth every frame and then try to release them.
@@ -256,11 +256,11 @@ export class KatanaSheath {
       const outside=shoulder.clone().add(retract);
       // Hold a short visible blade section between the guard and mouth.
       const ritual=p.techniques?.ritual,draw=ritual&&!ritual.end?judgementDrawDistance(ritual.t):0;
-      const finalGrip=mouth.clone().addScaledVector(axis,p.arts.mode==='charge'?-(.19+draw):-.1);
+      const finalGrip=mouth.clone().addScaledVector(axis,(p.arts.mode==='charge'||endCharging)?-(.19+draw):-.1);
       const lifted=this.fromGrip.clone().add(new Vector3(Math.sin(yaw)*.2,.2,Math.cos(yaw)*.2));
       const liftEnd=profile?.lift??.08,retractEnd=profile?.retract??.18;
       const target=t<liftEnd?this.fromGrip.clone().lerp(lifted,smooth(t/liftEnd)):t<retractEnd?lifted.lerp(outside,smooth((t-liftEnd)/(retractEnd-liftEnd))):outside.lerp(finalGrip,insert);
-      this._hand('Right',target,p.arts.mode==='charge'&&profile?smoothPhase(p.arts.t,0,.12):1);
+      this._hand('Right',target,p.arts.mode==='charge'&&profile&&!endCharging?smoothPhase(p.arts.t,0,.12):1);
     }
     if (rightHand) {
       c.root.updateMatrixWorld(true);

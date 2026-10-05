@@ -1,3 +1,4 @@
+import { endWorldScale } from './hero/JudgementEndSequence.js';
 import { loadImportedAttacks } from './hero/ImportedAttacks.js';
 import { HeroStudio, heroTitle } from './hero/HeroStudio.js';
 import { VergilRig } from './hero/VergilRig.js';
@@ -261,6 +262,8 @@ export class Game {
   }
 
   /** Multiplier the App applies to the simulation clock. */
+  get worldTimeScale() { return endWorldScale(this.player?.techniques,this.player); }
+
   get timeScale() {
     return this.slowFactor;
   }
@@ -290,7 +293,8 @@ export class Game {
   /** After the controller moved the body; before the bodies animate. */
   update(dt, raw) {
     if (this.state !== 'playing' && this.state !== 'title') return;
-    this.elapsed += dt;
+    const worldDt=dt*this.worldTimeScale;
+    this.elapsed += worldDt;
     if (this.state === 'playing') {
       this.playTime += raw;
       this._tickTimers(raw);
@@ -309,11 +313,11 @@ export class Game {
     const ctx = this._ctx ?? (this._ctx = { player: position, director: null, playerDown: false });
     ctx.director = this.director;
     ctx.playerDown = this.player.dead || this.state !== 'playing';
-    this.director.update(dt, ctx);
-    this.magic.update(dt);
+    this.director.update(worldDt, ctx);
+    this.magic.update(worldDt);
     this.weapons.update(dt);
-    this.flow?.update(dt, raw);
-    this.stage?.update(dt, raw, position);
+    this.flow?.update(worldDt, raw*this.worldTimeScale);
+    this.stage?.update(worldDt, raw*this.worldTimeScale, position);
 
     // Footsteps, off the gait's own speed.
     const speed = this.app.controller.speed;
@@ -347,7 +351,7 @@ export class Game {
     this.fx.update(dt, this.elapsed);
     this.fx.ribbons.update(dt);
     this._camera(raw);
-    this.stage?.lateUpdate?.(dt, raw);
+    this.stage?.lateUpdate?.(dt*this.worldTimeScale, raw*this.worldTimeScale);
 
     const size = app.renderer.size;
     this.hud.update(raw, app.camera, size.width, size.height);

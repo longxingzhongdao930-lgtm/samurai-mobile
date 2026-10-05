@@ -8,10 +8,12 @@ parser=argparse.ArgumentParser()
 parser.add_argument('--capture',required=True)
 parser.add_argument('--reference',required=True)
 parser.add_argument('--output',required=True)
+parser.add_argument('--preparation-seconds',type=float,default=0,help='Added preparation before the existing JCE clock; use 0 for captures before end charge.')
 args=parser.parse_args();out=Path(args.output);out.mkdir(parents=True,exist_ok=True)
 # Reference clock is the uploaded recording clock (reported 2x playback).
 # Midpoints of the five travel events, then field/return/sheath/final burst.
 phases=[('travel 1',.8,.28),('travel 2',1.2,.56),('travel 3',1.6,.84),('travel 4',2,1.12),('travel 5',2.4,1.4),('field',3.1,1.88),('return',4.1,2.59),('sheath',4.6,3),('final burst',5.4,3.55)]
+phases=[(p,r,g+args.preparation_seconds) for p,r,g in phases]
 canvas=Image.new('RGB',(1280,9*290));draw=ImageDraw.Draw(canvas)
 for i,(phase,ref,game) in enumerate(phases):
  for side,(path,t) in enumerate([(args.reference,ref),(args.capture,game)]):
@@ -21,5 +23,5 @@ for i,(phase,ref,game) in enumerate(phases):
   label=f'{phase}: '+('REFERENCE uploaded clock' if side==0 else 'GAME compressed clock')+f' {t:.2f}s'
   draw.text((side*640+8,i*290+8),label,fill='white')
 canvas.save(out/'phase-comparison.jpg')
-(out/'phase-comparison.json').write_text(json.dumps({'completeTrace':False,'temporalMatch':False,'note':'Event alignment for pose inspection only. Game travel clock uses 0.35 compression; the original full video comparison is retained. Cameras/depth are not calibrated.','reference':args.reference,'capture':args.capture,'phases':[{'phase':p,'referenceRecordingSeconds':r,'gameSeconds':g} for p,r,g in phases]},indent=2))
+(out/'phase-comparison.json').write_text(json.dumps({'completeTrace':False,'temporalMatch':False,'addedPreparationSeconds':args.preparation_seconds,'note':'Event alignment for pose inspection only. Game travel clock uses 0.35 compression; the original full video comparison is retained. Cameras/depth are not calibrated.','reference':args.reference,'capture':args.capture,'phases':[{'phase':p,'referenceRecordingSeconds':r,'gameSeconds':g} for p,r,g in phases]},indent=2))
 print(out/'phase-comparison.jpg')

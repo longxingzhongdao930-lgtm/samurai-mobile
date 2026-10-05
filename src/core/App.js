@@ -1087,17 +1087,19 @@ export class App {
     this.game?.preUpdate(raw);
     // The impact freeze, spent in *real* time so it lasts as long on any frame
     // rate, and applied as a scale so everything slows together (see `_hitStop`).
-    let scale = settings.global.timeScale * (this.game?.timeScale ?? 1);
+    const personalTime=(this.game?.worldTimeScale??1)<1;
+    let scale = settings.global.timeScale * (personalTime?1:(this.game?.timeScale ?? 1));
     if (this._hitStop > 0) {
       this._hitStop = Math.max(0, this._hitStop - raw);
-      scale *= this._hitStopScale;
+      if(!personalTime)scale *= this._hitStopScale;
     }
     const dt = this.paused ? 0 : raw * scale;
-    this.elapsed += dt;
+    const worldDt=dt*(this.game?.worldTimeScale??1);
+    this.elapsed += worldDt;
 
     /* ---- shared uniforms ---- */
     frame.uTime.value = this.elapsed;
-    frame.uDelta.value = dt;
+    frame.uDelta.value = worldDt;
     frame.uCameraNear.value = this.camera.near;
     frame.uCameraFar.value = this.camera.far;
 
@@ -1164,8 +1166,8 @@ export class App {
     // the character, because where the player is standing is what they watch,
     // what they are spawned around, and what the kick's reach was measured
     // against this frame.
-    this.enemies.update(dt, position);
-    this.camp?.update(dt);
+    this.enemies.update(worldDt, position);
+    this.camp?.update(worldDt);
     if (this.game) {
       // One ring, under whoever is locked.
       this._locked.clear();
@@ -1214,7 +1216,7 @@ export class App {
     // window of them follows the body that has just finished moving. The
     // velocity is what scatters them: it goes in raw, so a walk stirs the litter
     // and a sprint throws it, and standing still disturbs nothing.
-    this.leaves.update(dt, this.elapsed, position, this.controller.velocity);
+    this.leaves.update(worldDt, this.elapsed, position, this.controller.velocity);
 
     /* ---- camera ---- */
     // The rig runs on *real* time so orbiting stays responsive while paused.

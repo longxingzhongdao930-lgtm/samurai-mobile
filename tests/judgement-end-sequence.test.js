@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Group, Vector3 } from 'three';
-import { END_SEQUENCE, endSequence, endTravel, endStroke, endTravelDuration } from '../src/game/hero/JudgementEndSequence.js';
+import { END_SEQUENCE, endSequence, endTravel, endStroke, endTravelDuration, endWorldScale, END_CHARGE } from '../src/game/hero/JudgementEndSequence.js';
 import { KatanaAfterimages } from '../src/game/fx/KatanaAfterimages.js';
 test('low quality can display every traveling slash before the finisher field',()=>{
  const model=new Group(),root=new Group();root.add(model);const c={root,model},fx=new KatanaAfterimages(new Group(),2);let emitted=0;
@@ -22,4 +22,10 @@ test('outward cut is monotonic and held after the trail closes',()=>{
  for(let i=0;i<=100;i++){const s=endStroke(i/100);assert.ok(s.angle>=prior);prior=s.angle;}
  assert.deepEqual(endStroke(.7),endStroke(1));assert.equal(endStroke(.7).drawing,false);assert.equal(endStroke(.4).drawing,true);
  for(let i=0;i<5;i++)assert.ok(END_SEQUENCE.travel[i]+endTravelDuration(i)<=END_SEQUENCE.field-.09);
+});
+
+test('end slows only the world through charge, traversal and sheath, and releases on death',()=>{
+ const player={dead:false,arts:{}},t={ritual:{end:true,chargeRemaining:1}};
+ assert.equal(endWorldScale(t,player),END_CHARGE.worldScale);assert.equal(endWorldScale({},player),1);
+ t.ritual=null;t.endBurst={};assert.equal(endWorldScale(t,player),END_CHARGE.worldScale);player.dead=true;assert.equal(endWorldScale(t,player),1);
 });

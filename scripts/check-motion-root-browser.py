@@ -11,7 +11,7 @@ with sync_playwright() as pw:
  for model in ['./models/tpose.fbx','./models/characters/samurai.glb','./models/characters/queen.glb','./models/characters/mage.glb']:
   if p.locator('#model').input_value()!=model:
    p.select_option('#model',model);p.wait_for_function('(url)=>motionBot.sourceUrl===url&&motionBot.current?.clip.name==="黒雨・次元斬絶"',arg=model,timeout=240000)
-  p.locator('#time').fill('0.2');p.wait_for_function('motionBot.wrapper.position.length()>.1')
+  p.locator('#time').fill('0.4');p.wait_for_function('motionBot.wrapper.position.length()>.1')
   row=p.evaluate('({model:motionBot.sourceUrl,mapped:motionBot.current.mapped.length,missing:motionBot.current.missing.length,missingNames:motionBot.current.missing,position:motionBot.wrapper.position.toArray()})');assert all(__import__('math').isfinite(v) for v in row['position']);assert all('end' in n.lower() for n in row['missingNames']),row;results.append(row);p.screenshot(path='/tmp/motion-root-'+model.rsplit('/',1)[-1]+'.png')
   p.locator('#time').fill('1');p.wait_for_function('motionBot.wrapper.position.length()<.01')
  p.select_option('#model','./models/tpose.fbx');p.wait_for_function('motionBot.sourceUrl==="./models/tpose.fbx"&&motionBot.current?.clip.name==="黒雨・次元斬絶"',timeout=240000)

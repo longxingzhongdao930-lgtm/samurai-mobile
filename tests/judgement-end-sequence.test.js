@@ -9,7 +9,7 @@ test('low quality can display every traveling slash before the finisher field',(
  assert.equal(emitted,5);assert.ok(fx.pool.every(s=>s.life===0));fx.dispose();
 });
 test('curved afterimage path has height and depth without moving source character',()=>{
- const root=new Group(),model=new Group();root.add(model);const origin=new Vector3(0,0,1),target=new Vector3(0,1,4),before=origin.clone(),path=endTravel(0,origin,target),fx=new KatanaAfterimages(new Group());
+ const root=new Group(),model=new Group();root.add(model);const origin=new Vector3(0,0,1),target=new Vector3(0,1,4),before=origin.clone(),path=endTravel(2,origin,target),fx=new KatanaAfterimages(new Group());
  fx.emit({root,model},path.from,path.to,.4,null,path);fx.update(.2);const midpoint=path.from.clone().lerp(path.to,.5);assert.ok(fx.pool[0].pivot.position.y>.5);assert.ok(fx.pool[0].pivot.position.distanceTo(midpoint)>.5);assert.ok(origin.equals(before));assert.ok(root.position.equals(new Vector3()));fx.dispose();
  const straightUp=endTravel(0,new Vector3(),new Vector3(0,2,0));assert.ok(straightUp.from.toArray().every(Number.isFinite));
 });

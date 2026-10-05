@@ -202,7 +202,7 @@ export class Effects {
   update(dt, elapsed) {
     if (!this._bladeBound) this.bindBlade();
     const p=this.game.player,iai=p.weapon.id==='katana'&&p.state==='attack'&&p.move===p.heavy&&!this.game.form.active;
-    const endCut=p.techniques?.ritual?.end&&p.techniques.ritual.t>=END_SEQUENCE.travel[0]&&p.techniques.ritual.t<END_SEQUENCE.field;
+    const endCut=!p.techniques?.hidden&&p.techniques?.ritual?.end&&p.techniques.ritual.t>=END_SEQUENCE.travel[0]&&p.techniques.ritual.t<END_SEQUENCE.field;
     const sword=p.weapon.id==='katana'&&p.state==='attack'&&!this.game.form.active;
     const uniforms=this.trail.material.uniforms;
     uniforms.uColor.value.set(endCut?'#715fff':sword?'#769fff':'#ffb36a');

@@ -24,3 +24,9 @@ test('travel ribbons stop on reset and field clouds remain bounded by the field 
 test('final horizontal flash originates at the hero, expires before the burst, and resets',()=>{
  const a=new SpectralAssets(new Group()),enemy=new Vector3(0,1,3),hero=new Vector3(0,1.1,0);assert.ok(a.burst(enemy,hero));const slot=a.burstPool[0];a.update(.05);assert.ok(slot.flash.visible);assert.ok(slot.flash.position.equals(hero));assert.ok(slot.mesh.position.equals(enemy));a.update(.10);assert.equal(slot.flash.visible,false);assert.ok(slot.mesh.visible);a.reset();assert.equal(slot.flash.material.uniforms.uOpacity.value,0);
 });
+
+test('purple flying slashes move independently, use bounded slots and reset cleanly',()=>{
+ const fx=new SpectralAssets(new Group()),from=new Vector3(),to=new Vector3(0,1,3);fx.flyingSlash(from,to,0);
+ const active=fx.flyPool.filter(s=>s.life>0);assert.equal(active.length,3);const start=active[0].mesh.position.clone();fx.update(.1);assert.ok(active[0].mesh.position.distanceTo(start)>.2);
+ fx.reset();assert.ok(fx.flyPool.every(s=>!s.mesh.visible&&s.mesh.material.uniforms.uOpacity.value===0));
+});

@@ -270,6 +270,7 @@ export class Game {
 
   /** Before anything moves: input edges, pause, slow-motion clock. */
   preUpdate(raw) {
+    this.player?.techniques?.restoreVisibility();
     this.heroPresence?.restore();
     if (this.playerPosition) (this._beforeMove ??= new Vector3()).copy(this.playerPosition);
     this.gamepad?.poll(raw);
@@ -350,6 +351,7 @@ export class Game {
     this.vergil?.update(dt);
     this.fx.update(dt, this.elapsed);
     this.fx.ribbons.update(dt);
+    this.player.techniques?.syncVisibility();
     this._camera(raw);
     this.stage?.lateUpdate?.(dt*this.worldTimeScale, raw*this.worldTimeScale);
 

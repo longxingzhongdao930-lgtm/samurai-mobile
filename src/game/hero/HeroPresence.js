@@ -47,7 +47,7 @@ export class HeroPresence {
       if(threat)this.turn(c.getBone('LeftArm'),0,0,.08);
     }
     const groundedIai=p.weapon.id==='katana'&&p.state==='attack'&&(p.move===p.heavy||p.move?.config.swordMotion)&&!p.move?.config.airborne;
-    if((p.state==='free'&&speed<2||groundedIai)&&!c.airHeight&&!c.jump?.locked&&!c.hop?.locked){
+    if((p.state==='free'&&speed<2||groundedIai)&&!(p.techniques?.traversal?.lift>0)&&!c.airHeight&&!c.jump?.locked&&!c.hop?.locked){
       for(const side of ['Left','Right']){
         const up=c.getBone(side+'UpLeg'),low=c.getBone(side+'Leg'),foot=c.getBone(side+'Foot');if(!up||!low||!foot)continue;
         c.root.updateMatrixWorld(true);const at=foot.getWorldPosition(new Vector3()),ground=g.app.terrain.heightAt(at.x,at.z);

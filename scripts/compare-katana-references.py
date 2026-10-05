@@ -26,9 +26,10 @@ for technique in catalog['techniques']:
  start,end=ref['recordedSeconds'];dest=args.output/('compare-'+technique['id']+'.mp4');speed=ref['reportedPlaybackSpeed']
  # Fit each full frame inside its panel. End-frame padding is labelled editorially.
  label=capture.replace("'",'')
- filters=f"[0:v]scale=640:426:force_original_aspect_ratio=decrease,pad=640:426:(ow-iw)/2:(oh-ih)/2,setpts={speed}*(PTS-STARTPTS),fps=30,drawtext=text='REFERENCE - original speed (2x capture normalized)':x=8:y=12:fontsize=15:fontcolor=white:box=1:boxcolor=black@0.8[l];[1:v]scale=640:426:force_original_aspect_ratio=decrease,pad=640:426:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS,fps=30,tpad=stop_mode=clone:stop_duration=16,drawtext=text='{label} - game pace (end frame padded)':x=8:y=12:fontsize=15:fontcolor=white:box=1:boxcolor=black@0.8[r];[l][r]hstack=shortest=1[v]"
+ filters=f"[0:v]scale=640:426:force_original_aspect_ratio=decrease,pad=640:426:(ow-iw)/2:(oh-ih)/2,setpts={speed}*(PTS-STARTPTS),fps=30,drawtext=text='REFERENCE - reported 2x playback normalized':x=8:y=12:fontsize=15:fontcolor=white:box=1:boxcolor=black@0.8[l];[1:v]scale=640:426:force_original_aspect_ratio=decrease,pad=640:426:(ow-iw)/2:(oh-ih)/2,setpts=PTS-STARTPTS,fps=30,tpad=stop_mode=clone:stop_duration=16,drawtext=text='{label} - game pace (end frame padded)':x=8:y=12:fontsize=15:fontcolor=white:box=1:boxcolor=black@0.8[r];[l][r]hstack=shortest=1[v]"
  ffmpeg(['-ss',start,'-t',end-start,'-i',source,'-i',args.captures/(capture+'.mp4'),'-filter_complex',filters,'-map','[v]','-an','-c:v','libx264','-pix_fmt','yuv420p',dest])
- ffmpeg(['-i',dest,'-vf','fps=3,scale=640:213,tile=3x3','-frames:v',1,args.output/('compare-'+technique['id']+'.jpg')])
+ duration=(end-start)*speed
+ ffmpeg(['-i',dest,'-vf',f'fps={9/duration:.8f},scale=640:213,tile=3x3','-frames:v',1,args.output/('compare-'+technique['id']+'.jpg')])
  comparisons.append({'technique':technique['id'],'capture':capture,'reference':ref,'movie':str(dest),'completeTrace':False})
  print('Compared',technique['id'],flush=True)
 playlist=args.output/'playlist.txt';playlist.write_text('\n'.join("file '"+r['movie'].replace("'","'\\''")+"'" for r in manifest))

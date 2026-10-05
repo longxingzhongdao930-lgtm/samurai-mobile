@@ -16,6 +16,13 @@ export function createKatanaEffectGeometry(kind='rift') {
    for(let j=0;j<16;j++){const a=point(j/16,-1),b=point(j/16,1),c=point((j+1)/16,-1),d=point((j+1)/16,1);for(const p of [a,b,c,b,d,c])vertices.push(p.x,p.y,p.z);}
   }
  }
+ else if(kind==='lightning'){
+  for(let branch=0;branch<6;branch++){
+   const angle=branch*Math.PI/3,direction=new Vector3(Math.cos(angle),Math.sin(angle),Math.sin(branch*1.8)*.4).normalize(),side=new Vector3(-direction.y,direction.x,0).normalize();
+   const at=t=>direction.clone().multiplyScalar(.1+t*.7).addScaledVector(side,Math.sin(t*33+branch*2.4)*.08*Math.sin(Math.PI*t));
+   for(let i=0;i<8;i++){const a=at(i/8),b=at((i+1)/8),width=side.clone().multiplyScalar(.008);for(const p of [a.clone().sub(width),a.clone().add(width),b.clone().sub(width),a.clone().add(width),b.clone().add(width),b.clone().sub(width)])vertices.push(p.x,p.y,p.z);}
+  }
+ }
  else if(kind==='end'){
   // Long oblique cuts cross the volume; keep the middle open for the characters.
   for(let i=0;i<12;i++){
@@ -32,5 +39,5 @@ export function createKatanaEffectGeometry(kind='rift') {
   }
  }
  else throw new Error('Unknown katana effect: '+kind);
- const geometry=new BufferGeometry();geometry.setAttribute('position',new Float32BufferAttribute(vertices,3));geometry.computeVertexNormals();geometry.computeBoundingSphere();geometry.name='黒雨・自作3D・'+kind;return geometry;
+ const geometry=new BufferGeometry();geometry.setAttribute('position',new Float32BufferAttribute(vertices,3));const uv=[];for(let i=0;i<vertices.length/3;i++){const edge=kind==='burst'?[0,1,.5][i%3]:[0,1,0,1,1,0][i%6];uv.push((i%6<3?0:1),edge);}geometry.setAttribute('uv',new Float32BufferAttribute(uv,2));geometry.computeVertexNormals();geometry.computeBoundingSphere();geometry.name='黒雨・自作3D・'+kind;return geometry;
 }

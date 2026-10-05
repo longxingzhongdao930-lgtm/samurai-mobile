@@ -16,7 +16,7 @@ with sync_playwright() as pw:
   p.evaluate('clean()');before=p.evaluate('target.hp');p.keyboard.press(key);p.evaluate('app.simulate(.48);camera()');p.screenshot(path=str(out/(label+'.png')))
   if label=='end':
    p.evaluate('app.simulate(.14)');assert p.evaluate('app.game.player.techniques.assets.endPool.some(s=>s.mesh.visible)');p.evaluate('(()=>{const c=app.rig.camera,at=app.game.playerPosition;c.position.set(at.x+5,at.y+2.2,at.z+3);c.lookAt(at.x,at.y+1,at.z+3);c.fov=55;c.updateProjectionMatrix();app.scene.updateMatrixWorld(true);app.post.render();})()');p.screenshot(path=str(out/'end-material.png'))
-  p.evaluate('app.simulate(1.3)');after=p.evaluate('target.hp')
+  p.evaluate('app.simulate(1.8)');after=p.evaluate('target.hp')
   assert after<before,(label,before,after)
   assert p.evaluate('app.game.player.techniques.ritual===null'),label
   results[label]={'damage':before-after,'state':p.evaluate('app.game.player.state')}
@@ -36,8 +36,9 @@ with sync_playwright() as pw:
  assert p.evaluate('app.game.player.techniques.assets.riftPool.every(s=>!s.mesh.visible)')
  p.evaluate('app.simulate(.1)');assert p.evaluate('app.game.player.techniques.assets.riftPool.some(s=>s.mesh.visible)')
  p.evaluate('app.simulate(.8)');assert p.evaluate('[...app.game.player.techniques.assets.slashPool,...app.game.player.techniques.assets.riftPool].every(s=>!s.mesh.visible)')
- p.evaluate('clean()');p.keyboard.press('f');p.evaluate('app.simulate(.73)');assert p.evaluate('app.game.player.techniques.assets.burstPool.some(s=>s.mesh.visible)')
+ p.evaluate('clean()');p.keyboard.press('f');p.evaluate('app.simulate(.73)');assert p.evaluate('app.game.player.techniques.assets.burstPool.every(s=>!s.mesh.visible)');p.evaluate('app.simulate(1.5)');assert p.evaluate('app.game.player.arts.mode')=='sheathed';assert p.evaluate('app.game.player.techniques.assets.burstPool.some(s=>s.mesh.visible)')
  p.evaluate('app.simulate(.35)');assert p.evaluate('app.game.player.techniques.assets.burstPool.every(s=>!s.mesh.visible)')
+ p.evaluate('clean()');p.keyboard.press('f');p.evaluate('app.simulate(1.1)');before=p.evaluate('target.hp');p.keyboard.press('k');p.evaluate('app.simulate(1.6)');assert p.evaluate('app.game.player.techniques.endBurst===null');assert p.evaluate('app.game.player.techniques.assets.burstPool.every(s=>!s.mesh.visible)');assert p.evaluate('target.hp')==before
  results['original-effects']={'drawBeforeRemoteCut':True,'finalBurstVisible':True,'allExpired':True}
  # Additional cuts use real E presses, resource costs and interruptible timing.
  p.evaluate('clean();app.game.player.mp=100');before=p.evaluate('target.hp');p.keyboard.press('e');p.evaluate('app.simulate(.46)');p.keyboard.press('e');p.evaluate('app.simulate(.50)');p.keyboard.press('e');p.evaluate('app.simulate(1.2)');chain=p.evaluate('({damage:0,mp:app.game.player.mp,state:app.game.player.state,ritual:app.game.player.techniques.ritual})');chain['damage']=before-p.evaluate('target.hp');assert chain['damage']==72,chain;assert chain['ritual'] is None and chain['state']=='free',chain;results['judgement-chain']=chain

@@ -17,16 +17,16 @@ export class KatanaAfterimages {
    this.pool.push({pivot,model,material,pairs,mixer:new AnimationMixer(model),life:0,from:new Vector3(),to:new Vector3()});
   }
  }
- emit(character,from,to,duration=.18,clipName=null){
+ emit(character,from,to,duration=.18,clipName=null,path={}){
   this.ensure(character);const slot=this.pool.find(s=>s.life<=0);if(!slot)return false;
   for(const [source,target] of slot.pairs){target.position.copy(source.position);target.quaternion.copy(source.quaternion);target.scale.copy(source.scale);target.visible=source.visible;}
   slot.mixer.stopAllAction();
   const clip=character.clips?.get(clipName);
   if(clip){slot.action=slot.mixer.clipAction(clip);slot.action.reset().play();slot.clipDuration=clip.duration;slot.mixer.setTime(0);}else slot.action=null;
   const travel=to.clone().sub(from);if(travel.lengthSq()>1e-8)slot.model.rotation.y=Math.atan2(travel.x,travel.z)-(character._forwardYaw??0);
-  slot.model.position.set(0,0,0);slot.life=slot.duration=duration;slot.from.copy(from);slot.to.copy(to);slot.pivot.position.copy(from);slot.pivot.visible=true;slot.material.opacity=.16;return true;
+  slot.model.position.set(0,0,0);slot.life=slot.duration=duration;slot.from.copy(from);slot.to.copy(to);slot.arc=path.arc?.clone()??new Vector3();slot.lift=path.lift??.25;slot.pivot.position.copy(from);slot.pivot.visible=true;slot.material.opacity=.16;return true;
  }
- update(dt){for(const s of this.pool){s.life=Math.max(0,s.life-dt);s.pivot.visible=s.life>0;if(!s.life){s.material.opacity=0;continue;}const t=1-s.life/s.duration;if(s.action)s.mixer.setTime(t*s.clipDuration*.85);s.pivot.position.lerpVectors(s.from,s.to,t);s.pivot.position.y+=Math.sin(Math.PI*t)*.25;s.material.opacity=.16*(1-t);}}
+ update(dt){for(const s of this.pool){s.life=Math.max(0,s.life-dt);s.pivot.visible=s.life>0;if(!s.life){s.material.opacity=0;continue;}const t=1-s.life/s.duration;if(s.action)s.mixer.setTime(t*s.clipDuration*.85);s.pivot.position.lerpVectors(s.from,s.to,t);s.pivot.position.addScaledVector(s.arc,Math.sin(Math.PI*t));s.pivot.position.y+=Math.sin(Math.PI*t)*s.lift;s.material.opacity=.16*(1-t);}}
  reset(){for(const s of this.pool){s.life=0;s.pivot.visible=false;s.material.opacity=0;}}
  dispose(){for(const s of this.pool){s.mixer.stopAllAction();s.mixer.uncacheRoot(s.model);s.pivot.removeFromParent();s.material.dispose();s.model.traverse(n=>{if(n.isSkinnedMesh)n.skeleton.dispose();});}this.pool=[];this.sourceModel=null;}
 }

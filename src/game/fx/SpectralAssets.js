@@ -23,12 +23,12 @@ export class SpectralAssets {
  }
  async load(){try{const gltf=await new GLTFLoader().loadAsync('./models/fx/force-edge.glb');gltf.scene.traverse(n=>{if(n.isMesh)this.forceGeometry=n.geometry;});this.status.force=!!this.forceGeometry;}catch(error){console.warn('[SpectralAssets] sword fallback',error);}}
  sword(fallback,material){return new Mesh(this.forceGeometry??fallback,material);}
- spawn(pool,at,scale){
+ spawn(pool,at,scale,duration=null){
   const slot=pool.find(s=>s.life<=0);if(!slot)return false;
-  slot.duration=KATANA_FX_PROFILES[slot.kind]?.duration??.24;slot.life=slot.duration;slot.scale=scale;
+  slot.duration=duration??KATANA_FX_PROFILES[slot.kind]?.duration??.24;slot.life=slot.duration;slot.scale=scale;
   slot.mesh.position.copy(at);slot.mesh.scale.setScalar(scale);slot.mesh.visible=true;return true;
  }
- end(at){return this.spawn(this.endPool,at,1.8);}
+ end(at,duration=null){return this.spawn(this.endPool,at,1.8,duration);}
  slash(at,facing){const slot=this.slashPool.find(s=>s.life<=0);if(!slot)return false;this.spawn([slot],at,.65);slot.mesh.rotation.set(-Math.PI/2,facing-Math.PI/2,0,'YXZ');return true;}
  burst(at){return this.spawn(this.burstPool,at,1.3);}
  rift(at,wide=false){return this.spawn(this.riftPool,at,wide?1.5:1);}
@@ -37,7 +37,7 @@ export class SpectralAssets {
  update(dt){for(const s of this.slots()){
   s.life=Math.max(0,s.life-dt);s.mesh.visible=s.life>0;
   const age=(s.duration??.24)-s.life,phase=age/(s.duration??.24);
-  const sample=s.life<=0?{cut:0,cloud:0,scale:1}:s.kind?sampleKatanaEffect(s.kind,age):{cut:s.life>0?Math.sin(Math.PI*phase)*.18:0,cloud:0,scale:.85+.15*phase};
+  const sample=s.life<=0?{cut:0,cloud:0,scale:1}:s.kind?sampleKatanaEffect(s.kind,phase*KATANA_FX_PROFILES[s.kind].duration):{cut:s.life>0?Math.sin(Math.PI*phase)*.18:0,cloud:0,scale:.85+.15*phase};
   s.mesh.material.opacity=sample.cut;
   if(s.mesh.material.uniforms){s.mesh.material.uniforms.uOpacity.value=sample.cut;s.mesh.material.uniforms.uAge.value=age;}
   s.mesh.scale.setScalar((s.scale??1.8)*sample.scale);

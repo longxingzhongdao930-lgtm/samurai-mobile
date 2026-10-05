@@ -712,7 +712,7 @@ export class PlayerCombat {
         hand: 'Right',
         heavy: move === this.heavy || move === this.combo[4]
       });
-      if (result?.damage > 0 && !result.evaded) { landed++; this.arts?.landed(enemy,config,distance,reach); }
+      if (result?.damage > 0 && !result.evaded) { landed++; if(config.silentIai)this.game.fx?.effectAtlas?.spawn(config.id==='heavy'?'220078':'127578',enemy.position.clone().add(new Vector3(0,1,0)),config.id==='heavy'?1.7:.9,.28,0,null,false); this.arts?.landed(enemy,config,distance,reach); }
       if (config.airLauncher && result?.damage > 0 && !result.killed) {
         this.air.launch(enemy, opening || result.broke || move === this.counter);
       }

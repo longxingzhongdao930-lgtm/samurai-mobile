@@ -2,11 +2,10 @@ import { AdditiveBlending, DoubleSide, Mesh, PlaneGeometry, ShaderMaterial, Text
 
 // Uploaded video effects reduced to sixteen frames: no video decoders at runtime.
 export class EffectAtlas {
-  constructor(group) {
+  constructor(group, loader = new TextureLoader()) {
     this.geometry = new PlaneGeometry(1, 1);
     this.textures = new Map();
     this.slots = [];
-    const loader = new TextureLoader();
     for (const id of ['127578','71330','127577','220078','182612']) {
       const texture = loader.load(`/textures/fx/${id}.webp`);
       this.textures.set(id, texture);
@@ -20,23 +19,24 @@ export class EffectAtlas {
         const mesh = new Mesh(this.geometry, material);
         mesh.visible=false; mesh.frustumCulled=false;
         const slot={id,mesh,age:0,life:0,angle:0,to:null,from:new Vector3()};
-        mesh.onBeforeRender=(_r,_s,camera)=>{mesh.quaternion.copy(camera.quaternion);mesh.rotateZ(slot.angle);};
+        mesh.onBeforeRender=(_r,_s,camera)=>{mesh.quaternion.copy(camera.quaternion);mesh.rotateZ(slot.angle);mesh.updateMatrixWorld(true);};
         group.add(mesh);this.slots.push(slot);
       }
     }
   }
-  spawn(id, at, width=.3, life=.2, angle=0, to=null) {
+  spawn(id, at, width=.3, life=.2, angle=0, to=null, depthTest=true) {
     const slot=this.slots.find(s=>s.id===id&&!s.mesh.visible);
     if(!slot)return;
     Object.assign(slot,{age:0,life,angle,to:to?.clone()??null});
     slot.from.copy(at);slot.mesh.position.copy(at);
     slot.mesh.scale.set(width,width*9/16,1);
     slot.mesh.visible=true;
+    slot.mesh.material.depthTest=depthTest;
     slot.mesh.material.uniforms.frame.value=0;
     slot.mesh.material.uniforms.opacity.value=1;
   }
   travel(from,to,index) {
-    this.spawn(['127577','220078','182612'][index%3],from,1.5,.24,index*.8,to);
+    this.spawn(['127577','220078','182612'][index%3],from,3.2,.38,index*.8,to);
   }
   update(dt) {
     for(const s of this.slots)if(s.mesh.visible){

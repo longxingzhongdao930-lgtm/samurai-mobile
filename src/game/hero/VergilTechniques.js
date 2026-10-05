@@ -31,7 +31,7 @@ export class VergilTechniques {
  flushEndBurst(){
   if(!this.endBurst)return;
   if(this.p.arts.mode==='sheathed'){
-   this.g.fx?.effectAtlas?.spawn('127578',this.endBurst,2,.24);
+   this.g.fx?.effectAtlas?.spawn('127578',this.endBurst,4,.4);
    this.assets.burst(this.endBurst,this.p.character.position.clone().add(new Vector3(0,1.1,0)));
    for(const e of this.endTargets??[])if(e.alive&&this.g.targetVisible(e)!==false&&withinSwordRange(this.p.character.position,e.position,9))this.damage(this.point(e),.5,72,'special',false,e);
    this.g.audio.play('heavy',{volume:.55,pitch:1.25});this.g.rig.shake(.045);

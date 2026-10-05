@@ -1,3 +1,7 @@
+## 最新：刀身を見せない技・エフェクト再選考と録画
+
+刀のチラ見せも廃止。地上12種は納刀の雷光と敵側の命中光、強攻撃は紫の空間破裂。絶は大きな紫の弧と決着光。billboardのmatrixWorld更新不足・小さすぎるサイズと寿命を修正。修正前180コマ/修正後120コマを撮影し判読確認。詳細 docs/reference-analysis/hidden-blade-effects-review.md、動画 hidden-blade-effects-review.mp4。180テスト成功。刀・鞘の元モデル、sourceRest、stash、WIP保持。公開反映は別途確認。
+
 ## 最新：静かな居合へ変更・動画エフェクト5本を採用
 
 ユーザーの新方針に合わせ地上攻撃12種を刀のチラ見せ→納刀→ダメージへ変更。大振りと斬撃リボンを停止。絶の派手な演出は維持し、アップロード5本を小型アトラス化して納刀の雷光と絶の飛び交う光／決着に使用。詳細 docs/reference-analysis/silent-iai-effects.md。元骨格・元FBX・stash・WIP保持。完全トレースとは呼ばない。公開サイトの反映は別途確認が必要。

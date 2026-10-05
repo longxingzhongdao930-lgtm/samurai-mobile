@@ -205,13 +205,20 @@ export class Effects {
     if (!this._bladeBound) this.bindBlade();
     const p=this.game.player,silent=p.state==='attack'&&p.move?.config?.silentIai,iai=!silent&&p.weapon.id==='katana'&&p.state==='attack'&&p.move===p.heavy&&!this.game.form.active;
     this.effectAtlas.update(dt);
+    const hiddenBlade=p.weapon.id==='katana'&&(silent||!!p.techniques?.ritual||!!p.techniques?.endBurst);
+    if(hiddenBlade){
+      const sword=this.game.weapons.blade();
+      if(sword){if(!this._hiddenSword)this._hiddenSword={node:sword,visible:sword.visible};sword.visible=false;}
+      const copy=this.game.heroPresence?.katanaSheath?.copy;if(copy)copy.visible=false;
+    }else if(this._hiddenSword){this._hiddenSword.node.visible=this._hiddenSword.visible;this._hiddenSword=null;}
+
     if(!silent){this._silentMove=null;this._silentClosed=false;}
     else {
       if(this._silentMove!==p.move){this._silentMove=p.move;this._silentClosed=false;}
       if(!this._silentClosed&&p.move.phase>=.62){
         this._silentClosed=true;
         const hand=p.character.getBone('RightHand');
-        if(hand)this.effectAtlas.spawn('71330',hand.getWorldPosition(new Vector3()),.22,.08);
+        if(hand)this.effectAtlas.spawn('71330',hand.getWorldPosition(new Vector3()),.7,.22);
       }
     }
     const endCut=!p.techniques?.hidden&&p.techniques?.ritual?.end&&p.techniques.ritual.t>=END_SEQUENCE.travel[0]&&p.techniques.ritual.t<END_SEQUENCE.field;
@@ -262,6 +269,7 @@ export class Effects {
 
   clear() {
     this.effectAtlas.clear();
+    if(this._hiddenSword){this._hiddenSword.node.visible=this._hiddenSword.visible;this._hiddenSword=null;}
     this._silentMove=null;this._silentClosed=false;
     this.glow.clear();
     this.hitSparks.clear();

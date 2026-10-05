@@ -50,3 +50,26 @@ export function applyEndWaistPose(character,weapon,phase,record=()=>{}){
  weapon.position.copy(gripLocal.sub(anchor));weapon.updateWorldMatrix(true,false);
  return {mouth:arms[0].hand.getWorldPosition(new Vector3()),axis:direction.clone().negate(),direction};
 }
+
+/** One folded leg during the return/high hold; hidden depth is reconstructed. */
+export function judgementEndRecoveryClip(idle,crouch,walk){
+ if(!idle)return null;
+ const times=[0,.8,1],tracks=idle.tracks.map(t=>{
+  const track=t.clone(),rest=Array.from(t.createInterpolant().evaluate(0)),low=crouch?.tracks.find(s=>s.name===t.name),bent=low?Array.from(low.createInterpolant().evaluate(crouch.duration*.35)):rest,values=[];
+  for(const phase of times){
+   const hold=phase<1?1:0;
+   if(t.name.endsWith('.quaternion')&&rest.length===4){
+    const q=new Quaternion().fromArray(rest);
+    if(/(?:Left|Right)(?:UpLeg|Leg|Foot)\.quaternion$/i.test(t.name)){
+     const delta=q.clone().invert().multiply(new Quaternion().fromArray(bent)),hinge=new Euler().setFromQuaternion(delta,'XYZ');hinge.y*=.12;hinge.z*=.12;
+     const left=t.name.includes('Left'),bend=left?(t.name.includes('UpLeg')?1.25:1.35):.08;
+     hinge.x*=bend*hold;hinge.y*=hold;hinge.z*=hold;q.multiply(new Quaternion().setFromEuler(hinge));
+    }
+    if(/(?:Spine\d*|Neck|Head)\.quaternion$/i.test(t.name)){const straight=walk?.tracks.find(s=>s.name===t.name);if(straight)q.fromArray(straight.createInterpolant().evaluate(0));if(/Spine\d*/.test(t.name))q.multiply(new Quaternion().setFromAxisAngle(new Vector3(1,0,0),.025*hold));}
+    q.normalize().toArray(values,values.length);
+   }else values.push(...rest);
+  }
+  track.times=new Float32Array(times);track.values=new Float32Array(values);return track;
+ });
+ const clip=new AnimationClip('黒雨・次元斬絶・帰還掲刀',1,tracks);clip.userData={reconstruction:true,reference:'0750-07:4.0–5.4',depth:'inferred'};return clip;
+}

@@ -32,6 +32,13 @@ export function createKatanaEffectGeometry(kind='rift') {
    for(let j=0;j<16;j++){const a=point(j/16,-1),b=point(j/16,1),c=point((j+1)/16,-1),d=point((j+1)/16,1);for(const p of [a,b,c,b,d,c])vertices.push(p.x,p.y,p.z);}
   }
  }
+ else if(kind==='flash'){
+  for(const [length,width,angle] of [[3.2,.075,0],[1.7,.045,Math.PI/2],[2.1,.018,.55],[2.1,.018,-.55]]){
+   const direction=new Vector3(Math.cos(angle),Math.sin(angle),0),normal=new Vector3(-direction.y,direction.x,0);
+   const point=(t,side)=>direction.clone().multiplyScalar((2*t-1)*length).addScaledVector(normal,side*width*Math.sin(Math.PI*t)).add(new Vector3(0,0,.06*Math.sin(Math.PI*t)));
+   for(let j=0;j<16;j++){const a=point(j/16,-1),b=point(j/16,1),c=point((j+1)/16,-1),d=point((j+1)/16,1);for(const p of [a,b,c,b,d,c])vertices.push(p.x,p.y,p.z);}
+  }
+ }
  else if(kind==='burst'){
   for(let i=0;i<16;i++){
    const y=1-2*(i+.5)/16,angle=i*2.399963,direction=new Vector3(Math.sqrt(1-y*y)*Math.cos(angle),y,Math.sqrt(1-y*y)*Math.sin(angle));

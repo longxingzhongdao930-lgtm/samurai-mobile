@@ -1,0 +1,128 @@
+{
+  "completeTrace": false,
+  "reference": "20261004-0750-07.8233860.mp4",
+  "referenceRange": [
+    0.4,
+    5.8
+  ],
+  "reportedPlayback": 2,
+  "gameClockCompression": 0.35,
+  "camerasCalibrated": false,
+  "capture": "/tmp/katana-return-third-capture/end.mp4",
+  "frames": 138,
+  "fps": 30,
+  "hold": {
+    "active": true,
+    "lift": 0.12,
+    "footDifference": 0.5904157609457266,
+    "bladeUp": 0.9999999999999998,
+    "rightGap": 2.220446049250313e-16,
+    "leftGap": 0
+  },
+  "release": {
+    "active": false,
+    "weight": 0,
+    "lift": 0,
+    "leftHeight": 0.09829888744507342,
+    "rightHeight": 0.09119607180708317,
+    "flash": false
+  },
+  "interruptedCleanly": true,
+  "heroFlash": {
+    "visibleFrames": 4,
+    "first": 3.566666666666667,
+    "last": 3.6666666666666665,
+    "origin": [
+      0,
+      1.1,
+      124
+    ]
+  },
+  "damage": 72,
+  "motionBot": {
+    "rigs": [
+      {
+        "model": "./models/tpose.fbx",
+        "mapped": 31,
+        "missing": 0,
+        "missingNames": [],
+        "position": [
+          0.5512159256602331,
+          0.379164791356081,
+          3.4000000000000057
+        ]
+      },
+      {
+        "model": "./models/characters/samurai.glb",
+        "mapped": 23,
+        "missing": 8,
+        "missingNames": [
+          "mixamorigHeadTop_End",
+          "mixamorigHeadTop_End_end",
+          "mixamorigRightHand_end",
+          "mixamorigLeftHand_end",
+          "mixamorigRightToe_End",
+          "mixamorigRightToe_End_end",
+          "mixamorigLeftToe_End",
+          "mixamorigLeftToe_End_end"
+        ],
+        "position": [
+          0.5512159256602331,
+          0.379164791356081,
+          3.4000000000000057
+        ]
+      },
+      {
+        "model": "./models/characters/queen.glb",
+        "mapped": 23,
+        "missing": 8,
+        "missingNames": [
+          "mixamorigHeadTop_End",
+          "mixamorigHeadTop_End_end",
+          "mixamorigRightHand_end",
+          "mixamorigLeftHand_end",
+          "mixamorigRightToe_End",
+          "mixamorigRightToe_End_end",
+          "mixamorigLeftToe_End",
+          "mixamorigLeftToe_End_end"
+        ],
+        "position": [
+          0.5512159256602331,
+          0.379164791356081,
+          3.4000000000000057
+        ]
+      },
+      {
+        "model": "./models/characters/mage.glb",
+        "mapped": 23,
+        "missing": 8,
+        "missingNames": [
+          "mixamorigHeadTop_End",
+          "mixamorigHeadTop_End_end",
+          "mixamorigRightHand_end",
+          "mixamorigLeftHand_end",
+          "mixamorigRightToe_End",
+          "mixamorigRightToe_End_end",
+          "mixamorigLeftToe_End",
+          "mixamorigLeftToe_End_end"
+        ],
+        "position": [
+          0.5512159256602331,
+          0.379164791356081,
+          3.4000000000000057
+        ]
+      }
+    ],
+    "savedTravelSamples": 136,
+    "stationaryReset": true,
+    "errors": []
+  },
+  "sourceBones": 30,
+  "remaining": [
+    "individual slash paths and order",
+    "cloud swirl and colour",
+    "exact joint/depth reconstruction",
+    "flash silhouette, bloom and size",
+    "original speed and camera calibration"
+  ]
+}

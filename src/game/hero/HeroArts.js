@@ -1,3 +1,4 @@
+import { judgementEndRecoveryClip } from './JudgementEndPose.js';
 import { nameMotion } from './MotionCatalog.js';
 import { MathUtils, Vector3 } from 'three';
 import { SHEATH_REFERENCE, sheathDuration } from './SheathReference.js';
@@ -22,16 +23,17 @@ export class HeroArts {
     const endStance=player.character.clips.get('idle').clone(),walk=player.character.clips.get('walk');
     endStance.tracks=endStance.tracks.map(t=>{const r=t.clone(),ref=/(?:Spine\d*|Neck|Head)\.quaternion$/.test(t.name)?walk?.tracks.find(x=>x.name===t.name):null,value=Array.from((ref??t).createInterpolant().evaluate(0));r.times=new Float32Array([0,1]);r.values=new Float32Array([...value,...value]);return r;});
     this.endPose=new PoseLayer(player.character.mixer,endStance,{blendIn:.09,blendOut:.1});
+    this.endRecoveryPose=new PoseLayer(player.character.mixer,judgementEndRecoveryClip(player.character.clips.get('idle'),player.character.clips.get('crouch'),walk),{blendIn:.07,blendOut:.08});
     this.restPose=new PoseLayer(player.character.mixer,player.character.clips.get('idle'),{blendIn:.16,blendOut:.12,loop:true});
-    player.poses.push(this.pose,this.restPose,this.endPose);player.character.locomotion.overrides.push(this.pose,this.restPose,this.endPose);
+    player.poses.push(this.pose,this.restPose,this.endPose,this.endRecoveryPose);player.character.locomotion.overrides.push(this.pose,this.restPose,this.endPose,this.endRecoveryPose);
     this.reset();
   }
-  reset(){this.sheathRate=1;this.mode='';this.t=0;this.ready=0;this.link=0;this.returnGuard=0;this.evadeWindow=0;this.kickCd=0;this.rewardAvailable=false;this.transform=0;this.dirt=0;this.flourishQueued=false;this.pose?.cancel();this.restPose?.cancel();this.endPose?.cancel();}
-  cancel(){this.sheathRate=1;this.mode='';this.t=0;this.pose.stop();this.restPose?.stop();this.endPose?.stop();}
-  startSheath(flourish=false,duration=null){
+  reset(){this.endRecovery=false;this.endRecoveryPose?.cancel();this.sheathRate=1;this.mode='';this.t=0;this.ready=0;this.link=0;this.returnGuard=0;this.evadeWindow=0;this.kickCd=0;this.rewardAvailable=false;this.transform=0;this.dirt=0;this.flourishQueued=false;this.pose?.cancel();this.restPose?.cancel();this.endPose?.cancel();}
+  cancel(){this.endRecovery=false;this.endRecoveryPose?.cancel();this.sheathRate=1;this.mode='';this.t=0;this.pose.stop();this.restPose?.stop();this.endPose?.stop();}
+  startSheath(flourish=false,duration=null,endRecovery=false){
     const p=this.p;if(p.dead||!p._canCancel(.65))return false;
     for(const m of p.moves)m.release();p._toFree();p.guarding=false;p._guardLatched=false;p.guardPose.stop();
-    this.sheathRate=duration>0?sheathDuration()/duration:1;this.mode=flourish?'flourish':'sheath';this.t=0;this.pose.stop();this.restPose.hold(0);return true;
+    this.sheathRate=duration>0?sheathDuration()/duration:1;this.mode=flourish?'flourish':'sheath';this.t=0;this.pose.stop();this.endRecovery=endRecovery;if(endRecovery){this.restPose.stop();this.endRecoveryPose?.hold(0);}else{this.endRecoveryPose?.cancel();this.restPose.hold(0);}return true;
   }
   charge(){for(const m of this.p.moves)m.release();this.p._toFree();this.mode='charge';this.t=0;this.restPose.stop();this.pose.hold(.35);this.p.input.consume('attack');}
   stepToward(target, distance, side=0){
@@ -60,6 +62,7 @@ export class HeroArts {
       input.consume('attack');p._startMove(p.kickMove,p._autoTarget({reach:1.7,arc:80},2));return p._held;
     }
     if(!this.mode)return undefined;
+    if(this.endRecovery&&this.mode==='sheath')this.endRecoveryPose?.hold(Math.min(1,this.t/sheathDuration()));
     this.t+=dt*(['sheath','flourish'].includes(this.mode)?this.sheathRate??1:1);
     if(input.pending('dodge')||input.pending('guard')||input.pending('magic')||input.pending('weapon')){this.cancel();return undefined;}
     if(this.mode==='charge'){
@@ -76,7 +79,7 @@ export class HeroArts {
     if(input.moving&&this.mode!=='sheathed'){this.cancel();return undefined;}
     if(this.mode==='sheathed'){this.restPose.stop();return undefined;}
     if(this.mode!=='sheathed'&&this.t>=sheathDuration()+(this.mode==='flourish'?SHEATH_REFERENCE.single.flourish:0)){
-      this.mode='sheathed';this.pose.stop?.();this.restPose?.stop();
+      this.mode='sheathed';this.endRecovery=false;this.endRecoveryPose?.stop();this.pose.stop?.();this.restPose?.stop();
       if(this.rewardAvailable){this.rewardAvailable=false;this.ready=6;p.spirit.calm=Math.min(100,p.spirit.calm+(g._nearest(5)?24:12));g.heroStudio?.record('sheath');g.hud.notice('納刀成功 — 次の居合を強化',1.5);}
     }
     return null;

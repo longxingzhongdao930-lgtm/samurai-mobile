@@ -387,6 +387,9 @@ export class Game {
       const rise=Math.min(1.5,Math.max(0,c.getBone('Hips').getWorldPosition(new Vector3()).y-c.position.y-c.height*.53));
       frame.y+=rise*.4;frame.distance+=rise*.3;
     }
+    if(this.state==='playing'&&(this.player.arts.endRecovery||this.player.arts.endRecoveryPose?.active)){
+      frame.y+=.25;frame.distance+=.4;
+    }
     if(this.state==='playing'&&this.stage){
       const from=this.playerPosition.clone().add(new Vector3(0,1.3,0)),az=rig.azimuth;
       const desired=from.clone().add(new Vector3(Math.sin(az)*settings.camera.distance,1,Math.cos(az)*settings.camera.distance));

@@ -95,6 +95,7 @@ export class KatanaSheath {
       this._hand('Left',mouth.clone().addScaledVector(axis,depth),1);
     }else{this.heldStart=null;this.heldTime=0;}
     const ritual=p.techniques?.ritual;if(ritual?.end&&ritual.t>=END_SEQUENCE.travel[0]&&ritual.t<END_SEQUENCE.return&&leftHand){c.root.updateMatrixWorld(true);mouth.copy(leftHand.getWorldPosition(new Vector3()));const blade=g.weapons.blade();if(blade)axis.copy(new Vector3(0,0,-1).applyQuaternion(blade.getWorldQuaternion(new Quaternion())).normalize());}
+    if(ritual?.end&&ritual.t>=END_SEQUENCE.return&&leftHand){c.root.updateMatrixWorld(true);mouth.copy(leftHand.getWorldPosition(new Vector3()));}
     const rotation = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), axis);
     // The imported scabbard is authored from its mouth along +Z. Keep one
     // transform at rest, during insertion, and during the draw: no hip jump.
@@ -214,6 +215,7 @@ export class KatanaSheath {
     this.active = true; source.visible = false; this.copy.visible = true;
     const profile=this.reference;
     const t = ['sheathed', 'charge'].includes(p.arts.mode) ? (profile?.end??SHEATH_SECONDS) : p.arts.t - (p.arts.mode === 'flourish' ? flourishSeconds : 0);
+    if(p.arts.endRecovery&&p.arts.mode==='sheath'){this._endSheath(source,t);return;}
     const align = profile?smoothPhase(t,profile.retract,profile.align):this.staged?smooth((t-.18)/.16):smooth(t / .22), insert = profile?smoothPhase(t,profile.align,profile.insert):this.staged?smooth((t-.34)/.31):smooth((t - .22) / .43);
     const relax=profile&&p.arts.mode!=='charge'?smoothPhase(t,profile.relax,profile.end):0;
     this.gripping=relax===0;
@@ -293,6 +295,31 @@ export class KatanaSheath {
       if(this.support&&!profile.handheld)this._restHand('Left',smoothPhase(t,profile.relax+.04,profile.end));
       this.copy.position.copy(h.sheath.localToWorld(this.seated.position.clone()));
       this.copy.quaternion.copy(h.sheath.getWorldQuaternion(new Quaternion())).multiply(this.seated.rotation);
+    }else this.seated=null;
+  }
+  _endSheath(source,t){
+    const h=this.presence,c=h.g.player.character,yaw=c.facing,right=new Vector3(-Math.cos(yaw),0,Math.sin(yaw)),front=new Vector3(Math.sin(yaw),0,Math.cos(yaw)),up=new Vector3(0,1,0),hips=c.getBone('Hips'),hand=c.getBone('RightHand'),arm=c.getBone('RightArm'),fore=c.getBone('RightForeArm');
+    if(!hips||!hand||!arm||!fore)return;
+    c.root.updateMatrixWorld(true);
+    const mouth=hips.getWorldPosition(new Vector3()).addScaledVector(front,.31).addScaledVector(right,-.12).addScaledVector(up,.22);
+    this._hand('Left',mouth,1);c.root.updateMatrixWorld(true);mouth.copy(c.getBone('LeftHand').getWorldPosition(new Vector3()));
+    const shoulder=arm.getWorldPosition(new Vector3()),reach=shoulder.distanceTo(fore.getWorldPosition(new Vector3()))+fore.getWorldPosition(new Vector3()).distanceTo(hand.getWorldPosition(new Vector3()));
+    const high=shoulder.clone().addScaledVector(right,reach*.24).addScaledVector(front,reach*.18).addScaledVector(up,reach*.8),entry=mouth.clone().addScaledVector(up,this.length+.1),flip=smoothPhase(t,.90,1),insert=smoothPhase(t,1,1.10);
+    const target=t<.90?this.fromGrip.clone().lerp(high,smoothPhase(t,0,.18)):high.clone().lerp(entry,flip).addScaledVector(right,Math.sin(Math.PI*flip)*reach*.32);
+    if(t>=1)target.copy(entry).lerp(mouth.clone().addScaledVector(up,.1),insert);
+    const delta=target.clone().sub(shoulder);if(delta.length()>reach*.94)target.copy(shoulder).add(delta.setLength(reach*.94));
+    this._hand('Right',target,1);c.root.updateMatrixWorld(true);
+    const grip=hand.getWorldPosition(new Vector3()),rotation=new Quaternion().setFromAxisAngle(front,Math.PI*flip).multiply(new Quaternion().setFromUnitVectors(new Vector3(0,0,1),up));
+    h.sheath.position.copy(mouth);h.sheath.quaternion.setFromUnitVectors(new Vector3(0,0,1),up.clone().negate());
+    if(t>=1){
+      const toward=mouth.clone().sub(grip).normalize(),aimed=new Quaternion().setFromUnitVectors(new Vector3(0,0,1),toward),curve=curvedInsertion(this.curve,grip.distanceTo(mouth),this.length),frame=new Quaternion().setFromUnitVectors(curve.grip.clone().normalize(),new Vector3(0,0,-1));
+      h.sheath.quaternion.copy(aimed).multiply(frame);rotation.copy(h.sheath.quaternion).multiply(curve.rotation);
+    }
+    this.copy.quaternion.copy(rotation);this.copy.position.copy(grip).addScaledVector(new Vector3(0,0,1).applyQuaternion(rotation),.1);this._orientHand(source,hand,rotation,1);
+    this.gripping=t<1.10;
+    if(t>=1.10){
+      h.sheath.updateMatrixWorld(true);this.seated={position:h.sheath.worldToLocal(this.copy.position.clone()),rotation:h.sheath.getWorldQuaternion(new Quaternion()).invert().multiply(this.copy.quaternion)};
+      this._restHand('Right',smoothPhase(t,1.10,1.14));
     }else this.seated=null;
   }
   _restHand(side,weight){

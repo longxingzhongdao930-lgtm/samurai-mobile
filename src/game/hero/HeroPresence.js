@@ -1,3 +1,5 @@
+import { END_SEQUENCE } from './JudgementEndSequence.js';
+import { smoothPhase } from './SheathReference.js';
 import { VergilIaiMotion } from './VergilIaiMotion.js';
 import { Group, Mesh, MeshStandardMaterial, ConeGeometry, CylinderGeometry, SphereGeometry, BufferGeometry, Line, LineBasicMaterial, Vector3, RingGeometry, MeshBasicMaterial, AdditiveBlending, DoubleSide } from 'three';
 import { SheathBody } from './SheathBody.js';
@@ -31,7 +33,10 @@ export class HeroPresence {
   update(dt){
     const g=this.g,p=g.player,c=p.character,arts=p.arts;
     this.root.visible=!p.dead&&!g.form.active;
-    if(!this.root.visible){g.fx?.leftTrail.end();return;}
+    if(!this.root.visible){this.endRecoveryLift=0;g.fx?.leftTrail.end();return;}
+    const ritual=p.techniques?.ritual,recovering=!!(ritual?.end&&ritual.t>=END_SEQUENCE.return||arts.endRecovery&&arts.mode==='sheath');
+    this.endRecoveryLift=recovering?.12*(ritual?smoothPhase(ritual.t,END_SEQUENCE.return,END_SEQUENCE.return+.07):1-smoothPhase(arts.t,.91,1.14)):0;
+    c.tilt.position.y+=this.endRecoveryLift;
     const speed=g.app.controller.speed??0, decel=Math.max(0,this.speed-speed);this.speed=speed;
     const target=p.lockTarget?.alive?p.lockTarget:g._nearest(6);
     let want=target?Math.atan2(target.position.x-c.position.x,target.position.z-c.position.z)-c.facing:0;
@@ -47,7 +52,7 @@ export class HeroPresence {
       if(threat)this.turn(c.getBone('LeftArm'),0,0,.08);
     }
     const groundedIai=p.weapon.id==='katana'&&p.state==='attack'&&(p.move===p.heavy||p.move?.config.swordMotion)&&!p.move?.config.airborne;
-    if((p.state==='free'&&speed<2||groundedIai)&&!(p.techniques?.traversal?.lift>0)&&!c.airHeight&&!c.jump?.locked&&!c.hop?.locked){
+    if(!recovering&&(p.state==='free'&&speed<2||groundedIai)&&!(p.techniques?.traversal?.lift>0)&&!c.airHeight&&!c.jump?.locked&&!c.hop?.locked){
       for(const side of ['Left','Right']){
         const up=c.getBone(side+'UpLeg'),low=c.getBone(side+'Leg'),foot=c.getBone(side+'Foot');if(!up||!low||!foot)continue;
         c.root.updateMatrixWorld(true);const at=foot.getWorldPosition(new Vector3()),ground=g.app.terrain.heightAt(at.x,at.z);
@@ -58,7 +63,7 @@ export class HeroPresence {
     this.sheathBody.update(dt);
     // Keep the supporting feet fixed through insertion and the upright release.
     // Locomotion and airborne actions immediately relinquish these anchors.
-    const planted=p.weapon.id==='katana'&&p.state==='free'&&speed<.1&&['sheath','flourish','sheathed'].includes(arts.mode)&&!c.airHeight&&!c.jump?.locked&&!c.hop?.locked;
+    const planted=!recovering&&!(arts.endRecoveryPose?.weight>0)&&p.weapon.id==='katana'&&p.state==='free'&&speed<.1&&['sheath','flourish','sheathed'].includes(arts.mode)&&!c.airHeight&&!c.jump?.locked&&!c.hop?.locked;
     if(planted){
       c.root.updateMatrixWorld(true);
       if(!this.sheathFeet)this.sheathFeet=['Left','Right'].map(side=>c.getBone(side+'Foot')?.getWorldPosition(new Vector3()));

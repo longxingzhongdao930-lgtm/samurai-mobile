@@ -28,6 +28,15 @@ body.game {
   -webkit-touch-callout: none;
   overscroll-behavior: none;
 }
+body.game button,
+body.game a {
+  touch-action: manipulation;
+}
+/* Include nested labels and the smaller technique buttons in the game pad. */
+body.game .tc,
+body.game .tc * {
+  touch-action: none;
+}
 body.game .hud,
 body.game .target-hotkeys,
 body.game .hint,

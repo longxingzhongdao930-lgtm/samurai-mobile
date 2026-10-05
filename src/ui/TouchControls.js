@@ -27,6 +27,11 @@ export class TouchControls {
     this.input = input;
     this.root = document.createElement('div');
     this.root.className = 'tc';
+    // Inputs are handled by pointer events. Cancel the browser's follow-up
+    // touch gesture so repeated attacks cannot trigger Safari double-tap zoom.
+    const preventZoom = (event) => event.preventDefault();
+    this.root.addEventListener('touchend', preventZoom, { passive: false });
+    this.root.addEventListener('dblclick', preventZoom);
     if (!visible) this.root.classList.add('tc--desktop');
 
     this.stickZone = div('tc-stick-zone', this.root);

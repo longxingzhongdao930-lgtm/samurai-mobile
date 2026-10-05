@@ -4,6 +4,7 @@ import { BladeImpact } from '../../vfx/BladeImpact.js';
 import { DustBurst } from '../../vfx/DustBurst.js';
 import { ShockRing } from '../../vfx/ShockRing.js';
 import { settings } from '../../config/settings.js';
+import { EffectAtlas } from './EffectAtlas.js';
 import { GlowPool } from './GlowPool.js';
 import { SlashTrail } from './SlashTrail.js';
 import { Shards } from './Shards.js';
@@ -26,6 +27,7 @@ export class Effects {
     this.game = game;
     this.group = new Group();
     this.group.name = 'GameFX';
+    this.effectAtlas = new EffectAtlas(this.group);
     const terrain = game.app.terrain;
 
     this.trail = new SlashTrail();
@@ -201,7 +203,17 @@ export class Effects {
 
   update(dt, elapsed) {
     if (!this._bladeBound) this.bindBlade();
-    const p=this.game.player,iai=p.weapon.id==='katana'&&p.state==='attack'&&p.move===p.heavy&&!this.game.form.active;
+    const p=this.game.player,silent=p.state==='attack'&&p.move?.config?.silentIai,iai=!silent&&p.weapon.id==='katana'&&p.state==='attack'&&p.move===p.heavy&&!this.game.form.active;
+    this.effectAtlas.update(dt);
+    if(!silent){this._silentMove=null;this._silentClosed=false;}
+    else {
+      if(this._silentMove!==p.move){this._silentMove=p.move;this._silentClosed=false;}
+      if(!this._silentClosed&&p.move.phase>=.62){
+        this._silentClosed=true;
+        const hand=p.character.getBone('RightHand');
+        if(hand)this.effectAtlas.spawn('71330',hand.getWorldPosition(new Vector3()),.22,.08);
+      }
+    }
     const endCut=!p.techniques?.hidden&&p.techniques?.ritual?.end&&p.techniques.ritual.t>=END_SEQUENCE.travel[0]&&p.techniques.ritual.t<END_SEQUENCE.field;
     const sword=p.weapon.id==='katana'&&p.state==='attack'&&!this.game.form.active;
     const uniforms=this.trail.material.uniforms;
@@ -230,6 +242,7 @@ export class Effects {
     let endDrawing=false;
     if(endCut){const r=p.techniques.ritual,index=END_SEQUENCE.travel.findLastIndex(t=>r.t>=t),end=index<4?END_SEQUENCE.travel[index+1]:END_SEQUENCE.field-.1,phase=Math.max(0,Math.min(1,(r.t-END_SEQUENCE.travel[index])/(end-END_SEQUENCE.travel[index]))),at=p.character.getBone('Hips').getWorldPosition(p.character.position.clone());endDrawing=endStroke(phase).drawing;at.y+=.16;p.techniques.assets.travel(at,p.character.facing,phase);}else p.techniques?.assets.travel(null);
     if(endDrawing){if(!this._endCutTrail)this.trail.begin(.8);this._endCutTrail=true;}else if(this._endCutTrail){this.trail.end();this._endCutTrail=false;}
+    if(silent){this.trail.end();this.leftTrail.end();}
     this.trail.update(dt);
     if(iai)uniforms.uStrength.value=this._iaiStrength;
     this.leftTrail.update(dt);
@@ -248,6 +261,8 @@ export class Effects {
   }
 
   clear() {
+    this.effectAtlas.clear();
+    this._silentMove=null;this._silentClosed=false;
     this.glow.clear();
     this.hitSparks.clear();
     this.parrySparks.clear();
@@ -261,6 +276,7 @@ export class Effects {
   }
 
   dispose() {
+    this.effectAtlas.dispose();
     this.trail.dispose();
     this.leftTrail.dispose();
     this.glow.dispose();

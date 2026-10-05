@@ -1,0 +1,42 @@
+[
+  {
+    "name": "127578",
+    "duration": 3.0,
+    "sha256": "e35f54cf7653f0983052919d19e7c852b653f8d1e3607db8b75b14e838b64b71",
+    "frames": 16,
+    "atlas": "/textures/fx/127578.webp",
+    "sampleFps": 12
+  },
+  {
+    "name": "71330",
+    "duration": 10.033333,
+    "sha256": "2d1ee50239806dff623358d5f0bef4c918da88ac1c4633ee822a853b80dd668b",
+    "frames": 16,
+    "atlas": "/textures/fx/71330.webp",
+    "sampleFps": 12
+  },
+  {
+    "name": "127577",
+    "duration": 3.0,
+    "sha256": "f28c450891d80327be2f34e9509eb2149af3015e837b235096401b5af1f1416f",
+    "frames": 16,
+    "atlas": "/textures/fx/127577.webp",
+    "sampleFps": 12
+  },
+  {
+    "name": "220078",
+    "duration": 3.0,
+    "sha256": "28e2b559e2f6f7261c073ff9dd9c1f500fbe23ff5311f7e13a59baa0693ad76d",
+    "frames": 16,
+    "atlas": "/textures/fx/220078.webp",
+    "sampleFps": 12
+  },
+  {
+    "name": "182612",
+    "duration": 3.233333,
+    "sha256": "fff74aa76b636417e5e19c10412deb53de58be25dd98f83bc7d52f1ca06639cf",
+    "frames": 16,
+    "atlas": "/textures/fx/182612.webp",
+    "sampleFps": 12
+  }
+]

@@ -1,6 +1,7 @@
 import { nameMotion } from '../hero/MotionCatalog.js';
 import { VergilTechniques } from '../hero/VergilTechniques.js';
 import { swordBodyClip, swordConfig } from '../hero/SwordMoves.js';
+import { usesSilentIai, silentIaiConfig, silentIaiClip } from '../hero/SilentIai.js';
 import { vergilIaiStance, vergilIaiCut } from '../hero/VergilIai.js';
 import { jumpAttack } from '../data/jump-attacks.js';
 import { nextWeapon } from './WeaponCycle.js';
@@ -118,6 +119,7 @@ export class PlayerCombat {
       if(imported&&character.clips.has(imported)){animation=clip(imported);const hit=character.clips.get(imported).userData?.hitPhase??config.hits[0];config={...config,referenceMotion:imported,clipFrom:0,clipTo:1,timeScale:1,hits:[hit],warpAt:hit,autoSheath:true,recoverAt:1,cancelAt:1};}else if(config.referenceMotion){config={...config,referenceMotion:null};}
       if(!config.referenceMotion&&config.id==='heavy'&&this.weapon.id==='katana'&&config.clip==='crouchSlash')animation=vergilIaiCut(animation,vergilIaiStance(character.clips.get('crouch'),character.clips.get('idle')),character.clips.get('idle'),1.25);
       if(config.airborne&&animation)animation.tracks=animation.tracks.filter(track=>/(?:Spine\d*|(?:Left|Right)(?:Shoulder|Arm|ForeArm|Hand)(?:\w*))\.quaternion$/i.test(track.name));
+      if(this.weapon.id==='katana'&&!config.airborne&&usesSilentIai(config.id)){config=silentIaiConfig(config);animation=silentIaiClip(character.clips.get('idle'),character.clips.get('crouch'),config.id);}
       return new Attack(mixer,nameMotion(animation,config.id),character,{config,onStrike});
     };
 
@@ -623,7 +625,7 @@ export class PlayerCombat {
     this.state = move === this.cast ? 'cast' : 'attack';
     this.stateTime = 0;
     this._held.warp = move.warp;
-    if (move.config.sfx && move !== this.cast) {
+    if (move.config.sfx && move !== this.cast && !move.config.silentIai) {
       this.game.audio?.play('swing', { volume: move === this.heavy ? 1 : 0.75, pitch: move.config.timeScale > 1.8 ? 1.15 : 1 });
     }
     this.game.fx?.trail.begin(move.config.trail ? (move === this.heavy ? 1.5 : 1) : 0);
@@ -657,6 +659,7 @@ export class PlayerCombat {
   /** A contact frame of a move: sweep everything in its arc. */
   _onStrike(move, index) {
     const config = move.config;
+    if(config.silentIai&&index===0)this.game.audio?.play('block',{volume:.15,pitch:1.8});
     if (move === this.cast) {
       const from = this._bow ? this.game.bow.release(_from) : null;
       this.game.magic.cast(this.element, move.target ?? this.lockTarget, from);
@@ -1024,11 +1027,13 @@ export class PlayerCombat {
   }
 
   _toFree() {
+    const silent=this.move?.config.silentIai;
     const fromCombo = this.state === 'attack' && this.move && (this.combo.includes(this.move)||this.move===this.branchB||this.move===this.branchC);
     this.state = 'free';
     this.stateTime = 0;
     this.move = null;
     this.swordOpeningLink = null;
+    if(silent&&this.arts){this.arts.mode='sheathed';this.arts.t=0;}
     if (fromCombo) this._comboGrace = 0.45;
     else this.comboIndex = -1;
     this.hurtPose.stop();

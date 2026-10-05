@@ -33,6 +33,7 @@ export class VergilIaiMotion {
   constructor(presence){this.h=presence;}
   update(){
     const h=this.h,g=h.g,p=g.player,c=p.character;
+    if(p.state==='attack'&&p.move?.config?.silentIai)return;
     const taunt=p.techniques.taunt;
     if(taunt){const arm=c.getBone('RightArm'),fore=c.getBone('RightForeArm'),hand=c.getBone('RightHand'),left=c.getBone('LeftHand'),hips=c.getBone('Hips'),source=g.weapons.blade();if(arm&&fore&&hand&&left&&hips&&source){c.root.updateMatrixWorld(true);const shoulder=arm.getWorldPosition(new Vector3()),reach=shoulder.distanceTo(fore.getWorldPosition(new Vector3()))+fore.getWorldPosition(new Vector3()).distanceTo(hand.getWorldPosition(new Vector3())),yaw=c.facing,w=smoothPhase(taunt.t,0,.32),front=new Vector3(Math.sin(yaw),0,Math.cos(yaw));const mouth=hips.getWorldPosition(new Vector3()).add(new Vector3(Math.cos(yaw)*.08,.22,-Math.sin(yaw)*.08)).addScaledVector(front,.25);h.katanaSheath._hand('Left',mouth,w);h.katanaSheath._hand('Right',shoulder.add(new Vector3(-Math.cos(yaw)*reach*.25,reach*.8,Math.sin(yaw)*reach*.25)).addScaledVector(front,reach*.25),w);c.root.updateMatrixWorld(true);const direction=left.getWorldPosition(new Vector3()).sub(hand.getWorldPosition(new Vector3())).normalize();h.katanaSheath._orientHand(source,hand,new Quaternion().setFromUnitVectors(new Vector3(0,0,1),direction),w);}return;}
     const ritual=p.techniques.ritual;

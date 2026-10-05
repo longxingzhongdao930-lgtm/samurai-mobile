@@ -3,6 +3,7 @@ import { Box3, Quaternion, Vector3 } from 'three';
 import { ik } from '../combat/WeaponMotion.js';
 import { smoothPhase, judgementDrawDistance } from './SheathReference.js';
 import { bladeCurve, curvedInsertion } from './SheathCurve.js';
+import { silentDrawDistance } from './SilentIai.js';
 
 const smooth = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 export const SHEATH_SECONDS = .75;
@@ -16,6 +17,7 @@ export class KatanaSheath {
   update(dt = 1 / 60) {
     const h = this.presence, g = h.g, p = g.player, c = p.character;
     const yaw = c.facing;
+    const silent=p.state==='attack'&&p.move?.config?.silentIai;
     const mouth = c.position.clone().add(new Vector3(Math.cos(yaw) * .25 + Math.sin(yaw) * .12, .95, -Math.sin(yaw) * .25 + Math.cos(yaw) * .12));
     const hips = c.getBone('Hips');
     if (hips) {
@@ -107,7 +109,7 @@ export class KatanaSheath {
       this._hand('Left',mouth,weight);
     }
     const source = this.source?.() ?? g.weapons.blade?.() ?? g.weapons._slot()?.model;
-    const active = p.weapon.id === 'katana' && (['sheath', 'flourish', 'sheathed', 'charge'].includes(p.arts.mode)||p.techniques?.ritual?.chargeRemaining>0) && !p.dead && !g.form.active;
+    const active = p.weapon.id === 'katana' && (silent||['sheath', 'flourish', 'sheathed', 'charge'].includes(p.arts.mode)||p.techniques?.ritual?.chargeRemaining>0) && !p.dead && !g.form.active;
     if (!source) return;
     if (p.weapon.id === 'katana' && source.parent && c.getBone(this.side+'Hand')) {
       c.root.updateMatrixWorld(true);
@@ -214,14 +216,14 @@ export class KatanaSheath {
     if(!this.active)this.fromGrip=c.getBone(this.side+'Hand')?.getWorldPosition(new Vector3());
     this.active = true; source.visible = false; this.copy.visible = true;
     const profile=this.reference,endCharging=p.techniques?.ritual?.chargeRemaining>0;
-    const t = (endCharging||['sheathed', 'charge'].includes(p.arts.mode)) ? (profile?.end??SHEATH_SECONDS) : p.arts.t - (p.arts.mode === 'flourish' ? flourishSeconds : 0);
+    const t = (silent||endCharging||['sheathed', 'charge'].includes(p.arts.mode)) ? (profile?.end??SHEATH_SECONDS) : p.arts.t - (p.arts.mode === 'flourish' ? flourishSeconds : 0);
     if(p.arts.endRecovery&&p.arts.mode==='sheath'){this._endSheath(source,t);return;}
     const align = profile?smoothPhase(t,profile.retract,profile.align):this.staged?smooth((t-.18)/.16):smooth(t / .22), insert = profile?smoothPhase(t,profile.align,profile.insert):this.staged?smooth((t-.34)/.31):smooth((t - .22) / .43);
-    const relax=profile&&p.arts.mode!=='charge'&&!endCharging?smoothPhase(t,profile.relax,profile.end):0;
+    const relax=profile&&p.arts.mode!=='charge'&&!endCharging&&!silent?smoothPhase(t,profile.relax,profile.end):0;
     this.gripping=relax===0;
     // A finished sheath is a separate state. Do not first pull the wrists
     // back onto the hilt/mouth every frame and then try to release them.
-    if(profile&&p.arts.mode==='sheathed'){
+    if(profile&&p.arts.mode==='sheathed'&&!silent){
       this.seated??={position:new Vector3(),rotation:new Quaternion()};
       this.gripping=false;
       if((g.app.controller.speed??0)<.1)this._restHand(this.side,1);
@@ -240,6 +242,7 @@ export class KatanaSheath {
     for (const [side, target] of [['Left', mouth], ['Right', grip]]) {
       this._hand(side, target, profile?(side==='Left'&&!profile.handheld?smoothPhase(t,0,.24):0):this.staged?0:align);
     }
+    if(silent)this._hand('Left',mouth,1);
     // IK deliberately blends during alignment and cannot reach every point of
     // the old straight-line path. The rigid sword must stay in the real hand,
     // rather than moving ahead of the wrist while that blend catches up.
@@ -255,8 +258,8 @@ export class KatanaSheath {
       const retract=this.reference?.handheld?away.multiplyScalar(reach*.32).add(new Vector3(Math.sin(yaw)*reach*.18,reach*.65,Math.cos(yaw)*reach*.18)):this.reference?away.multiplyScalar(reach*.86).add(new Vector3(Math.sin(yaw)*reach*.3,-.03,Math.cos(yaw)*reach*.3)):away.setLength(reach);
       const outside=shoulder.clone().add(retract);
       // Hold a short visible blade section between the guard and mouth.
-      const ritual=p.techniques?.ritual,draw=ritual&&!ritual.end?judgementDrawDistance(ritual.t):0;
-      const finalGrip=mouth.clone().addScaledVector(axis,(p.arts.mode==='charge'||endCharging)?-(.19+draw):-.1);
+      const ritual=p.techniques?.ritual,draw=silent?silentDrawDistance(p.move.phase):ritual&&!ritual.end?judgementDrawDistance(ritual.t):0;
+      const finalGrip=mouth.clone().addScaledVector(axis,silent?-(.1+draw):(p.arts.mode==='charge'||endCharging)?-(.19+draw):-.1);
       const lifted=this.fromGrip.clone().add(new Vector3(Math.sin(yaw)*.2,.2,Math.cos(yaw)*.2));
       const liftEnd=profile?.lift??.08,retractEnd=profile?.retract??.18;
       const target=t<liftEnd?this.fromGrip.clone().lerp(lifted,smooth(t/liftEnd)):t<retractEnd?lifted.lerp(outside,smooth((t-liftEnd)/(retractEnd-liftEnd))):outside.lerp(finalGrip,insert);
@@ -296,6 +299,7 @@ export class KatanaSheath {
       this.copy.position.copy(h.sheath.localToWorld(this.seated.position.clone()));
       this.copy.quaternion.copy(h.sheath.getWorldQuaternion(new Quaternion())).multiply(this.seated.rotation);
     }else this.seated=null;
+    if(silent&&p.move.phase>=.62){h.sheath.updateMatrixWorld(true);this.seated={position:h.sheath.worldToLocal(this.copy.position.clone()),rotation:h.sheath.getWorldQuaternion(new Quaternion()).invert().multiply(this.copy.quaternion)};}
   }
   _endSheath(source,t){
     const h=this.presence,c=h.g.player.character,yaw=c.facing,right=new Vector3(-Math.cos(yaw),0,Math.sin(yaw)),front=new Vector3(Math.sin(yaw),0,Math.cos(yaw)),up=new Vector3(0,1,0),hips=c.getBone('Hips'),hand=c.getBone('RightHand'),arm=c.getBone('RightArm'),fore=c.getBone('RightForeArm');

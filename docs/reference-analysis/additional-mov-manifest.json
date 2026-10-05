@@ -1,0 +1,130 @@
+[
+  {
+    "name": "NSAW2066",
+    "duration": 5.34,
+    "sha256": "7b921245477ef5442b921f29655a7be8037f80d10288f29801158b2a8e94152e",
+    "observedTechnique": "Aerial Rave B",
+    "state": "\u901a\u5e38",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  },
+  {
+    "name": "ITDQ9391",
+    "duration": 5.366667,
+    "sha256": "1cd512283ed7c61a488ca18ecc15e20a95666fbc717d8194b3912022710063ec",
+    "observedTechnique": "Combo B",
+    "state": "SDT",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  },
+  {
+    "name": "IVOHE0645",
+    "duration": 7.086667,
+    "sha256": "0c33648005663c630db3d33f8f40d6b58774e6b1092ee7568b42485bdb26c42e",
+    "observedTechnique": "Judgement Cut End",
+    "state": "\u901a\u5e38",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  },
+  {
+    "name": "OYNQ5639",
+    "duration": 7.555011,
+    "sha256": "d3c22cacc64cc1069feb00e0f159b1c1ffae1c2d22a77e14ccb34518fb5f6d48",
+    "observedTechnique": "Combo C",
+    "state": "\u901a\u5e38",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  },
+  {
+    "name": "TTME2990",
+    "duration": 4.246667,
+    "sha256": "874d0384f57673114bcfd2d72db4dd8f2210d9f076e13841f126259608416712",
+    "observedTechnique": "Void Slash",
+    "state": "\u901a\u5e38",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  },
+  {
+    "name": "TRTP6048",
+    "duration": 7.581667,
+    "sha256": "e4c17bc2df3da5246015f006d19fbcb02703237c50bc34c8b3eb89d9b09b6ab3",
+    "observedTechnique": "Upper Slash",
+    "state": "\u901a\u5e38\u3068SDT",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  },
+  {
+    "name": "CTXR0147",
+    "duration": 8.186667,
+    "sha256": "2219702f5d6c5ab6c7d779fb5233408d7c18a6beebdd5ea90a9dc469d3f46d68",
+    "observedTechnique": "Combo A",
+    "state": "SDT",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  },
+  {
+    "name": "DETM0706",
+    "duration": 4.403333,
+    "sha256": "f0abe6ea8fa617dbd7cb3724db6f26d012ef2cae2bfd64a785cf7c1ae847d901",
+    "observedTechnique": "Judgement Cut",
+    "state": "SDT",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  },
+  {
+    "name": "QUIV3578",
+    "duration": 2.71,
+    "sha256": "6f93efc93bd35a193094c9838900a8f6879abe31b2f1713665a3164b97491dad",
+    "observedTechnique": "Judgement Cut",
+    "state": "\u901a\u5e38",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  },
+  {
+    "name": "MFSJ9171",
+    "duration": 3.283333,
+    "sha256": "7558100d529bbe03071e3e8f165bcd354ce0f9341a3163bfa5ae6b90e1b697bc",
+    "observedTechnique": "Rising Star",
+    "state": "\u901a\u5e38",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  },
+  {
+    "name": "SCOO2933",
+    "duration": 2.865011,
+    "sha256": "fce00a3e30742e1cda89dfcefc58207d73308d8bde384446b580dd5cfb7c1063",
+    "observedTechnique": "Rapid Slash",
+    "state": "\u901a\u5e38",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  },
+  {
+    "name": "VOFY8026",
+    "duration": 4.238345,
+    "sha256": "aaa1f2361ba34511837d5d9f2f4151119f3e881547fa89c0ff886c6fc9541686",
+    "observedTechnique": "Aerial Rave A",
+    "state": "\u901a\u5e38",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  },
+  {
+    "name": "XDYS1344",
+    "duration": 5.301678,
+    "sha256": "29659ab4dc5f4d79a2451133d19fb5477f814a193118d1c7d654a679621ab63f",
+    "observedTechnique": "Combo A",
+    "state": "\u901a\u5e38",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  },
+  {
+    "name": "FUWF8495",
+    "duration": 9.456667,
+    "sha256": "f64b8bd175ceeff6a717a3c2c6ac8eab7abb9c7ab4af19a9ab181c3267e420ff",
+    "observedTechnique": "Rapid Slash",
+    "state": "SDT",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  },
+  {
+    "name": "DFQP5066",
+    "duration": 6.565011,
+    "sha256": "24643c4ed229ad0a3d8078b9c0ccfa860c105603802b628324bac3080da75e6c",
+    "observedTechnique": "Combo C",
+    "state": "SDT",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  },
+  {
+    "name": "JMIG3350",
+    "duration": 6.435011,
+    "sha256": "545189efac6f46e33bbf4a21789bd2abf24538a4823d46de7c903a5934237fcc",
+    "observedTechnique": "Upper Slash 2 / Aerial Cleave",
+    "state": "\u901a\u5e38",
+    "review": "Four sampled frames; timing and complete trace not certified."
+  }
+]
